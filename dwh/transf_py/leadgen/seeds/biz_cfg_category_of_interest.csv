@@ -1,0 +1,7 @@
+country,rule_order,offering,company_type,pool_focus,category_of_interest
+,1,BOTH,,,Pool Products & Services
+,2,PRODUCTS,,,Pool Products
+,3,SERVICES,MAINTENANCE_OR_PREFAB,,Pool Care
+,4,SERVICES,BUILDER_INSTALLER_SHOP,PARTIAL,Construction
+,5,SERVICES,,,Pool Services
+,6,,,,Pool Services

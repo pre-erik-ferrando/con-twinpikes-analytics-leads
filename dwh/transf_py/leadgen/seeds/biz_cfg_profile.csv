@@ -1,0 +1,6 @@
+country,profile_code,label,notes,active
+,POOL_SPECIALIST,Pool specialist,Rules of DF.5 (the only profile with rules),1
+,POOL_SPA,Pool & Spa,[PENDIENTE TWP] terms exclusions and rules,0
+,HVAC,HVAC,[PENDIENTE TWP] terms exclusions and rules; max_leads mandatory,0
+,MASS_MARKET,Mass market,[PENDIENTE TWP] terms exclusions and rules,0
+,POND,Pond,[PENDIENTE TWP] terms exclusions and rules,0

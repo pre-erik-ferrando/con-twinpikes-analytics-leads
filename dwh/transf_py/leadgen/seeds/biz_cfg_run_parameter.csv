@@ -1,0 +1,62 @@
+country,parameter,value,value_type,unit,notes
+,apify_max_total_charge_usd,25,FLOAT,USD,[PROPUESTA] per run; split among its queries
+,apify_actor_build,0.14.793,STRING,,[PROPUESTA] the build our input fields were checked against (2026-11)
+,apify_language,de,STRING,,[PENDIENTE] after the language test; IMPORT_LIST only (CAPTURE uses the subregion's language)
+,apify_price_per_place_usd,0.007,FLOAT,USD,[PROPUESTA] for the estimate only
+,default_max_places_per_search,50,INT,,default of the launch form
+,customer_extract_max_age_days,35,INT,days,review DT.5: block above 35 unless approved
+,customer_extract_warn_age_days,31,INT,days,review DT.5: warning from 31
+,customer_test_name_patterns,"test,prueba,dummy,xxx",LIST,,
+,run_request_poll_interval_s,60,INT,s,only with biz_run_request
+,html_retention_days,365,INT,days,
+,llm_response_retention_days,365,INT,days,
+,sweep_max_passes,3,INT,,
+,sweep_min_new_ratio,0.05,FLOAT,,
+,merge_name_similarity_min,30,FLOAT,,[PROPUESTA] calibrate with the pilot
+,merge_max_distance_m,500,FLOAT,m,[PROPUESTA] calibrate with the pilot
+,crawl_max_depth,3,INT,,
+,crawl_max_pages,50,INT,,
+,crawl_max_bytes,10,INT,MB,
+,crawl_requests_per_second,1,FLOAT,,
+,crawl_page_timeout_s,15,FLOAT,s,
+,crawl_max_retries,2,INT,,
+,crawl_domain_time_cap_s,300,FLOAT,s,
+,crawl_max_consecutive_failures,5,INT,,
+,crawl_max_redirects,3,INT,,
+,render_text_threshold_chars,500,INT,chars,
+,render_max_pages,20,INT,,
+,render_page_timeout_s,30,FLOAT,s,
+,web_cache_ttl_days,180,FLOAT,days,
+,token_budget_per_page,4000,INT,tokens,
+,token_budget_per_domain,30000,INT,tokens,
+,char_cap_per_domain,100000,INT,chars,
+,brand_snippet_reserve_ratio,0.10,FLOAT,,
+,brand_snippets_per_brand,3,INT,,
+,brand_snippet_chars,200,INT,chars,
+,max_candidates_per_request,5,INT,,
+,llm_provider,ANTHROPIC,STRING,,[PENDIENTE] in the definition
+,llm_model,claude-opus-5-5,STRING,,[PENDIENTE] in the definition
+,llm_effort,low,STRING,,reasoning cannot be disabled on the current models: lowest effort instead
+,llm_fallbacks,true,BOOL,,server-side fallback on a refusal (DIRECT only)
+,llm_max_tokens_out,2000,INT,tokens,
+,llm_max_tokens_retry,4000,INT,tokens,
+,llm_mode_default,AUTO,STRING,,
+,llm_direct_max_requests,50,INT,,
+,llm_direct_concurrency,5,INT,,
+,llm_batch_max_requests,2000,INT,,
+,llm_price_in_per_mtok,4.0,FLOAT,USD,for the estimate
+,llm_price_out_per_mtok,20.0,FLOAT,USD,for the estimate
+,llm_price_cache_read_per_mtok,0.20,FLOAT,USD,for the estimate
+,llm_price_cache_write_per_mtok,5.0,FLOAT,USD,actual cost; 5-minute cache write = 1.25 x input
+,batch_poll_interval_min,15,INT,min,
+,cost_approval_threshold_usd,10,FLOAT,USD,
+,cost_overrun_ratio,0.20,FLOAT,,
+,llm_max_charge_usd,,FLOAT,USD,[PENDIENTE]
+,vies_max_retries,3,INT,,
+,vies_max_requests_per_second,5,INT,,
+,review_reference_min_n,30,INT,,
+,review_p75_provisional,34.8,FLOAT,,Austria (TWP)
+,review_median_provisional,10.5,FLOAT,,Austria (TWP)
+,import_match_min_similarity,85,FLOAT,,[PROPUESTA] review DT.3.5
+,fluidra_entity_ids,,LIST,,[PENDIENTE] VAT / register ids of the Fluidra companies
+,notification_recipients,,LIST,,optional notice

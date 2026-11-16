@@ -1,0 +1,25 @@
+country,signal,strength,threshold,notes
+DE,VAT,HARD,,
+DE,REGISTER,HARD,,
+DE,PHONE,HARD,,
+DE,DOMAIN,HARD,,
+DE,FLUIDRA_ENTITY,HARD,,
+DE,NAME_EXACT,SOFT,,
+DE,NAME_FUZZY,SOFT,85,token_sort_ratio and one distinctive word in common
+DE,NAME_CONFIRM,SOFT,92,confirms without the model with same postal code or city
+AT,VAT,HARD,,
+AT,REGISTER,HARD,,
+AT,PHONE,HARD,,
+AT,DOMAIN,HARD,,
+AT,FLUIDRA_ENTITY,HARD,,
+AT,NAME_EXACT,SOFT,,
+AT,NAME_FUZZY,SOFT,85,token_sort_ratio and one distinctive word in common
+AT,NAME_CONFIRM,SOFT,92,confirms without the model with same postal code or city
+CH,VAT,HARD,,
+CH,REGISTER,HARD,,
+CH,PHONE,HARD,,
+CH,DOMAIN,HARD,,
+CH,FLUIDRA_ENTITY,HARD,,
+CH,NAME_EXACT,SOFT,,
+CH,NAME_FUZZY,SOFT,85,token_sort_ratio and one distinctive word in common
+CH,NAME_CONFIRM,SOFT,92,confirms without the model with same postal code or city

@@ -1,0 +1,25 @@
+country,target,column_order,column_name,source_kind,source_value,source_field,default_value,format
+,SALESFORCE,1,Lead Source,CONSTANT,Web Scraping,,,TEXT
+,SALESFORCE,2,Last Name,FIELD,last_name,,,TEXT
+,SALESFORCE,3,Company,FIELD,company_google,,,TEXT
+,SALESFORCE,4,Owner Last Name,FIELD,owner_last_name,,,TEXT
+,SALESFORCE,5,Owner First Name,FIELD,owner_first_name,,,TEXT
+,SALESFORCE,6,Currency,FIELD,currency,,,TEXT
+,SALESFORCE,7,Annual Revenue,CONSTANT,,,,TEXT
+,SALESFORCE,8,Rating,VALUE_MAP,SF_RATING,rating,,TEXT
+,SALESFORCE,9,Street,FIELD,street,,,TEXT
+,SALESFORCE,10,City,FIELD,city,,,TEXT
+,SALESFORCE,11,Zip Code,FIELD,zip_code,,,TEXT
+,SALESFORCE,12,Province,FIELD,province,,,TEXT
+,SALESFORCE,13,Country,VALUE_MAP,SF_COUNTRY,country_code,,TEXT
+,SALESFORCE,14,Lead Status,VALUE_MAP,SF_LEAD_STATUS,lead_status,,TEXT
+,SALESFORCE,15,Category of Interest,FIELD,category_of_interest,,,TEXT
+,SALESFORCE,16,Family Comments,FIELD,family_comments,,,TEXT
+,SALESFORCE,17,Phone,FIELD,phone,,,TEXT
+,SALESFORCE,18,Mobile,FIELD,mobile,,,TEXT
+,SALESFORCE,19,Email,FIELD,email,,,TEXT
+,SALESFORCE,20,Website,FIELD,website,,,TEXT
+,SALESFORCE,21,E-Commerce,VALUE_MAP,SF_ECOMMERCE,has_ecommerce,,BOOLEAN_TEXT
+,SALESFORCE,22,Department,CONSTANT,Purchase Department,,,TEXT
+,SALESFORCE,23,Created Date,FIELD,created_date,,,DATE
+,SALESFORCE,24,Lead code,FIELD,lead_code,,,TEXT

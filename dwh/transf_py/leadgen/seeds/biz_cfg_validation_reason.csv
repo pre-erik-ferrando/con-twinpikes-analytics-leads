@@ -1,0 +1,7 @@
+country,reason_code,label,requires_customer_code,requires_duplicate_of,applies_to_profiles
+,ALREADY_CUSTOMER,Already a customer,1,0,
+,KA_CHAIN,Key Accounts chain,0,0,
+,DUPLICATE,Duplicate,0,1,
+,HOT_TUB_SAUNA_ONLY,Hot tubs or saunas only,0,0,POOL_SPECIALIST
+,NOT_VALID,Not valid: does not sell pool products,0,0,POOL_SPECIALIST
+,BUSINESS_CLOSED,Business closed,0,0,

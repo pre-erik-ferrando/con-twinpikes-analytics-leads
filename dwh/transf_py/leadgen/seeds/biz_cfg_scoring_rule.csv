@@ -1,0 +1,24 @@
+country,profile,factor,bucket_code,bucket_description,points,sort_order
+,POOL_SPECIALIST,COMPANY_TYPE,BUILDER_INSTALLER_SHOP,"Builder, installer or shop that buys equipment, chemicals or spare parts",10,1
+,POOL_SPECIALIST,COMPANY_TYPE,MAINTENANCE_OR_PREFAB,Maintenance only or prefabricated pools,5,2
+,POOL_SPECIALIST,COMPANY_TYPE,WEAK_UNVERIFIED,Weak or unverified profile,2.5,3
+,,BRANDS,GROUP_1,"Group 1, professional equipment and chemicals",7.5,1
+,,BRANDS,GROUP_2,"Group 2, second line",5,2
+,,BRANDS,GROUP_3,"Group 3, consumer and DIY",2.5,3
+,,BRANDS,NONE,No competitor brand,0,4
+,,ZONE,ATTACK,Attack,7.5,1
+,,ZONE,ACTIVATE,Activate,5,2
+,,ZONE,DEFEND,Defend,2.5,3
+,,ZONE,OPTIMIZE,Optimize,1,4
+,,ZONE,NONE,No zone,0,5
+,,DIGITAL,ECOMMERCE,Online shop,5,1
+,,DIGITAL,OWN_WEBSITE,Own website without shop,2.5,2
+,,DIGITAL,NONE,No website,0,3
+,,CONTACT,PERSON_EMAIL_PHONE,"Person, email and phone",5,1
+,,CONTACT,EMAIL_PHONE,Email and phone,3,2
+,,CONTACT,ANY,Any other case with at least one item,1,3
+,,CONTACT,NONE,No contact data,0,4
+,,REVIEWS,ABOVE_P75,Top 25% by Google reviews in the country,2.5,1
+,,REVIEWS,ABOVE_MEDIAN,Top 50% by Google reviews in the country,1.5,2
+,,REVIEWS,ANY,At least 1 review,0.5,3
+,,REVIEWS,NONE,No reviews,0,4

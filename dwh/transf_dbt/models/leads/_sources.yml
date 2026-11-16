@@ -1,0 +1,862 @@
+# GENERATED from dwh/transf_py/leadgen/ddl.py by `python -m leadgen.ddl > …/_sources.yml`.
+# Do not edit by hand: change ddl.py and regenerate.
+version: 2
+
+sources:
+  - name: landing
+    schema: fld_landinglgn
+    tables:
+      - name: gmaps_run
+        description: "One actor call, with the complete input sent and its cost"
+        columns:
+          - name: apify_run_id
+          - name: run_id
+          - name: query_id
+          - name: actor_build
+          - name: input_json
+          - name: status
+          - name: cost_usd
+          - name: n_items
+          - name: started_at
+          - name: finished_at
+          - name: loaded_at
+      - name: gmaps_place
+        description: "One actor item, complete JSON"
+        columns:
+          - name: run_id
+          - name: apify_run_id
+          - name: query_id
+          - name: place_id
+          - name: item_json
+          - name: loaded_at
+      - name: customer_extract_file
+        description: "One customer extract file"
+        columns:
+          - name: extract_id
+          - name: country
+          - name: subsidiary_code
+          - name: source_system
+          - name: extract_date
+          - name: file_name
+          - name: loaded_by
+          - name: loaded_at
+      - name: customer_extract_row
+        description: "One extract row as received, columns as a JSON map of text"
+        columns:
+          - name: extract_id
+          - name: source_row_id
+          - name: row_json
+          - name: loaded_at
+      - name: cockpit_export_file
+        description: "One complete Market Cockpit CSV"
+        columns:
+          - name: cockpit_file_id
+          - name: country
+          - name: exported_at
+          - name: file_name
+          - name: loaded_by
+          - name: loaded_at
+      - name: cockpit_export_row
+        description: "One cockpit row as received"
+        columns:
+          - name: cockpit_file_id
+          - name: source_row_id
+          - name: lead_code
+          - name: row_json
+          - name: loaded_at
+      - name: import_list_file
+        description: "One own list of companies (Import list)"
+        columns:
+          - name: import_file_id
+          - name: country
+          - name: profile
+          - name: file_name
+          - name: loaded_by
+          - name: loaded_at
+      - name: import_list_row
+        description: "One row of an own list"
+        columns:
+          - name: import_file_id
+          - name: source_row_id
+          - name: row_json
+          - name: loaded_at
+      - name: web_crawl
+        description: "One crawl of a domain"
+        columns:
+          - name: crawl_id
+          - name: run_id
+          - name: domain
+          - name: start_url
+          - name: final_url
+          - name: final_domain
+          - name: crawl_status
+          - name: render_method
+          - name: n_pages
+          - name: n_bytes
+          - name: limits_json
+          - name: started_at
+          - name: finished_at
+          - name: loaded_at
+      - name: web_page
+        description: "One downloaded page, compressed HTML"
+        columns:
+          - name: crawl_id
+          - name: url
+          - name: depth
+          - name: status_code
+          - name: content_type
+          - name: html
+          - name: text_chars
+          - name: content_hash
+          - name: fetched_at
+          - name: loaded_at
+      - name: llm_request
+        description: "The exact request sent to the model"
+        columns:
+          - name: batch_id
+          - name: custom_id
+          - name: run_id
+          - name: business_id
+          - name: profile
+          - name: prompt_version
+          - name: brand_list_hash
+          - name: candidates_hash
+          - name: domain
+          - name: content_hash
+          - name: request_json
+          - name: n_input_tokens_est
+          - name: loaded_at
+      - name: llm_response
+        description: "The complete model response"
+        columns:
+          - name: batch_id
+          - name: custom_id
+          - name: attempt
+          - name: status
+          - name: stop_reason
+          - name: response_json
+          - name: input_tokens
+          - name: output_tokens
+          - name: cache_read_tokens
+          - name: cache_write_tokens
+          - name: error
+          - name: loaded_at
+      - name: reference_geo
+        description: "Official boundaries (GeoJSON)"
+        columns:
+          - name: source
+          - name: country
+          - name: version
+          - name: admin_level
+          - name: admin_code
+          - name: admin_name
+          - name: parent_code
+          - name: geometry_json
+          - name: loaded_at
+      - name: landing_meta
+        description: "Stamp per entity and run"
+        columns:
+          - name: run_id
+          - name: entity
+          - name: n_rows
+          - name: loaded_at
+  - name: ops
+    schema: fld_opslgn
+    tables:
+      - name: pipeline_run
+        description: "One row per state change of every run"
+        columns:
+          - name: run_id
+          - name: run_type
+          - name: state
+          - name: country
+          - name: profile
+          - name: capture_batch_id
+          - name: snapshot_id
+          - name: request_json
+          - name: message
+          - name: requested_by
+          - name: inserted_at
+      - name: config_snapshot
+        description: "Per run and config table, max(inserted_at) at start"
+        columns:
+          - name: snapshot_id
+          - name: run_id
+          - name: snapshot_at
+          - name: table_name
+          - name: max_inserted_at
+          - name: inserted_at
+      - name: search_query_log
+        description: "Every actor query"
+        columns:
+          - name: run_id
+          - name: query_id
+          - name: capture_batch_id
+          - name: country
+          - name: profile
+          - name: term
+          - name: area_id
+          - name: language
+          - name: max_places
+          - name: pass_no
+          - name: n_results
+          - name: n_new
+          - name: is_saturated
+          - name: is_saturated_at_leaf
+          - name: apify_run_id
+          - name: inserted_at
+      - name: llm_batch
+        description: "Each submission to the model; PREPARING written before the call"
+        columns:
+          - name: batch_id
+          - name: run_id
+          - name: provider
+          - name: model
+          - name: mode
+          - name: status
+          - name: external_id
+          - name: custom_ids
+          - name: n_requests
+          - name: cost_usd
+          - name: inserted_at
+      - name: cost_ledger
+        description: "Estimated and actual cost per run and provider"
+        columns:
+          - name: run_id
+          - name: provider
+          - name: kind
+          - name: amount_usd
+          - name: detail
+          - name: inserted_at
+      - name: suppression_list
+        description: "Resolved from biz_suppression_request"
+        columns:
+          - name: business_id
+          - name: place_id
+          - name: phone
+          - name: domain
+          - name: reason
+          - name: inserted_at
+      - name: seed_load
+        description: "Each seed load"
+        columns:
+          - name: seed_version
+          - name: table_name
+          - name: n_rows
+          - name: file_name
+          - name: overwrite
+          - name: loaded_by
+          - name: inserted_at
+      - name: export_log
+        description: "Each generated file and its upload confirmation"
+        columns:
+          - name: export_id
+          - name: run_id
+          - name: country
+          - name: target
+          - name: file_name
+          - name: n_leads
+          - name: status
+          - name: generated_by
+          - name: inserted_at
+      - name: capture_batch
+        description: "One capture batch (review: 'lote de captación')"
+        columns:
+          - name: capture_batch_id
+          - name: run_id
+          - name: country
+          - name: profile
+          - name: source
+          - name: area_ids
+          - name: terms
+          - name: import_file_id
+          - name: snapshot_id
+          - name: requested_by
+          - name: inserted_at
+      - name: capture_batch_lead
+        description: "A business belongs to one or more batches"
+        columns:
+          - name: capture_batch_id
+          - name: business_id
+          - name: country
+          - name: profile
+          - name: run_id
+          - name: inserted_at
+  - name: engine
+    schema: fld_bizlgn
+    tables:
+      - name: place_norm_out
+        description: "One normalized Google listing per capture"
+        columns:
+          - name: run_id
+          - name: place_id
+          - name: country
+          - name: name
+          - name: name_key_ae
+          - name: name_key_a
+          - name: address
+          - name: street
+          - name: city
+          - name: postal_code_raw
+          - name: postal_code
+          - name: phone_raw
+          - name: phone_e164
+          - name: phone_type
+          - name: website
+          - name: domain
+          - name: latitude
+          - name: longitude
+          - name: subregion_code
+          - name: municipality_code
+          - name: main_category
+          - name: categories
+          - name: owner_description
+          - name: reviews_count
+          - name: rating
+          - name: is_closed_permanently
+          - name: is_closed_temporarily
+          - name: scraped_at
+          - name: inserted_at
+      - name: business_link_out
+        description: "Listing -> business (DT.4.2); never relinked"
+        columns:
+          - name: place_id
+          - name: business_id
+          - name: country
+          - name: link_reason
+          - name: run_id
+          - name: inserted_at
+      - name: business_alias_out
+        description: "Absorbed business -> surviving business"
+        columns:
+          - name: old_id
+          - name: surviving_id
+          - name: reason
+          - name: run_id
+          - name: inserted_at
+      - name: merge_suspect_out
+        description: "Businesses to be checked by a person (is_merge_suspect)"
+        columns:
+          - name: business_id
+          - name: other_business_id
+          - name: place_id
+          - name: reason
+          - name: run_id
+          - name: inserted_at
+      - name: customer_norm_out
+        description: "Customer extract rows mapped and normalized (same functions as leads)"
+        columns:
+          - name: extract_id
+          - name: source_row_id
+          - name: country
+          - name: subsidiary_code
+          - name: customer_code
+          - name: customer_name
+          - name: name_key_ae
+          - name: name_key_a
+          - name: street
+          - name: postal_code
+          - name: city
+          - name: phone_e164
+          - name: vat_id
+          - name: register_id
+          - name: email
+          - name: corporate_email_domain
+          - name: customer_class
+          - name: sales_rep_name
+          - name: latitude
+          - name: longitude
+          - name: coordinate_precision
+          - name: is_test_record
+          - name: inserted_at
+      - name: rule_evaluation_out
+        description: "Relevance filter decision (DT.4.4)"
+        columns:
+          - name: run_id
+          - name: snapshot_id
+          - name: business_id
+          - name: country
+          - name: profile
+          - name: decision
+          - name: stage
+          - name: rule
+          - name: trigger_value
+          - name: is_closed_temporarily
+          - name: inserted_at
+      - name: category_seen_out
+        description: "Categories seen per run, with their classification or NULL (new)"
+        columns:
+          - name: run_id
+          - name: country
+          - name: profile
+          - name: language
+          - name: category
+          - name: category_normalized
+          - name: classification
+          - name: n_places
+          - name: inserted_at
+      - name: customer_match_out
+        description: "Customer matching result per pass (DT.5)"
+        columns:
+          - name: run_id
+          - name: business_id
+          - name: country
+          - name: profile
+          - name: match_pass
+          - name: origin
+          - name: outcome
+          - name: signal
+          - name: subsidiary_code
+          - name: customer_code
+          - name: customer_name
+          - name: similarity
+          - name: verdict
+          - name: candidates_json
+          - name: n_candidates_dropped
+          - name: reason_text
+          - name: extract_id
+          - name: inserted_at
+      - name: web_validation_out
+        description: "Checked model answer per business, run and profile (DT.6.5)"
+        columns:
+          - name: run_id
+          - name: business_id
+          - name: country
+          - name: profile
+          - name: domain
+          - name: custom_id
+          - name: prompt_version
+          - name: crawl_status
+          - name: validation
+          - name: review_reason
+          - name: validation_reason_text
+          - name: offering
+          - name: pool_focus
+          - name: company_type
+          - name: legal_name
+          - name: legal_address
+          - name: vat_id
+          - name: vat_check_status
+          - name: register_id
+          - name: register_type
+          - name: register_court
+          - name: contact_name
+          - name: contact_role
+          - name: email
+          - name: phone_e164
+          - name: phone_type
+          - name: phone_source
+          - name: has_ecommerce
+          - name: detected_brands
+          - name: fluidra_brands
+          - name: sources_json
+          - name: n_unsupported_claims
+          - name: is_indirect_customer
+          - name: final_domain
+          - name: inserted_at
+      - name: score_component_out
+        description: "One row per business, run, profile and factor (DT.7.4)"
+        columns:
+          - name: run_id
+          - name: business_id
+          - name: country
+          - name: profile
+          - name: factor
+          - name: bucket_code
+          - name: points
+          - name: input_value
+          - name: review_reference_version
+          - name: inserted_at
+      - name: score_out
+        description: "Total, Rating and breakdown in the cockpit's order"
+        columns:
+          - name: run_id
+          - name: snapshot_id
+          - name: business_id
+          - name: country
+          - name: profile
+          - name: total
+          - name: rating
+          - name: breakdown
+          - name: review_reference_version
+          - name: inserted_at
+      - name: review_reference_out
+        description: "Review cut-offs per country (DT.7.3)"
+        columns:
+          - name: country
+          - name: reference_version
+          - name: p75
+          - name: median
+          - name: n
+          - name: is_provisional
+          - name: inserted_at
+      - name: exclusion_out
+        description: "Permanent exclusions by business (DT.8.1)"
+        columns:
+          - name: business_id
+          - name: country
+          - name: scope
+          - name: profile
+          - name: origin
+          - name: reason
+          - name: source_ref
+          - name: inserted_at
+      - name: export_lead_out
+        description: "A lead in an export; Published once its export is UPLOADED"
+        columns:
+          - name: export_id
+          - name: business_id
+          - name: country
+          - name: profile
+          - name: capture_batch_id
+          - name: lead_code
+          - name: status
+          - name: generated_by
+          - name: inserted_at
+      - name: cockpit_outcome_out
+        description: "Cockpit call results, mapped (DT.8.4)"
+        columns:
+          - name: cockpit_file_id
+          - name: lead_code
+          - name: business_id
+          - name: country
+          - name: status
+          - name: not_qualified_reason
+          - name: customer_code
+          - name: attempts
+          - name: potential_entered_eur
+          - name: potential_indicative_eur
+          - name: answers_json
+          - name: contact_corrections_json
+          - name: last_call_date
+          - name: last_comment
+          - name: exported_at
+          - name: inserted_at
+  - name: writeback
+    schema: fld_bizlgn
+    tables:
+      - name: biz_cfg_profile
+        description: "Lead profiles; only active ones can be launched"
+        columns:
+          - name: pk_country
+          - name: pk_profile_code
+          - name: des_label
+          - name: des_notes
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_search_term
+        description: "Search terms per country, language and profile (tab Profiles & keywords)"
+        columns:
+          - name: pk_country
+          - name: pk_language
+          - name: pk_profile
+          - name: pk_term
+          - name: val_preselected
+          - name: val_priority
+          - name: des_notes
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_search_area
+        description: "Search areas: hierarchy, actor fields and official code (tab Admin divisions)"
+        columns:
+          - name: pk_country
+          - name: pk_area_id
+          - name: des_parent_area_id
+          - name: des_level
+          - name: des_subregion_type
+          - name: des_admin_code
+          - name: des_area_name
+          - name: des_region_name
+          - name: des_default_language
+          - name: des_actor_fields
+          - name: val_priority
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_category_rule
+        description: "Google categories: INCLUDE, EXCLUDE, CONDITIONAL"
+        columns:
+          - name: pk_country
+          - name: pk_language
+          - name: pk_profile
+          - name: des_category
+          - name: pk_category_normalized
+          - name: des_classification
+          - name: des_notes
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_title_rule
+        description: "Exclusions by name (tab Name exclusions)"
+        columns:
+          - name: pk_country
+          - name: pk_profile
+          - name: des_pattern
+          - name: pk_pattern_normalized
+          - name: des_match_type
+          - name: des_rule_class
+          - name: des_reason_code
+          - name: des_notes
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_pool_signal
+        description: "Stems that signal a pool business (tab Pool words)"
+        columns:
+          - name: pk_country
+          - name: pk_language
+          - name: pk_profile
+          - name: pk_stem
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_brand
+        description: "Competitor brands (groups 1-3) and Fluidra brands (tab Brands)"
+        columns:
+          - name: pk_country
+          - name: pk_brand
+          - name: des_owner
+          - name: val_brand_group
+          - name: des_aliases
+          - name: des_disambiguation_note
+          - name: des_notes
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_shared_domain
+        description: "Social networks, site builders, directories, marketplaces, email providers"
+        columns:
+          - name: pk_country
+          - name: pk_domain
+          - name: des_kind
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_name_stopword
+        description: "Generic sector words that do not make a name distinctive"
+        columns:
+          - name: pk_country
+          - name: pk_language
+          - name: pk_word
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_page_priority
+        description: "URL path fragments crawled first"
+        columns:
+          - name: pk_country
+          - name: pk_language
+          - name: pk_pattern
+          - name: val_priority
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_matching_rule
+        description: "Customer matching signals and thresholds"
+        columns:
+          - name: pk_country
+          - name: pk_signal
+          - name: des_strength
+          - name: val_threshold
+          - name: des_notes
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_source_column
+        description: "Column mapping of every input file format"
+        columns:
+          - name: pk_country
+          - name: pk_source_system
+          - name: des_entity
+          - name: des_subsidiary_code
+          - name: pk_source_column
+          - name: des_target_column
+          - name: des_transform
+          - name: des_value_map
+          - name: des_coordinate_precision
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_strategic_zone
+        description: "TWP's quadrant of every subregion (tab Admin divisions, column Zone)"
+        columns:
+          - name: pk_country
+          - name: pk_admin_level
+          - name: pk_admin_code
+          - name: des_admin_name
+          - name: des_quadrant
+          - name: imp_market_eur
+          - name: val_fluidra_share
+          - name: des_model_version
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_scoring_rule
+        description: "Points per factor and bucket (tab Scoring)"
+        columns:
+          - name: pk_country
+          - name: pk_profile
+          - name: pk_factor
+          - name: pk_bucket_code
+          - name: des_bucket_description
+          - name: val_points
+          - name: val_sort_order
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_rating_band
+        description: "Rating thresholds (>=), increasing from COLD to HOT"
+        columns:
+          - name: pk_country
+          - name: pk_rating
+          - name: val_min_score
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_validation_reason
+        description: "Rejection reasons of the human validation (tab Rejection reasons)"
+        columns:
+          - name: pk_country
+          - name: pk_reason_code
+          - name: des_label
+          - name: val_requires_customer_code
+          - name: val_requires_duplicate_of
+          - name: des_applies_to_profiles
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_category_of_interest
+        description: "Business type -> Salesforce Category of Interest; first matching row wins"
+        columns:
+          - name: pk_country
+          - name: pk_rule_order
+          - name: des_offering
+          - name: des_company_type
+          - name: des_pool_focus
+          - name: des_category_of_interest
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_sales_owner
+        description: "Salesforce owner per subregion; subregion_code NULL = country default"
+        columns:
+          - name: pk_country
+          - name: pk_subregion_code
+          - name: des_owner_first_name
+          - name: des_owner_last_name
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_export_column
+        description: "Columns of the output files (tab Salesforce and MC export)"
+        columns:
+          - name: pk_country
+          - name: pk_target
+          - name: pk_column_order
+          - name: des_column_name
+          - name: des_source_kind
+          - name: des_source_value
+          - name: des_source_field
+          - name: des_default_value
+          - name: des_format
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_value_map
+        description: "Value translations when reading files and exporting"
+        columns:
+          - name: pk_country
+          - name: pk_map_name
+          - name: pk_source_value
+          - name: des_target_value
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_legal_form
+        description: "Legal forms removed from names, longest first"
+        columns:
+          - name: pk_country
+          - name: pk_form_normalized
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_control_set
+        description: "Acceptance control set (DF.12)"
+        columns:
+          - name: pk_country
+          - name: pk_source
+          - name: pk_name
+          - name: des_domain
+          - name: des_phone
+          - name: des_expected
+          - name: des_expected_reason
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_cfg_run_parameter
+        description: "Spending caps, crawl limits, model and other technical parameters (Annex B.22)"
+        columns:
+          - name: pk_country
+          - name: pk_parameter
+          - name: des_value
+          - name: des_value_type
+          - name: des_unit
+          - name: des_notes
+          - name: val_active
+          - name: updated_by
+          - name: inserted_at
+      - name: biz_lead_validation
+        description: "Sales Ops decision per lead; current = argMax by (inserted_at, reviewed_by)"
+        columns:
+          - name: pk_business_id
+          - name: pk_profile
+          - name: des_country
+          - name: des_run_id
+          - name: des_capture_batch_id
+          - name: des_decision
+          - name: des_exclusion_reason
+          - name: des_subsidiary_code
+          - name: des_customer_code
+          - name: val_duplicate_of
+          - name: des_comment
+          - name: des_approval_scope
+          - name: des_active_filter
+          - name: des_reviewed_by
+          - name: inserted_at
+      - name: biz_run_approval
+        description: "Cost approval or stale customer extract approval"
+        columns:
+          - name: pk_run_id
+          - name: pk_approval_type
+          - name: imp_approved_amount_usd
+          - name: des_comment
+          - name: des_approved_by
+          - name: inserted_at
+      - name: biz_suppression_request
+        description: "Businesses that must not be shown again"
+        columns:
+          - name: val_business_id
+          - name: des_place_id
+          - name: des_phone
+          - name: des_domain
+          - name: des_reason
+          - name: des_requested_by
+          - name: inserted_at
+      - name: biz_run_request
+        description: "Run requests, only used if Intelek cannot call the orchestrator"
+        columns:
+          - name: pk_request_id
+          - name: des_run_type
+          - name: des_country
+          - name: des_profile
+          - name: des_capture_batch_id
+          - name: des_search_terms
+          - name: des_area_ids
+          - name: val_max_places_per_search
+          - name: val_subdivide
+          - name: des_llm_mode
+          - name: val_max_leads
+          - name: des_requested_by
+          - name: inserted_at

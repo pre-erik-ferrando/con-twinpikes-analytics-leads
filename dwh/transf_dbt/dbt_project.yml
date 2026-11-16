@@ -1,0 +1,51 @@
+# Lead Generator DACH dbt project (ClickHouse, dbt-clickhouse). Layers src -> stg -> crp -> biz.
+# The engine's tables (landing, ops, biz_cfg_*, the Intelek writeback and the Python <step>_out) are
+# created by `python leadgen.py init` and declared here as sources: dbt never manages them.
+name: 'leadgen_dwh_ch'
+version: '1.0.0'
+config-version: 2
+
+profile: 'leadgen_dwh_creds'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+flags:
+  # Partial parsing can write empty `depends_on`, building children before parents: keep it off.
+  partial_parse: false
+  log_level_file: info
+
+vars:
+  # Databases of the engine (ddl.DB in dwh/transf_py/leadgen/ddl.py). Renaming them needs a new GRANT.
+  landing_db: "fld_landinglgn"
+  biz_db: "fld_bizlgn"
+  ops_db: "fld_opslgn"
+
+models:
+  leadgen_dwh_ch:
+    +persist_docs:
+      relation: true
+      columns: true
+    # Everything is a view: the engine writes insert-only tables continuously and Intelek must see a
+    # decision or a new run without a rebuild. Volumes are small (thousands of leads per country).
+    # +schema is the literal destination database: generate_schema_name adds no target prefix.
+    leads:
+      srclgn:
+        +schema: fld_srclgn
+        +materialized: view
+      stglgn:
+        +schema: fld_stglgn
+        +materialized: view
+      crplgn:
+        +schema: fld_crplgn
+        +materialized: view
+      bizlgn:
+        +schema: fld_bizlgn
+        +materialized: view

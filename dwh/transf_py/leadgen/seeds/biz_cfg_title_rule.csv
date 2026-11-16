@@ -1,0 +1,10 @@
+country,profile,pattern,pattern_normalized,match_type,rule_class,reason_code,notes
+,,Hornbach,,TOKEN,HARD,KA_CHAIN,Key Accounts chain (TWP removed it by hand)
+,,ZGONC,,TOKEN,HARD,KA_CHAIN,Key Accounts chain (TWP removed it by hand)
+,,Fluidra,,TOKEN,HARD,FLUIDRA,
+,,AstralPool,,TOKEN,HARD,FLUIDRA,
+,POOL_SPECIALIST,Wellness,,TOKEN,SOFT,OUT_OF_PROFILE,DT.4.4.3
+,POOL_SPECIALIST,Sauna,,TOKEN,SOFT,OUT_OF_PROFILE,DT.4.4.3
+,POOL_SPECIALIST,Fitness,,TOKEN,SOFT,OUT_OF_PROFILE,DT.4.4.3
+,POOL_SPECIALIST,Golf,,TOKEN,SOFT,OUT_OF_PROFILE,DT.4.4.3
+,POOL_SPECIALIST,Camping,,TOKEN,SOFT,OUT_OF_PROFILE,DT.4.4.3

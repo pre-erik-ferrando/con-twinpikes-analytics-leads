@@ -1,0 +1,4 @@
+# dbt for the pipeline (python pipeline.py --install). Exact versions: the ones the models and tests are
+# verified with; dbt-clickhouse pins its own dbt-adapters.
+dbt-core==1.11.12
+dbt-clickhouse==1.10.1

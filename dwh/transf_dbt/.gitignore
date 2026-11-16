@@ -1,0 +1,18 @@
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# profiles.yml IS versioned: it uses env_var() only (DBT_CH_*), no credentials. If a secret ever goes in
+# it in plain text, ignore it here again.
+
+# python / venv
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# system
+.DS_Store

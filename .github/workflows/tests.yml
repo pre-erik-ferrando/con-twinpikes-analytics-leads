@@ -1,0 +1,35 @@
+# Automatic gate for the no-DB suite (./run_tests.sh).
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  no-db:
+    name: pytest without DB (engine · dbt syntax · docs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            dwh/transf_dbt/dev-requirements.txt
+            dwh/transf_py/leadgen/requirements.txt
+
+      - name: Install test deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r dwh/transf_dbt/dev-requirements.txt -r dwh/transf_py/leadgen/requirements.txt
+
+      - name: pre-commit
+        # The hook is per-clone (`pre-commit install`); CI is the only place it runs for everyone.
+        run: |
+          python -m pip install pre-commit
+          pre-commit run --all-files --show-diff-on-failure
+
+      - name: ./run_tests.sh
+        run: ./run_tests.sh

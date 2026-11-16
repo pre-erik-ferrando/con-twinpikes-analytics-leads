@@ -1,0 +1,43 @@
+# What sync.py publishes to Outline, and where. Only the files listed here are uploaded.
+#
+# [PENDIENTE] the collection of this project in Outline. As in con-twinpikes-analytics, the top-level
+# pages take over the collection's template pages by id (outline_id); replace each PENDING-… with the
+# id of that page once the collection exists. Until then, use --dry-run only. Pages with a parent are
+# created by the first real run, which saves their ids in outline_ids.json (commit it).
+
+url = "https://outline.prenomics.com"
+collection = ""
+github = "https://github.com/Prenomics/con-twinpikes-analytics-leads"
+branch = "develop"
+
+[[page]]
+file = "general.md"
+outline_id = "PENDING-general"
+
+[[page]]
+file = "onboarding.md"
+parent = "general.md"
+
+[[page]]
+file = "proyecto_lead_generator.md"
+outline_id = "PENDING-proyecto_lead_generator"
+
+[[page]]
+file = "decisiones.md"
+parent = "proyecto_lead_generator.md"
+
+[[page]]
+file = "arquitectura.md"
+outline_id = "PENDING-arquitectura"
+
+[[page]]
+file = "modelo_datos.md"
+parent = "arquitectura.md"
+
+[[page]]
+file = "configuracion.md"
+parent = "arquitectura.md"
+
+[[page]]
+file = "operacion.md"
+outline_id = "PENDING-operacion"

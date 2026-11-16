@@ -1,0 +1,57 @@
+# ============================================================================
+# Base: the Prenomics skeleton's .gitignore (as in con-twinpikes-analytics) + this project's rules.
+# ============================================================================
+
+# Python byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+*.local
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# PyCharm
+.idea/
+
+# Visual Studio Code
+.vscode/
+
+# DS_Store
+.DS_Store
+
+# --- Source data -----------------------------------------------------------
+# Customer extracts, cockpit exports, the inputs Excel and the boundary files: client data, never in git.
+/data/*
+!/data/README.md
+
+# DB config files
+/creds/*
+
+# --- Regenerable artifacts ---------------------------------------------------
+dwh/transf_dbt/target/
+dwh/transf_dbt/dbt_packages/
+logs/
+.pytest_cache/
+*.log
+*.gz
+*.dbt
+
+# ============================================================================
+# THE DEFAULT: AN OUTPUT DOES NOT GO IN GIT.
+# ============================================================================
+# The Salesforce upload files carry company names, contacts and phones: they live in the project's
+# shared folder, not here.
+exports/
+tmp/
+
+# --- docs/outline/ ----------------------------------------------------------
+# The local preview of docs/outline/sync.py --dry-run.
+docs/outline/_preview/

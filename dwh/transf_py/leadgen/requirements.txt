@@ -1,0 +1,12 @@
+# The engine (leadgen.py and dwh/transf_py/leadgen). dbt does not use them. Exact versions: the ones the
+# tests pass with; a bump is a deliberate change, tested first.
+clickhouse-connect==1.6.0
+pandas==3.0.3
+openpyxl==3.1.5
+requests==2.34.2
+beautifulsoup4==4.15.0
+phonenumbers==9.0.15
+rapidfuzz==3.14.1
+anthropic==2.7.0
+# Optional: rendering of JavaScript-only websites (DT.6.2). Without it those sites stay HTTP-only.
+# playwright==1.55.0   (then: playwright install chromium)
