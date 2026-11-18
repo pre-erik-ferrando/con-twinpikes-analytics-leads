@@ -7,7 +7,8 @@ lista). Necesita la VPN y el `.env`.
 
 1. **Captación**, con las zonas y el perfil del One2One:
    `capture --country AT --areas AT-501,AT-502 --terms Poolbau,Poolshop [--max-places 50] [--subdivide]`.
-   Devuelve la tanda (`cb_…`), encontrados, excluidos y la estimación del enriquecimiento. Si falla por
+   Cada zona se envía a Apify como su contorno oficial (cargado con `load-geo`); una zona sin contorno
+   hace fallar la captación antes de gastar. Devuelve la tanda (`cb_…`), encontrados, excluidos y la estimación del enriquecimiento. Si falla por
    la antigüedad del extracto de clientes, cargar uno nuevo o repetir la captación con
    `--approve-stale-extract` (queda registrado como aprobación `STALE_CUSTOMER_EXTRACT` de quien la lanza).
    Antes de llamar a Apify se estima su coste (consultas × tope × precio por ficha). Si supera

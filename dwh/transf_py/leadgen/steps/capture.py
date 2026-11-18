@@ -15,6 +15,7 @@ from rapidfuzz.fuzz import token_sort_ratio
 
 from .. import apify, cost, llm, runs
 from ..config import precheck
+from ..geo import outline_geojson
 from ..identity import Business, Listing, assign, resolve_alias
 from ..normalize import (name_keys, normalize_phone, normalize_postal_code, registrable_domain)
 from ..state import (RunContext, business_views, customer_index, extract_age_days, links, aliases,
@@ -117,6 +118,39 @@ def _queries(cfg, req: CaptureRequest) -> list[tuple[str, dict, str]]:
                 if term in configured and lang not in configured[term]:
                     continue
                 out.append((term, area, lang))
+    return out
+
+
+def area_outlines(store, cfg, country: str, area_ids: list[str], with_children: bool) -> dict[str, dict]:
+    """area_id -> the outline sent to Apify (simplified GeoJSON), from the official boundaries in
+    reference_geo: the area's own boundary at its level, or else the union of its children's (a STATE is
+    its districts). An outline already in actor_fields (BE/NL pilot) wins. Areas without one are left out."""
+    areas = cfg.search_areas()
+    tol = float(cfg.param("apify_outline_tolerance_deg", 0.001))
+    geo = {lvl: {a.admin_code: a.polygons for a in area_index(store, country, lvl).areas}
+           for lvl in ("SUBREGION", "MUNICIPALITY")}
+    children: dict[str, list[str]] = {}
+    for a in areas.values():
+        if a.get("parent_area_id"):
+            children.setdefault(a["parent_area_id"], []).append(a["area_id"])
+
+    def polygons(area_id: str, depth: int = 0) -> list:
+        a = areas[area_id]
+        own = geo.get(a.get("level") or "", {}).get(a.get("admin_code"))
+        if own or depth > 3:
+            return own or []
+        return [p for k in children.get(area_id, []) for p in polygons(k, depth + 1)]
+
+    wanted, i = list(area_ids), 0
+    while with_children and i < len(wanted):      # every area below the requested ones (--subdivide)
+        wanted += [k for k in children.get(wanted[i], []) if k not in wanted]
+        i += 1
+    out = {}
+    for area_id in dict.fromkeys(wanted):
+        given = json.loads(areas[area_id].get("actor_fields") or "{}").get("customGeolocation")
+        outline = given or outline_geojson(polygons(area_id), tol)
+        if outline:
+            out[area_id] = outline
     return out
 
 
@@ -239,6 +273,11 @@ def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[R
     ctx, cfg = start(store, "CAPTURE", req)
     max_places = int(req.max_places_per_search or cfg.param("default_max_places_per_search", 50))
     queries = _queries(cfg, req)
+    outlines = area_outlines(store, cfg, ctx.country, req.area_ids, req.subdivide)
+    missing = [a for a in dict.fromkeys(req.area_ids) if a not in outlines]
+    if missing:      # by name alone Apify returns nothing: stop before spending
+        _fail(ctx, f"no boundary for areas {', '.join(missing)}: load them with load-geo "
+                   f"(the search is sent as the area's outline)")
     check_capture_cost(ctx, cfg, req, len(queries), max_places)
     ctx.set_state("RUNNING")
     try:
@@ -259,7 +298,13 @@ def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[R
                 ctx.log.append("warning: Apify spending cap reached; remaining queries skipped")
                 break
             qid = runs.new_id("q")
-            actor_in = apify.actor_input(term, json.loads(area.get("actor_fields") or "{}"), lang, max_places)
+            fields = json.loads(area.get("actor_fields") or "{}")
+            if area["area_id"] in outlines:
+                fields["customGeolocation"] = outlines[area["area_id"]]
+            elif not fields.get("customGeolocation"):       # a child queued by --subdivide without a boundary
+                ctx.log.append(f"warning: no boundary for {area['area_id']}; skipped")
+                continue
+            actor_in = apify.actor_input(term, fields, lang, max_places)
             per_query_cap = max(0.5, (cap_usd - spent) / max(1, len(queue) + 1))
             result = capturer.run(actor_in, per_query_cap)
             spent += result.cost_usd or 0.0

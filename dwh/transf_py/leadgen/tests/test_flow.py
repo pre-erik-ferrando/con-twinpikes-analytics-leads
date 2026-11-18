@@ -16,7 +16,7 @@ from leadgen.steps.enrich import EnrichRequest, resume_enrich, run_enrich
 from leadgen.steps.export import confirm, run_export
 from leadgen.steps.maintenance import apply_cockpit_outcomes, approve_rest, reject, run_rematch, to_review
 
-from .conftest import FakeCapturer, FakeProvider, answer, crawler, item
+from .conftest import SQUARE, FakeCapturer, FakeProvider, _cfg_rows, answer, crawler, item
 
 ITEMS = [
     item("p_huber", "Poolbau Huber", ["Schwimmbadbauer"], website="https://poolbau-huber.at", phone="+43662123456",
@@ -356,6 +356,33 @@ def _threshold(store, usd):
 def test_capture_estimates_apify_before_calling(store):
     ctx, _ = _capture(store, ITEMS[:1])
     assert _ledger(store, ctx.run_id, "ESTIMATED", "APIFY") == [0.14]        # 1 query x 20 places x 0.007
+
+
+def test_capture_sends_the_area_outline_not_its_name(store):
+    cap = FakeCapturer(ITEMS[:1])
+    run_capture(store, cap, CaptureRequest("AT", "POOL_SPECIALIST", ["AT-501", "AT-S-SALZBURG"], ["Poolbau"],
+                                           "ops", 20))
+    district, state = cap.calls
+    for sent in (district, state):        # by name alone Apify returns nothing (exploration/findings.md)
+        assert (sent["countryCode"], sent["state"], sent["county"], sent["locationQuery"]) == ("", "", "", "")
+    square = [[list(p) for p in SQUARE["coordinates"][0]]]
+    assert district["customGeolocation"] == {"type": "MultiPolygon", "coordinates": [square]}
+    assert state["customGeolocation"] == district["customGeolocation"]      # a state is its districts
+
+
+def test_capture_without_boundary_fails_before_spending(store):
+    rows = _cfg_rows()["biz_cfg_search_area"] + [
+        {"country": "AT", "area_id": "AT-502", "parent_area_id": "AT-S-SALZBURG", "level": "SUBREGION",
+         "admin_code": "502", "area_name": "Hallein", "default_language": "de",
+         "actor_fields": json.dumps({"countryCode": "AT", "state": "Salzburg", "county": "Hallein"})}]
+    typed = seed_loader.typed_rows("biz_cfg_search_area", [{k: (str(v) if v is not None else None)
+                                                            for k, v in r.items()} for r in rows])
+    seed_loader.load(store, {"biz_cfg_search_area": typed}, "test-502", "test", "synthetic", overwrite=True)
+    store.advance(seconds=1)
+    cap = FakeCapturer(ITEMS[:1])
+    with pytest.raises(RunFailed, match="no boundary for areas AT-502"):
+        run_capture(store, cap, CaptureRequest("AT", "POOL_SPECIALIST", ["AT-502"], ["Poolbau"], "ops", 20))
+    assert not cap.calls
 
 
 def test_capture_above_threshold_needs_approval_with_the_request(store):

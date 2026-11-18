@@ -9,7 +9,7 @@ from leadgen import cost, export, normalize as N, runs, scoring
 from leadgen.config import Config, latest_by_key, precheck, scoped
 from leadgen.content import Page, prepare
 from leadgen.filtering import FilterInput, evaluate, title_matches
-from leadgen.geo import AdminArea, polygons_from_geojson
+from leadgen.geo import AdminArea, outline_geojson, polygons_from_geojson
 from leadgen.identity import Business, Listing, assign, pick_master, resolve_alias
 from leadgen.matching import (Customer, CustomerIndex, LeadFacts, MatchConfig, apply_verdicts, match,
                               resolve_priority)
@@ -71,6 +71,19 @@ def test_point_in_polygon_and_bbox():
     area = AdminArea("AT", "SUBREGION", "501", "Salzburg", None, polygons_from_geojson(SQUARE))
     assert area.contains(13.05, 47.8)
     assert not area.contains(13.2, 47.8)
+
+
+def test_outline_drops_needless_points_and_keeps_holes():
+    # A ring around a hole (Graz-Umgebung around Graz), with extra points on straight edges.
+    outer = [(0, 0), (1, 0), (2, 0), (2, 1), (2, 2), (1, 2), (0, 2), (0, 1), (0, 0)]
+    hole = [(0.5, 0.5), (1.5, 0.5), (1.5, 1.5), (0.5, 1.5), (0.5, 0.5)]
+    speck = [(5, 5), (5.00001, 5), (5.00001, 5.00001), (5, 5)]          # collapses at 100 m
+    out = outline_geojson([[outer, hole], [speck]], 0.001)
+    assert out["type"] == "MultiPolygon" and len(out["coordinates"]) == 1
+    ring, inner = out["coordinates"][0]
+    assert len(ring) == 5 and len(inner) == 5
+    simplified = AdminArea("AT", "SUBREGION", "x", "x", None, polygons_from_geojson(out))
+    assert simplified.contains(0.2, 0.2) and not simplified.contains(1, 1)    # the hole is still a hole
 
 
 # --------------------------------------------------------------------------- identity (DT.4.2)

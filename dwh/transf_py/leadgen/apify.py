@@ -26,14 +26,20 @@ API = "https://api.apify.com/v2"
 
 
 def actor_input(term: str, actor_fields: dict, language: str, max_places: int) -> dict:
-    """The complete, explicit input of one query (one term x one area)."""
-    loc = {k: actor_fields.get(k) or "" for k in ("countryCode", "state", "county", "city", "postalCode")}
+    """The complete, explicit input of one query (one term x one area).
+
+    The area goes as its outline (customGeolocation) when it has one, and then the name fields go empty:
+    with names alone the actor (builds 0.14.792-793) marks every place as out of location and returns
+    nothing (exploration/findings.md, 2026-11-18). Never free text."""
+    outline = actor_fields.get("customGeolocation")
+    loc = {k: "" if outline else (actor_fields.get(k) or "")
+           for k in ("countryCode", "state", "county", "city", "postalCode")}
     loc["countryCode"] = loc["countryCode"].lower()
     return {
         "searchStringsArray": [term],
-        "locationQuery": "",                       # never free text: structured fields only
+        "locationQuery": "",
         **loc,
-        "customGeolocation": actor_fields.get("customGeolocation"),   # BE/NL pilot: subregion polygon
+        "customGeolocation": outline,
         "language": language,
         "maxCrawledPlacesPerSearch": int(max_places),
         "searchMatching": "all",

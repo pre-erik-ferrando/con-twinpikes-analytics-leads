@@ -30,8 +30,9 @@ cp .env.example .env
 python leadgen.py init                                  # bases, tablas, vistas _current
 python leadgen.py seed                                  # semillas del repositorio
 python leadgen.py load-config data/inputs/261014_New_Leads_DataApp_Inputs_v4.xlsx --version v4-261014
+mkdir -p data/geo && curl -L -o data/geo/at_bezirke.geojson "https://www.statistik.gv.at/gs-open/GEODATA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=GEODATA:STATISTIK_AUSTRIA_POLBEZ_20260101&outputFormat=application/json&srsName=EPSG:4326"
 python leadgen.py load-geo data/geo/at_bezirke.geojson --country AT --level SUBREGION \
-    --source STATISTIK_AUSTRIA --version 2025 --code-prop id --name-prop name
+    --source STATISTIK_AUSTRIA --version 2026 --code-prop g_id --name-prop g_name
 python leadgen.py load-customers data/inputs/customers_at.xlsx --country AT --source-system TWP_SHEET_AT \
     --extract-date 2026-11-01
 python leadgen.py dbt                                   # las vistas
@@ -39,4 +40,5 @@ python leadgen.py precheck --country AT --areas AT-501 --terms Poolbau
 ```
 
 Los códigos de subregión de los límites oficiales tienen que ser los del modelo de mercado de TWP (por
-ejemplo 601 para Graz): `--code-prop` es la propiedad del GeoJSON que los lleva.
+ejemplo 601 para Graz): `--code-prop` es la propiedad del GeoJSON que los lleva. La captación envía a Apify
+el contorno de cada zona, sacado de estos límites: sin ellos, falla antes de gastar.

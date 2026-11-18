@@ -2,7 +2,9 @@
 tiny capped search. Writes nothing to any database or file; prints to the terminal only.
 
     python exploration/apify_smoke.py                 # free: field-name check against the actor schema
-    python exploration/apify_smoke.py --run           # paid (cents): 1 term x 1 city, max 5 places, cap $0.50
+    python exploration/apify_smoke.py --run           # paid (cents): 1 term x 1 area (default Steiermark), max 5 places, cap $0.50
+                                                      # and saves the raw items to tmp/demo/places.json
+    python exploration/apify_smoke.py --run --district 601   # the same, sent as Graz(Stadt)'s outline, as capture does
 
 Reads APIFY_TOKEN from the environment or .env. Uses leadgen.apify.actor_input / item_fields, so it
 tests the same code the `capture` step uses.
@@ -20,7 +22,7 @@ sys.path.insert(0, str(ROOT / "dwh" / "transf_py"))
 
 import requests  # noqa: E402
 
-from leadgen import apify  # noqa: E402
+from leadgen import apify, geo  # noqa: E402
 
 
 def token() -> str:
@@ -74,15 +76,57 @@ def main() -> int:
     p.add_argument("--run", action="store_true", help="actually run the actor (costs money)")
     p.add_argument("--term", default="Poolbau")
     p.add_argument("--country", default="AT")
-    p.add_argument("--city", default="Graz")
+    p.add_argument("--city", default="", help="city polygon only: excludes the suburbs, where most pool firms are")
+    p.add_argument("--state", default="Steiermark", help="'' to search by --city or --county instead")
+    p.add_argument("--county", default="")
+    p.add_argument("--no-detail", action="store_true",
+                   help="scrapePlaceDetailPage=false (diagnostic; the engine needs the detail page's fields)")
+    p.add_argument("--location", default="",
+                   help="free-text locationQuery (e.g. 'Graz, Austria') instead of the structured fields; "
+                        "diagnostic only: the engine always sends structured fields")
+    p.add_argument("--box", default="",
+                   help="search area as a rectangle 'min_lng,min_lat,max_lng,max_lat' sent as a customGeolocation "
+                        "polygon instead of the structured fields (e.g. Graz: 15.34,46.99,15.53,47.13)")
+    p.add_argument("--district", default="",
+                   help="send this district's official outline, simplified as capture does (e.g. 601 = Graz(Stadt))")
+    p.add_argument("--geo", default=str(ROOT / "data" / "geo" / "at_bezirke.geojson"),
+                   help="boundaries file for --district (download command in docs/outline/onboarding.md)")
+    p.add_argument("--code-prop", default="g_id")
     p.add_argument("--language", default="de")
     p.add_argument("--max-places", type=int, default=5)
     p.add_argument("--max-charge-usd", type=float, default=0.50)
     p.add_argument("--build", default="latest")
+    p.add_argument("--save", default=str(ROOT / "tmp" / "demo" / "places.json"),
+                   help="where to save the raw items with --run ('' to skip); tmp/ is gitignored")
     a = p.parse_args()
 
     tok = token()
-    actor_in = apify.actor_input(a.term, {"countryCode": a.country, "city": a.city}, a.language, a.max_places)
+    where = {k: v for k, v in (("state", a.state), ("county", a.county), ("city", a.city)) if v}
+    place = ", ".join(where.values()) or a.country
+    actor_in = apify.actor_input(a.term, {"countryCode": a.country, **where}, a.language, a.max_places)
+    if a.no_detail:
+        actor_in["scrapePlaceDetailPage"] = False
+    if a.location:
+        place = a.location
+        actor_in.update({"locationQuery": a.location, "countryCode": "", "state": "", "county": "", "city": "",
+                         "postalCode": ""})
+    if a.box:
+        x0, y0, x1, y1 = (float(v) for v in a.box.split(","))
+        place = f"box {a.box}"
+        actor_in.update({"customGeolocation": {"type": "Polygon", "coordinates": [[[x0, y0], [x1, y0], [x1, y1],
+                                                                                   [x0, y1], [x0, y0]]]},
+                         "locationQuery": "", "countryCode": "", "state": "", "county": "", "city": "",
+                         "postalCode": ""})
+    if a.district:
+        feats = json.loads(Path(a.geo).read_text(encoding="utf-8"))["features"]
+        f = next((f for f in feats if str(f["properties"].get(a.code_prop)) == a.district), None)
+        if f is None:
+            sys.exit(f"district {a.district} not in {a.geo}")
+        outline = geo.outline_geojson(geo.polygons_from_geojson(f["geometry"]), 0.001)
+        place = f"district {a.district} outline ({sum(len(r) for p in outline['coordinates'] for r in p)} points)"
+        actor_in = apify.actor_input(a.term, {"customGeolocation": outline}, a.language, a.max_places)
+        if a.no_detail:
+            actor_in["scrapePlaceDetailPage"] = False
     if actor_in.get("customGeolocation") is None:
         actor_in.pop("customGeolocation")      # not used outside the BE/NL pilot
 
@@ -91,10 +135,10 @@ def main() -> int:
 
     if not a.run:
         print("\nDry run only. Add --run to run one search "
-              f"({a.term!r} in {a.city}, {a.country}; max {a.max_places} places; cap ${a.max_charge_usd:.2f}).")
+              f"({a.term!r} in {place}, {a.country}; max {a.max_places} places; cap ${a.max_charge_usd:.2f}).")
         return bad
 
-    print(f"\n2) Running {a.term!r} in {a.city}, {a.country} (max {a.max_places} places, cap ${a.max_charge_usd:.2f})…")
+    print(f"\n2) Running {a.term!r} in {place}, {a.country} (max {a.max_places} places, cap ${a.max_charge_usd:.2f})…")
     cap = apify.ApifyCapturer(tok, "" if a.build == "latest" else a.build, poll_s=5, timeout_s=900)
     res = cap.run(actor_in, a.max_charge_usd)
     print(f"  run {res.apify_run_id}: {res.status}, {len(res.items)} items, cost ${res.cost_usd}")
@@ -109,6 +153,11 @@ def main() -> int:
         for f in fields:
             print(f"    - {f['name']} | {f['city']} {f['postal_code_raw']} | {f['main_category']} | {f['website']}")
     print(f"\n  saturated: {apify.is_saturated(len(res.items), a.max_places)}")
+    if a.save:
+        out = Path(a.save)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(res.items, ensure_ascii=False, indent=1), encoding="utf-8")
+        print(f"  raw items saved to {out} (input of exploration/demo_lead.py)")
     return 0 if res.status == "SUCCEEDED" else 1
 
 

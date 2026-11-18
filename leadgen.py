@@ -5,7 +5,7 @@ upload files, everything is launched from here and the results are read in the l
     python leadgen.py seed                       # seeds/*.csv into biz_cfg_* (only keys not yet there)
     python leadgen.py load-config FILE.xlsx --version v4-261014
     python leadgen.py load-geo FILE.geojson --country AT --level SUBREGION --source STATISTIK_AUSTRIA \
-        --version 2025 --code-prop id --name-prop name
+        --version 2026 --code-prop g_id --name-prop g_name   # capture sends each area as this outline
     python leadgen.py load-customers FILE --country AT --source-system TWP_SHEET_AT --extract-date 2026-11-01
     python leadgen.py precheck --country AT --profile POOL_SPECIALIST --areas AT-501 --terms Poolbau
     python leadgen.py capture --country AT --profile POOL_SPECIALIST --areas AT-501,AT-502 --terms Poolbau,Poolshop
