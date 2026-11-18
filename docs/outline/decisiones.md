@@ -10,6 +10,7 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 |---|---|---|---|
 | Reparto Python / dbt (DT.1.6) | Tres pasos en Python; normalización, filtro, cruce y puntuación en dbt | El motor en Python decide (normalización, identidad, filtro, cruce, puntuación) y escribe tablas `<paso>_out`; dbt son vistas que leen esos resultados para Intelek | libphonenumber, la similitud de nombres (token_sort_ratio) y la identidad estable no existen en SQL de ClickHouse; así una sola implementación sirve para captación, reproceso y recruce, y se prueba sin base de datos |
 | Zona de búsqueda en Apify (DT.3.2) | Campos estructurados (`countryCode`, `state`, `county`, `city`), nunca texto libre | Se envía el contorno oficial de la zona (`customGeolocation`), simplificado a unos 100 m (`apify_outline_tolerance_deg`, [PROPUESTA]); un Land es la unión de sus distritos. Sin contorno cargado, la captación falla antes de gastar | Con los campos por nombre, el actor (versiones 0.14.792 y 0.14.793) descarta todas las fichas por fuera de zona y devuelve 0; con el contorno devuelve las de Graz (pruebas del 18-11-2026, `exploration/findings.md`). Sigue sin texto libre. Avisar a TWP |
+| Captación y enriquecimiento (DT.9) | La parte II describe una sola ejecución con fases A y B | Dos ejecuciones separadas (CAPTURE y ENRICH), como las pantallas de la parte I | El enriquecimiento va al modelo en modo BATCH, más barato, y puede tardar horas; la captación no tiene que esperarlo |
 | Cruce espacial (DT.1.2) | Diccionario polygon de ClickHouse | Punto en polígono en Python (`geo.py`) contra los GeoJSON oficiales de `reference_geo` | Mismo resultado sin depender de un diccionario que hay que pedir al administrador; probado sin base de datos |
 | Tablas creadas en un hook de dbt (DT.2.1) | `CREATE TABLE IF NOT EXISTS` en el arranque de dbt | `leadgen.py init` (desde `ddl.py`), y dbt las declara como fuentes | El motor escribe en landing y ops antes de que dbt corra; un único contrato de tablas genera DDL, vistas `_current` y fuentes de dbt |
 | Instantánea de configuración en stg (DT.2.6) | stg resuelve la configuración con `snapshot_id` | El motor resuelve la configuración en Python a la fecha de la instantánea; las vistas `lgn_a_*` dan la configuración vigente para las vistas de consumo | La decisión la toma el motor; stg queda para leer |
@@ -59,3 +60,12 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 | Conjunto de control (`control_set.csv`) | TWP / Prenomics | Medir DF.12 | `lgn_v_coverage` vacía |
 | Capacidad de Intelek: escritura, ficheros, botón | Intelek | Pantallas | Línea de comandos |
 | Base legal del tratamiento | Asesor legal de Fluidra | Arranque en producción | — |
+
+## Diferencias con la definición, por decidir más adelante
+
+El código sigue aquí la revisión técnica y no la definición v3.2. No se cambia hasta que haga falta.
+
+- Aprobación de coste o de extracto antiguo: la definición deja la ejecución esperando en NEEDS_APPROVAL; la captación falla y se relanza con `--approve-cost` o `--approve-stale-extract`.
+- País sin extracto de clientes: la definición lo bloquea salvo aprobación; el código sigue sin cruce, con aviso.
+- Published: la definición lo da al exportar; el código, al confirmar la carga (`confirm-export --status UPLOADED`). Falta saber qué entiende TWP por Published.
+- Recruce mensual: la definición descualifica también los leads publicados que resultan ser clientes; el código solo los lista en `lgn_v_published_customer_conflict`.
