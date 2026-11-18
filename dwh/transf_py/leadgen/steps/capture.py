@@ -80,11 +80,11 @@ def start(store, run_type: str, req: CaptureRequest) -> tuple[RunContext, object
         c = conflicts[0]
         _fail(ctx, f"area {c.area_id} overlaps {c.other_area_id} of run {c.run_id}, still in progress")
 
-    # Customer extract age (review DT.5): warn from 31 days, block above 35 unless approved.
+    # Customer extract age (definition v3.2 DT.5): block above customer_extract_max_age_days unless approved.
     _, extracts = customer_index(store, req.country)
     age = extract_age_days(extracts, req.country, store.now())
-    max_age = cfg.param("customer_extract_max_age_days", 35)
-    warn_age = cfg.param("customer_extract_warn_age_days", 31)
+    max_age = cfg.param("customer_extract_max_age_days", 7)
+    warn_age = cfg.param("customer_extract_warn_age_days")       # optional; not in the definition
     if age is None:
         ctx.log.append(f"warning: no customer extract for {req.country}: customer match skipped")
     elif age > max_age:
@@ -97,7 +97,7 @@ def start(store, run_type: str, req: CaptureRequest) -> tuple[RunContext, object
                                            "comment": f"customer extract {age:.0f} days old"}])
         ctx.log.append(f"warning: customer extract of {req.country} is {age:.0f} days old; approved by "
                        f"{req.requested_by}")
-    elif age > warn_age:
+    elif warn_age is not None and age > warn_age:
         ctx.log.append(f"warning: customer extract of {req.country} is {age:.0f} days old")
     return ctx, cfg
 

@@ -428,5 +428,5 @@ def test_config_from_rows_is_scoped_by_profile(store):
     cfg = RunContext(store, "t", "CAPTURE", "AT", "POOL_SPECIALIST", "t").config()
     assert isinstance(cfg, Config)
     assert ("COMPANY_TYPE", "BUILDER_INSTALLER_SHOP") in cfg.scoring_points()
-    assert cfg.param("customer_extract_max_age_days") == 35
+    assert cfg.param("customer_extract_max_age_days") == 7
     assert cfg.sales_owner("999")["owner_last_name"] == "Owner"           # the country default owner

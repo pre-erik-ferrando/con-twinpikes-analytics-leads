@@ -25,7 +25,7 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 - "Lote de captación" es `capture_batch`; "lote" del proveedor es el envío en modo BATCH (`llm_batch`).
 - El Excel de inputs es la entrada versionada de cada carga (`seed_version`); después manda Intelek. Una
   semilla nunca pisa una clave editada; pisar exige `--overwrite` y queda en `ops.seed_load`.
-- Antigüedad del extracto de clientes: aviso desde 31 días, bloqueo por encima de 35 salvo aprobación
+- Antigüedad del extracto de clientes: bloqueo por encima de 7 días (definición v3.2, DT.5) salvo aprobación
   `STALE_CUSTOMER_EXTRACT`, que se da al lanzar la captación (`capture --approve-stale-extract`) porque el
   identificador de la ejecución nace en ese momento. Un país sin extracto omite el cruce con aviso.
 - Validación con alcance explícito: `approve-rest` muestra el recuento y exige `--yes`; un aprobado
