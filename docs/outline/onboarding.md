@@ -20,6 +20,8 @@
 python -m venv .venv && source .venv/bin/activate
 pip install -r dwh/transf_py/leadgen/requirements.txt -r dwh/transf_dbt/requirements.txt \
             -r dwh/transf_dbt/dev-requirements.txt
+playwright install chromium     # navegador para las webs que solo se ven con JavaScript
+python leadgen.py dbt -- deps   # paquetes de dbt (dbt_utils)
 cp .env.example .env
 ./run_tests.sh
 ```

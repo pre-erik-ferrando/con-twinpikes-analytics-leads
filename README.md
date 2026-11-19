@@ -53,6 +53,8 @@ Python **3.12** (CI pins it in [`.github/workflows/tests.yml`](.github/workflows
 python -m venv .venv && source .venv/bin/activate
 pip install -r dwh/transf_py/leadgen/requirements.txt -r dwh/transf_dbt/requirements.txt \
             -r dwh/transf_dbt/dev-requirements.txt
+playwright install chromium     # browser for JavaScript-only websites (WSL may need: playwright install-deps chromium)
+python leadgen.py dbt -- deps   # dbt packages (dbt_utils)
 cp .env.example .env            # and fill it in: ClickHouse, Apify, Anthropic (ask for the values)
 ```
 

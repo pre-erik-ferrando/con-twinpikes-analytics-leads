@@ -8,5 +8,6 @@ beautifulsoup4==4.15.0
 phonenumbers==9.0.15
 rapidfuzz==3.14.1
 anthropic==2.7.0
-# Optional: rendering of JavaScript-only websites (DT.6.2). Without it those sites stay HTTP-only.
-# playwright==1.55.0   (then: playwright install chromium)
+# Rendering of JavaScript-only websites (DT.6.2); also needs the browser: `playwright install chromium`.
+# Without the browser the crawler still runs, and those sites stay HTTP-only.
+playwright==1.55.0
