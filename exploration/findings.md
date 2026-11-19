@@ -36,7 +36,8 @@ VvIgdWt0Ing7M9ehW, $0.025).
 Checked against the inputs Excel v3 (261013, "Admin divisions" tab). All 94 Austrian codes are in
 Statistik Austria's file, with the same names except "Sankt" vs "St." in 302, 319 and 504.
 TWP uses Vienna as 900 only. Statistik Austria's file also has the 23 city districts 901-923, which
-overlap 900: don't load 901-923, or a business in Vienna may get either code.
+overlap 900. `load-geo` now loads only TWP's codes (from `biz_cfg_search_area`, so after `load-config`)
+and lists what it skipped: with v3, 94 loaded, 901-923 skipped, none of TWP's missing.
 In v3 the "Subregion → sales rep" tab has no rep filled (all 721 rows "Pending Fluidra").
 v3's tabs have a title and a description above the header, and brands come as "Group 1 (7.5)" with no
 owner column: the loader now reads both (`load-config`, and the demo's `--inputs`).

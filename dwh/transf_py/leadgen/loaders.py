@@ -209,18 +209,28 @@ def load_cockpit(store, cfg, path: Path, country: str, exported_at: str | None, 
 
 
 def load_geo(store, path: Path, country: str, level: str, source: str, version: str, code_prop: str,
-             name_prop: str, parent_prop: str | None = None) -> int:
-    """A GeoJSON FeatureCollection of official boundaries -> landing.reference_geo."""
+             name_prop: str, parent_prop: str | None = None, keep: set[str] | None = None) -> dict:
+    """A GeoJSON FeatureCollection of official boundaries -> landing.reference_geo.
+
+    keep: TWP's district codes (DT.4.1: they must be the ones of TWP's market model). Features with
+    another code are skipped, so overlapping areas do not compete (Statistik Austria has Vienna as 900
+    and as its city districts 901-923; TWP uses 900). None loads every feature."""
     data = json.loads(path.read_text(encoding="utf-8"))
-    rows = []
+    rows, skipped = [], []
     for f in data.get("features", []):
         props = f.get("properties") or {}
+        code = str(props.get(code_prop))
+        if keep is not None and code not in keep:
+            skipped.append(code)
+            continue
         rows.append({"source": source, "country": country, "version": version, "admin_level": level,
-                     "admin_code": str(props.get(code_prop)), "admin_name": props.get(name_prop),
+                     "admin_code": code, "admin_name": props.get(name_prop),
                      "parent_code": str(props.get(parent_prop)) if parent_prop and props.get(parent_prop) else None,
                      "geometry_json": json.dumps(f.get("geometry"))})
     store.insert("reference_geo", rows)
-    return len(rows)
+    loaded = {r["admin_code"] for r in rows}
+    return {"loaded": len(rows), "skipped": sorted(skipped),
+            "missing": sorted(keep - loaded) if keep is not None else []}
 
 
 def load_import_list(store, path: Path, country: str, profile: str, loaded_by: str) -> tuple[str, list[dict]]:

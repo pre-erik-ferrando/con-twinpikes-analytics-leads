@@ -465,3 +465,20 @@ def test_inputs_excel_with_title_rows_as_in_v3(tmp_path):
     assert out["biz_cfg_title_rule"][0]["reason_code"] == "KA_CHAIN"
     assert [(b["owner"], b["brand_group"]) for b in out["biz_cfg_brand"]] == [("COMPETITOR", "1"), ("FLUIDRA", None)]
     assert out["biz_cfg_sales_owner"] == []
+
+
+def test_load_geo_keeps_only_twp_codes(tmp_path):
+    """Vienna is 900 and also 901-923 in Statistik Austria's file; TWP uses 900 (DT.4.1)."""
+    import json
+    from leadgen import loaders
+    from leadgen.store import MemoryStore
+    feats = [{"type": "Feature", "properties": {"g_id": c, "g_name": n},
+              "geometry": {"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 0]]]}}
+             for c, n in [("900", "Wien(Stadt)"), ("909", "Wien 9.,Alsergrund"), ("601", "Graz(Stadt)")]]
+    path = tmp_path / "at.geojson"
+    path.write_text(json.dumps({"type": "FeatureCollection", "features": feats}))
+    st = MemoryStore()
+    r = loaders.load_geo(st, path, "AT", "SUBREGION", "TEST", "1", "g_id", "g_name", keep={"900", "601", "107"})
+    assert r == {"loaded": 2, "skipped": ["909"], "missing": ["107"]}
+    assert sorted(x["admin_code"] for x in st.select("reference_geo")) == ["601", "900"]
+    assert loaders.load_geo(MemoryStore(), path, "AT", "SUBREGION", "TEST", "1", "g_id", "g_name")["loaded"] == 3

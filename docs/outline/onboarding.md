@@ -33,6 +33,8 @@ python leadgen.py load-config data/inputs/261014_New_Leads_DataApp_Inputs_v4.xls
 mkdir -p data/geo && curl -L -o data/geo/at_bezirke.geojson "https://www.statistik.gv.at/gs-open/GEODATA/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=GEODATA:STATISTIK_AUSTRIA_POLBEZ_20260101&outputFormat=application/json&srsName=EPSG:4326"
 python leadgen.py load-geo data/geo/at_bezirke.geojson --country AT --level SUBREGION \
     --source STATISTIK_AUSTRIA --version 2026 --code-prop g_id --name-prop g_name
+# solo carga los distritos del Excel de TWP (por eso va después de load-config): en Austria salta
+# los distritos de Viena 901-923, que se solapan con el 900 que usa TWP
 python leadgen.py load-customers data/inputs/customers_at.xlsx --country AT --source-system TWP_SHEET_AT \
     --extract-date 2026-11-01
 python leadgen.py dbt                                   # las vistas

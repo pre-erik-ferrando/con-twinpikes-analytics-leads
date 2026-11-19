@@ -107,9 +107,18 @@ def cmd(ns) -> int:
         show(seed_loader.load_excel(st, Path(ns.file), ns.version, user(ns), ns.overwrite))
         return 0
     if c == "load-geo":
-        n = loaders.load_geo(st, Path(ns.file), ns.country, ns.level, ns.source, ns.version, ns.code_prop,
-                             ns.name_prop, ns.parent_prop)
-        print(f"{n} areas loaded")
+        keep = {a["admin_code"] for a in _cfg(st, ns.country).search_areas().values()
+                if a.get("level") == ns.level and a.get("admin_code")}
+        if not keep:
+            print(f"warning: no {ns.level} areas for {ns.country} in biz_cfg_search_area (run load-config first);"
+                  " loading every feature")
+        r = loaders.load_geo(st, Path(ns.file), ns.country, ns.level, ns.source, ns.version, ns.code_prop,
+                             ns.name_prop, ns.parent_prop, keep or None)
+        print(f"{r['loaded']} areas loaded")
+        if r["skipped"]:
+            print(f"skipped, not among TWP's areas: {', '.join(r['skipped'])}")
+        if r["missing"]:
+            print(f"warning: TWP's areas with no boundary in the file: {', '.join(r['missing'])}")
         return 0
     if c == "load-customers":
         cfg = _cfg(st, ns.country)
