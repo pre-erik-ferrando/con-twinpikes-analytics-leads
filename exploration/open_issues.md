@@ -20,7 +20,7 @@ v4 is v3 with one sentence changed (the export tab now cites the Spain upload fo
 
 | Missing | Without it | When |
 |---|---|---|
-| Where the tables go in the database (with Roger) | Runs only in memory; Intelek can't show it | This week |
+| ~~Where the tables go in the database~~ done 19 Nov: the six `fld_*lgn` databases exist; `init`, seeds, v4, outlines (AT/DE/CH), customer lists (AT/CH/DE) and dbt loaded | — | Done |
 | Model: which one, whose Anthropic key, spending cap | The model's answers are typed by hand; the next demo (Villach Land, [demo_lead.md](demo_lead.md)) waits for it | This week |
 
 ## Later

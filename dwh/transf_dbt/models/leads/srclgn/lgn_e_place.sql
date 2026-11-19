@@ -13,7 +13,8 @@ SELECT
     JSONExtractString(g.item_json, 'phoneUnformatted')           AS phone_raw,
     JSONExtract(g.item_json, 'location', 'lat', 'Nullable(Float64)') AS latitude,
     JSONExtract(g.item_json, 'location', 'lng', 'Nullable(Float64)') AS longitude,
-    JSONExtract(g.item_json, 'categories', 'Array(String)')     AS categories,
+    -- ifNull: item_json is Nullable, and ClickHouse does not allow Nullable(Array(...))
+    JSONExtract(ifNull(g.item_json, ''), 'categories', 'Array(String)') AS categories,
     JSONExtract(g.item_json, 'reviewsCount', 'Nullable(UInt32)') AS reviews_count,
     JSONExtract(g.item_json, 'totalScore', 'Nullable(Float32)')  AS rating,
     toUInt8(JSONExtractBool(g.item_json, 'permanentlyClosed'))   AS is_closed_permanently,

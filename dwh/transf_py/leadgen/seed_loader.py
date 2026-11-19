@@ -30,7 +30,9 @@ def _cast(col: ddl.Col, value):
     if isinstance(value, str):
         value = value.strip()
         if value == "":
-            return [] if col.type.startswith("Array") else None
+            if col.type.startswith("Array"):
+                return []
+            return "" if col.type in ("String", "LowCardinality(String)") else None   # non-Nullable text
     t = col.type
     if t.startswith("Array"):
         return [v.strip() for v in str(value).split("|") if v.strip()] if not isinstance(value, list) else value

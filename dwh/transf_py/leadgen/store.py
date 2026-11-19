@@ -43,6 +43,8 @@ def _prepare(table: ddl.Table, rows: Iterable[dict]) -> list[dict]:
             v = r.get(c.name)
             if v is None and c.default is not None and not c.type.startswith("Nullable"):
                 v = _default_value(c.default)
+            if v is None and "Nullable(" not in c.type:     # ClickHouse rejects it: fail here, in tests too
+                raise ValueError(f"{table.name}.{c.name} ({c.type}) is not Nullable: NULL given")
             row[c.name] = v
         out.append(row)
     return out
