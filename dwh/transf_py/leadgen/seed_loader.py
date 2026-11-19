@@ -119,7 +119,7 @@ def _key(s) -> str:
 
 
 H = {
-    "country": ["country", "pais", "land"],
+    "country": ["country", "country code", "pais", "land"],
     "region": ["region", "state", "bundesland", "kanton", "province", "provincie"],
     "region_code": ["region code", "state code"],
     "subregion": ["subregion", "district", "bezirk", "kreis", "arrondissement", "corop", "subregion name"],
@@ -131,7 +131,7 @@ H = {
     "share": ["share", "fluidra share", "cuota"],
     "profile": ["profile", "perfil"],
     "keyword": ["keyword", "term", "search term", "keywords"],
-    "preselected": ["preselected", "default", "preseleccionado"],
+    "preselected": ["preselected", "pre selected", "pre selected in capture", "default", "preseleccionado"],
     "category": ["category", "google category", "categoria"],
     "classification": ["classification", "rule", "action", "clasificacion"],
     "pattern": ["pattern", "name", "exclusion", "term"],
@@ -186,8 +186,12 @@ def excel_to_rows(path: Path) -> dict[str, list[dict]]:
         for n in names:
             if _key(n) in tabs:
                 rows = list(wb[tabs[_key(n)]].iter_rows(values_only=True))
-                header = [str(h).strip() if h is not None else None for h in rows[0]]
-                return tabs[_key(n)], header, [dict(zip(header, r)) for r in rows[1:] if any(c is not None for c in r)]
+                # v3 tabs open with a title and a one-cell description: the header is the first row
+                # with two or more cells.
+                h = next((i for i, r in enumerate(rows) if sum(c is not None for c in r) >= 2), 0)
+                header = [str(x).strip() if x is not None else None for x in rows[h]]
+                return tabs[_key(n)], header, [dict(zip(header, r)) for r in rows[h + 1:]
+                                               if any(c is not None for c in r)]
         if required:
             raise ValueError(f"tab {names[0]!r} not found; tabs: {', '.join(wb.sheetnames)}")
         return None, [], []
@@ -234,7 +238,7 @@ def excel_to_rows(path: Path) -> dict[str, list[dict]]:
         "profile": _slug(str(r.get(c["profile"]) or "POOL_SPECIALIST")).replace("POOL_AND_SPA", "POOL_SPA")
         if c.get("profile") else "POOL_SPECIALIST",
         "term": str(r[c["keyword"]]).strip(),
-        "preselected": "1" if str(r.get(c.get("preselected", ""), "")).strip().lower() in ("1", "yes", "y", "x", "true")
+        "preselected": "1" if _key(r.get(c.get("preselected", ""), "")) in ("1", "yes", "y", "x", "true", "pre selected")
         else "0", "priority": str(i + 1)} for i, r in enumerate(rows) if r.get(c["keyword"])]
 
     tab, header, rows = sheet("Google categories")
@@ -251,7 +255,8 @@ def excel_to_rows(path: Path) -> dict[str, list[dict]]:
         "country": _iso(r.get(c["country"])) if c.get("country") else None, "profile": None,
         "pattern": str(r[c["pattern"]]).strip(),
         "match_type": str(r.get(c["match_type"]) or "TOKEN").strip().upper() if c.get("match_type") else "TOKEN",
-        "rule_class": str(r[c["class"]]).strip().upper(), "reason_code": _slug(str(r[c["reason"]]))}
+        "rule_class": str(r[c["class"]]).strip().upper(),
+        "reason_code": "KA_CHAIN" if _key(r[c["reason"]]) == "key account chain" else _slug(str(r[c["reason"]]))}
         for r in rows if r.get(c["pattern"])]
 
     tab, header, rows = sheet("Pool words")
@@ -261,12 +266,19 @@ def excel_to_rows(path: Path) -> dict[str, list[dict]]:
                                   for r in rows if r.get(c["stem"]) and "to define" not in str(r[c["stem"]]).lower()]
 
     tab, header, rows = sheet("Brands")
-    c = _cols(header, ["country", "brand", "owner", "group", "aliases", "note"], ["brand", "owner"], tab)
+    c = _cols(header, ["country", "brand", "owner", "group", "aliases", "note"], ["brand"], tab)
+    if "owner" not in c and "group" not in c:
+        raise ValueError(f"tab {tab!r}: no column for owner or group; headers found: {', '.join(map(str, header))}")
+
+    def group_no(r):  # "1", 1.0 or v3's "Group 1 (7.5)"; None for Fluidra brands
+        m = re.search(r"(\d+)", str(r.get(c["group"]) or "")) if c.get("group") else None
+        return m.group(1) if m and "fluidra" not in str(r.get(c["group"])).lower() else None
+
     out["biz_cfg_brand"] = [{
         "country": _iso(r.get(c["country"])) if c.get("country") and r.get(c["country"]) else None,
         "brand": str(r[c["brand"]]).strip(),
-        "owner": "FLUIDRA" if "fluidra" in str(r[c["owner"]]).lower() else "COMPETITOR",
-        "brand_group": str(r.get(c["group"]) or "").strip().removesuffix(".0") if c.get("group") else None,
+        "owner": "FLUIDRA" if "fluidra" in str(r.get(c.get("owner") or c["group"])).lower() else "COMPETITOR",
+        "brand_group": group_no(r),
         "aliases": "|".join(a.strip() for a in str(r.get(c["aliases"]) or "").split(",") if a.strip())
         if c.get("aliases") else None,
         "disambiguation_note": r.get(c["note"]) if c.get("note") else None} for r in rows if r.get(c["brand"])]

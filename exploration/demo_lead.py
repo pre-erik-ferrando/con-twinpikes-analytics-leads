@@ -7,6 +7,7 @@ data is saved, so you can follow how a Google Maps place becomes a lead.
     #    answer each tmp/demo/prompts/<id>.txt with the JSON the prompt asks for, in
     #    tmp/demo/answers/<id>.json (only the JSON object)
     python exploration/demo_lead.py                    # 3) same command: scores, approves, exports
+    python exploration/demo_lead.py --inputs FILE.xlsx # TWP's inputs Excel instead of the demo values
 
 Each run starts from scratch (in memory) and replays the saved Apify items, so it is free; it only
 re-downloads the websites. Output in tmp/demo/ (gitignored):
@@ -15,7 +16,8 @@ re-downloads the websites. Output in tmp/demo/ (gitignored):
     export/                        the Salesforce upload file
 
 DEMO-ONLY values (not business configuration, see DEMO_CONFIG): the search area, a handful of
-Google category rules (the real ones come from TWP's Excel) and a placeholder sales owner. There
+Google category rules (the real ones come from TWP's Excel, used with --inputs) and a placeholder
+sales owner (kept with --inputs: TWP's Subregion → sales rep tab is still empty). There
 is no customer extract, so the customer match finds nothing and the stale-extract block is
 approved for the demo.
 """
@@ -153,11 +155,17 @@ def _cell(v):
     return s if len(s) <= 2000 else s[:2000] + f"… [{len(s)} chars]"
 
 
-def _store() -> MemoryStore:
+def _store(inputs: Path | None) -> MemoryStore:
     st = MemoryStore()
     seed_loader.load_csv_seeds(st, BY)
+    config = DEMO_CONFIG
+    if inputs:  # TWP's areas, zones, terms, rules and brands; only the placeholder owner stays ours
+        seed_loader.load(st, {t: seed_loader.typed_rows(t, r) for t, r in seed_loader.excel_to_rows(inputs).items()},
+                         inputs.stem, BY, inputs.name)
+        st.advance(seconds=1)
+        config = {"biz_cfg_sales_owner": DEMO_CONFIG["biz_cfg_sales_owner"]}
     typed = {t: seed_loader.typed_rows(t, [{k: (str(v) if v is not None else None) for k, v in r.items()}
-                                           for r in rows]) for t, rows in DEMO_CONFIG.items()}
+                                           for r in rows]) for t, rows in config.items()}
     seed_loader.load(st, typed, "demo-config", BY, "demo values, not TWP's")
     # The search goes as the area's outline (load-geo in production): here, the rectangle around Graz
     # that was tested against Apify (exploration/findings.md).
@@ -228,18 +236,20 @@ def main() -> int:
     p = argparse.ArgumentParser()
     p.add_argument("--places", default=str(OUT / "places.json"))
     p.add_argument("--term", default="Poolbau", help="the term the Apify run searched (for the record)")
+    p.add_argument("--inputs", type=Path, help="TWP's inputs Excel: its configuration replaces the demo's")
     a = p.parse_args()
+    area = "AT-601" if a.inputs else AREA
     items = json.loads(Path(a.places).read_text(encoding="utf-8"))
     print(f"{len(items)} places from {a.places}")
     shutil.rmtree(OUT / "stages", ignore_errors=True)
     shutil.rmtree(OUT / "export", ignore_errors=True)
 
-    st = _store()
+    st = _store(a.inputs)
     stages = Stages(st)
     stages.mark()
 
     ctx, cap = run_capture(st, ReplayCapturer(items),
-                           CaptureRequest("AT", "POOL_SPECIALIST", [AREA], [a.term], BY, len(items) or 1,
+                           CaptureRequest("AT", "POOL_SPECIALIST", [area], [a.term], BY, len(items) or 1,
                                           approve_stale_extract=True))
     stages.dump(STAGES[0])
     print(f"  capture: found {cap.get('found')}, pending enrichment {cap.get('pending_enrichment')}")
@@ -273,7 +283,7 @@ def main() -> int:
 
     trace(st, items)
     seen = {r["category"] for r in st.select("category_seen_out")} - {
-        r["category"] for r in DEMO_CONFIG["biz_cfg_category_rule"]}
+        r["category"] for r in st.select("biz_cfg_category_rule")}
     if seen:
         print(f"\nUnclassified Google categories (filtered out as DEFAULT_EXCLUDE): {sorted(seen)}")
     return 0

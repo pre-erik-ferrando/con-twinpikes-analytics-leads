@@ -55,3 +55,6 @@ tmp/
 # --- docs/outline/ ----------------------------------------------------------
 # The local preview of docs/outline/sync.py --dry-run.
 docs/outline/_preview/
+
+# Client source files (inputs Excel, etc.)
+docs/source/

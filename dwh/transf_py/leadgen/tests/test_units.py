@@ -430,3 +430,38 @@ def test_config_from_rows_is_scoped_by_profile(store):
     assert ("COMPANY_TYPE", "BUILDER_INSTALLER_SHOP") in cfg.scoring_points()
     assert cfg.param("customer_extract_max_age_days") == 7
     assert cfg.sales_owner("999")["owner_last_name"] == "Owner"           # the country default owner
+
+
+def test_inputs_excel_with_title_rows_as_in_v3(tmp_path):
+    """TWP's v3 layout: title and description rows above the header, brand group as 'Group 1 (7.5)'."""
+    from openpyxl import Workbook
+    from leadgen.seed_loader import excel_to_rows
+    tabs = {
+        "Admin divisions": [["Country code", "Country", "Region", "Subregion code", "Subregion",
+                             "Default language", "Zone"], ["AT", "Austria", "Steiermark", "601", "Graz(Stadt)", "de", "Attack"]],
+        "Profiles & keywords": [["Profile", "Language", "Countries", "Keyword", "Pre-selected in Capture"],
+                                ["Pool specialist", "de", "AT", "Poolbau", "Pre-selected"],
+                                ["Pool specialist", "de", "AT", "Poolzubehör", "Optional"]],
+        "Google categories": [["Category", "Rule"], ["Poolbedarf", "INCLUDE"]],
+        "Name exclusions": [["Pattern", "Class", "Reason"], ["OBI", "HARD", "Key Account chain"]],
+        "Pool words": [["Language", "Root"], ["de", "pool"]],
+        "Brands": [["Brand", "Group"], ["BAYROL", "Group 1 (7.5)"], ["ZODIAC", "Fluidra (no score)"]],
+        "Subregion → sales rep": [["Country code", "Subregion code", "Sales rep first name", "Sales rep last name"],
+                                  ["AT", "601", "Pending Fluidra", None]],
+    }
+    wb = Workbook()
+    wb.remove(wb.active)
+    for name, rows in tabs.items():
+        ws = wb.create_sheet(name)
+        ws.append([name])
+        ws.append(["One-cell description of the tab."])
+        for r in rows:
+            ws.append(r)
+    wb.save(tmp_path / "inputs.xlsx")
+    out = excel_to_rows(tmp_path / "inputs.xlsx")
+    assert [a["area_id"] for a in out["biz_cfg_search_area"]] == ["AT-S-STEIERMARK", "AT-601"]
+    assert out["biz_cfg_strategic_zone"][0]["quadrant"] == "ATTACK"
+    assert [(t["term"], t["preselected"]) for t in out["biz_cfg_search_term"]] == [("Poolbau", "1"), ("Poolzubehör", "0")]
+    assert out["biz_cfg_title_rule"][0]["reason_code"] == "KA_CHAIN"
+    assert [(b["owner"], b["brand_group"]) for b in out["biz_cfg_brand"]] == [("COMPETITOR", "1"), ("FLUIDRA", None)]
+    assert out["biz_cfg_sales_owner"] == []

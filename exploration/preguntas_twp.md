@@ -4,11 +4,11 @@ Para la primera entrega: Pool specialist en Alemania, Austria y Suiza.
 
 ## Lo que necesitamos ahora
 
-1. ¿Nos enviáis el Excel de inputs v4 (261014_New_Leads_DataApp_Inputs v4)?
+1. Tenemos la v3 del Excel de inputs. ¿Nos enviáis la v4 (261014_New_Leads_DataApp_Inputs v4)?
    En la pestaña de exportación a Salesforce, indicad también el formato de Province y Country, y si hace
    falta un correo de relleno.
-2. ¿Está rellena la pestaña Subregion → sales rep? Si un distrito no tiene comercial, ¿a quién van sus
-   leads?
+2. En la v3, la pestaña Subregion → sales rep está vacía. ¿Podéis rellenarla? Si un distrito no tiene
+   comercial, ¿a quién van sus leads?
 3. ¿Nos enviáis los listados de clientes de Fluidra de Austria, Suiza y Alemania? Incluid también los
    números de IVA o de registro mercantil de las sociedades de Fluidra.
 
@@ -23,5 +23,4 @@ resultados.
 - Datos y listados de clientes de Bélgica y Países Bajos.
 - ¿Cuándo se apaga el cockpit?
 - ¿Quién aprueba una ejecución que supera el umbral de coste?
-- Viena: ¿usáis el código 900 o los 901–923?
 - ¿Qué motivo de rechazo usa Salesforce?

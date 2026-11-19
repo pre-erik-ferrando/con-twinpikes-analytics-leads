@@ -29,11 +29,17 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - Outlines come from the sources the spec names: Statistik Austria (AT, see below), BKG VG250 for
   Germany and swisstopo for Switzerland (not done).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
-- District codes must match TWP's. Statistik Austria's 601 = Graz(Stadt) matches the spec's example; the
-  full list is not checked against TWP's inputs Excel (we don't have it). The spec has this as [PENDIENTE TWP].
-- Vienna is in the file twice: as 900 Wien(Stadt) and as its 23 city districts, 901-923, which overlap 900.
-  We don't know which TWP uses. Load only one set, or a business in Vienna may get either code.
 - It changes how spec DT.3.2 sends the area: tell TWP.
+
+## 2026-11-19 · TWP's district codes match Statistik Austria's
+
+Checked against the inputs Excel v3 (261013, "Admin divisions" tab). All 94 Austrian codes are in
+Statistik Austria's file, with the same names except "Sankt" vs "St." in 302, 319 and 504.
+TWP uses Vienna as 900 only. Statistik Austria's file also has the 23 city districts 901-923, which
+overlap 900: don't load 901-923, or a business in Vienna may get either code.
+In v3 the "Subregion → sales rep" tab has no rep filled (all 721 rows "Pending Fluidra").
+v3's tabs have a title and a description above the header, and brands come as "Group 1 (7.5)" with no
+owner column: the loader now reads both (`load-config`, and the demo's `--inputs`).
 
 ## 2026-11-18 · Austrian district outlines
 

@@ -3,6 +3,9 @@
 Questions for TWP and Fluidra: [preguntas_twp.md](preguntas_twp.md) (in Spanish, ready to send). Only
 what the most recent definition (v3.2, 14 October 2026) leaves open, plus what testing found.
 
+Received: the inputs Excel **v3** (261013, in `docs/source/`, gitignored). It loads; the demo runs on it.
+Still missing from TWP/Fluidra: v4, the sales reps (empty in v3) and the customer lists.
+
 ## Us
 
 1. ~~Fix the Google Maps search~~: done, the area is sent as its outline ([findings.md](findings.md)).
