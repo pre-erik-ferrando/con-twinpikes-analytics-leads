@@ -31,6 +31,15 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
 - It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
 
+## 2026-11-19 · Where to search for the demo: Villach Land
+
+Fluidra's Austrian customers placed in TWP's districts (1,506 with coordinates), within the 30 districts
+TWP's v4 marks ATTACK. Fewest customers: Güssing 1, Villach Land 2, Villach Stadt 3, then several with
+6-7 (Klagenfurt Land 7); the most: Graz-Umgebung 54, Baden 56.
+Chosen: **Villach Land (207)**, alternative Klagenfurt Land (204). That the lake area around Villach and
+Klagenfurt has many private pools is our reading, not data: v4's market size per district is empty.
+Güssing is left out: few customers there probably means few pool businesses at all.
+
 ## 2026-11-19 · The customer match on real data: every Graz pool business is a customer
 
 The demo (in memory, `demo_lead.py --inputs v4 --customers AT`) on the 5 saved Graz places: 4 pool

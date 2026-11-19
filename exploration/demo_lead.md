@@ -42,7 +42,8 @@ Invented values: the real ones are in `tmp/demo/trace.md` (not committed, as the
 
 The area goes as its official outline (Graz(Stadt), from `load-geo`), not by name: by name, Apify
 discards every place as out of location ([findings.md](findings.md)). The demo's saved places came from
-an earlier free-text search (`locationQuery: "Graz, Austria"`); the demo itself uses a rectangle around Graz.
+an earlier free-text search (`locationQuery: "Graz, Austria"`). With `--inputs` the demo uses the area's
+official outline (from `data/geo/at_bezirke.geojson`); without it, a rectangle around Graz.
 
 **0. Apify, raw response** (`gmaps_place.item_json`: one item per place; 61 keys, the ones the
 engine uses are shown)
@@ -129,6 +130,15 @@ DEFEND (2.5 zone points). Without it, the demo uses a few stand-in rules and zon
 customer list (TWP's layout). On the saved Graz places all four pool businesses turned out to be
 customers, so that run exports nothing ([findings.md](findings.md)). The stale-extract block is approved
 in the demo.
+
+**Another district:** `--area 207 --places a.json b.json …` searches the district TWP calls 207 (needs
+`--inputs`), and replays several saved Apify runs, one per term, as one capture (each item is replayed
+under its own `searchString`).
+
+**Next demo (waits for the Anthropic key):** Villach Land (207), the 4 pre-selected terms of v4
+(Poolbau, Poolbauer, Poolshop, Poolservice), up to 50 places each (about $1 in Apify). Then the demo
+needs the real model (`llm.make_provider`) instead of answers typed by hand: about 50 businesses would
+pass the filter, too many to answer by hand. Why 207: [findings.md](findings.md).
 
 **Not in the demo:** the dbt views (`lgn_v_lead` and the others, which need ClickHouse) and the sales
 owner (TWP's tab is empty; a placeholder is used).
