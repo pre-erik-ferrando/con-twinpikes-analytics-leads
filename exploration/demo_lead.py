@@ -9,6 +9,7 @@ data is saved, so you can follow how a Google Maps place becomes a lead.
     python exploration/demo_lead.py                    # 3) same command: scores, approves, exports
     python exploration/demo_lead.py --inputs FILE.xlsx # TWP's inputs Excel instead of the demo values
         [--customers FILE.xlsx --customers-date YYYY-MM-DD]   # and Fluidra Austria's customer list
+        [--area 207 --places tmp/v/poolbau.json tmp/v/poolshop.json …]   # another district, one file per term
 
 Each run starts from scratch (in memory) and replays the saved Apify items, so it is free; it only
 re-downloads the websites. Output in tmp/demo/ (gitignored):
@@ -38,7 +39,7 @@ from leadgen import seed_loader  # noqa: E402
 from leadgen.apify import ActorRun  # noqa: E402
 from leadgen.crawl import Crawler, CrawlLimits  # noqa: E402
 from leadgen.llm import LLMResult  # noqa: E402
-from leadgen.loaders import load_customers  # noqa: E402
+from leadgen.loaders import load_customers, load_geo  # noqa: E402
 from leadgen.state import RunContext  # noqa: E402
 from leadgen.steps.capture import CaptureRequest, run_capture  # noqa: E402
 from leadgen.steps.enrich import EnrichRequest, run_enrich  # noqa: E402
@@ -76,14 +77,18 @@ STAGES = ["01_capture", "02_enrich", "03_validation", "04_export"]
 
 
 class ReplayCapturer:
-    """Returns the saved Apify items instead of calling Apify."""
+    """Returns the saved Apify items instead of calling Apify: for each query, the items of its term
+    (Apify's searchString), so several saved runs, one per term, replay as one capture."""
     build = "replay"
 
-    def __init__(self, items):
-        self.items = items
+    def __init__(self, items, default_term):
+        self.by_term: dict[str, list] = {}
+        for it in items:
+            self.by_term.setdefault(it.get("searchString") or default_term, []).append(it)
 
     def run(self, actor_in, max_charge_usd):
-        return ActorRun("replay", "SUCCEEDED", list(self.items), 0.0, None, None)
+        term = (actor_in.get("searchStringsArray") or [""])[0]
+        return ActorRun("replay", "SUCCEEDED", list(self.by_term.get(term, [])), 0.0, None, None)
 
 
 class PendingAnswers(Exception):
@@ -157,7 +162,8 @@ def _cell(v):
     return s if len(s) <= 2000 else s[:2000] + f"… [{len(s)} chars]"
 
 
-def _store(inputs: Path | None, customers: Path | None = None, customers_date: str | None = None) -> MemoryStore:
+def _store(inputs: Path | None, customers: Path | None = None, customers_date: str | None = None,
+           area_code: str = "601", geo_file: Path | None = None) -> MemoryStore:
     st = MemoryStore()
     seed_loader.load_csv_seeds(st, BY)
     config = DEMO_CONFIG
@@ -169,13 +175,21 @@ def _store(inputs: Path | None, customers: Path | None = None, customers_date: s
     typed = {t: seed_loader.typed_rows(t, [{k: (str(v) if v is not None else None) for k, v in r.items()}
                                            for r in rows]) for t, rows in config.items()}
     seed_loader.load(st, typed, "demo-config", BY, "demo values, not TWP's")
-    # The search goes as the area's outline (load-geo in production): here, the rectangle around Graz
-    # that was tested against Apify (exploration/findings.md).
-    st.insert("reference_geo", [{"source": "DEMO", "country": "AT", "version": "demo", "admin_level": "SUBREGION",
-                                 "admin_code": "601", "admin_name": "Graz(Stadt)", "geometry_json": json.dumps(
-                                     {"type": "Polygon", "coordinates": [[[15.34, 46.99], [15.53, 46.99],
-                                                                          [15.53, 47.13], [15.34, 47.13],
-                                                                          [15.34, 46.99]]]})}])
+    # The search goes as the area's outline (load-geo in production). With --inputs and the Austrian
+    # boundaries file, the area's official outline; otherwise the rectangle around Graz that was tested
+    # against Apify (exploration/findings.md).
+    if inputs and geo_file and geo_file.is_file():
+        cfg = RunContext(st, "demo", "LOAD", "AT", "POOL_SPECIALIST", BY).config()
+        twp = {a["admin_code"] for a in cfg.search_areas().values() if a.get("level") == "SUBREGION"}
+        if area_code not in twp:
+            raise SystemExit(f"area {area_code} is not one of TWP's Austrian districts")
+        load_geo(st, geo_file, "AT", "SUBREGION", "STATISTIK_AUSTRIA", "demo", "g_id", "g_name", keep=twp)
+    else:
+        st.insert("reference_geo", [{"source": "DEMO", "country": "AT", "version": "demo", "admin_level": "SUBREGION",
+                                     "admin_code": "601", "admin_name": "Graz(Stadt)", "geometry_json": json.dumps(
+                                         {"type": "Polygon", "coordinates": [[[15.34, 46.99], [15.53, 46.99],
+                                                                              [15.53, 47.13], [15.34, 47.13],
+                                                                              [15.34, 46.99]]]})}])
     st.advance(seconds=1)
     if customers:  # Fluidra's Austrian customer list, as TWP normalises it (DT.5.1)
         cfg = RunContext(st, "demo", "LOAD", "AT", "POOL_SPECIALIST", BY).config()
@@ -241,24 +255,33 @@ def trace(store, items) -> None:
 
 def main() -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--places", default=str(OUT / "places.json"))
-    p.add_argument("--term", default="Poolbau", help="the term the Apify run searched (for the record)")
+    p.add_argument("--places", nargs="+", default=[str(OUT / "places.json")],
+                   help="saved Apify runs (apify_smoke.py --save), e.g. one per term")
+    p.add_argument("--term", default="Poolbau", help="the term of items without Apify's searchString")
+    p.add_argument("--area", default="601", help="with --inputs: the Austrian district code (e.g. 207)")
+    p.add_argument("--geo", type=Path, default=ROOT / "data" / "geo" / "at_bezirke.geojson",
+                   help="with --inputs: the Austrian boundaries, for the area's outline")
     p.add_argument("--inputs", type=Path, help="TWP's inputs Excel: its configuration replaces the demo's")
     p.add_argument("--customers", type=Path, help="Fluidra Austria's customer list (TWP's layout, TWP_SHEET_AT)")
     p.add_argument("--customers-date", help="date of that list, YYYY-MM-DD (its file name prefix)")
     a = p.parse_args()
-    area = "AT-601" if a.inputs else AREA
-    items = json.loads(Path(a.places).read_text(encoding="utf-8"))
-    print(f"{len(items)} places from {a.places}")
+    if not a.inputs and a.area != "601":
+        raise SystemExit("--area needs --inputs (the demo's own configuration only has Graz)")
+    area = f"AT-{a.area}" if a.inputs else AREA
+    items = [it for f in a.places for it in json.loads(Path(f).read_text(encoding="utf-8"))]
+    replay = ReplayCapturer(items, a.term)
+    terms = list(replay.by_term)
+    print(f"{len(items)} places from {len(a.places)} file(s); terms {terms}; area {area}")
     shutil.rmtree(OUT / "stages", ignore_errors=True)
     shutil.rmtree(OUT / "export", ignore_errors=True)
 
-    st = _store(a.inputs, a.customers, a.customers_date)
+    st = _store(a.inputs, a.customers, a.customers_date, a.area, a.geo)
     stages = Stages(st)
     stages.mark()
 
-    ctx, cap = run_capture(st, ReplayCapturer(items),
-                           CaptureRequest("AT", "POOL_SPECIALIST", [area], [a.term], BY, len(items) or 1,
+    ctx, cap = run_capture(st, replay,
+                           CaptureRequest("AT", "POOL_SPECIALIST", [area], terms, BY,
+                                          max(len(v) for v in replay.by_term.values()) if items else 1,
                                           approve_stale_extract=True))
     stages.dump(STAGES[0])
     print(f"  capture: found {cap.get('found')}, pending enrichment {cap.get('pending_enrichment')}")
