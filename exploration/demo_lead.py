@@ -8,6 +8,7 @@ data is saved, so you can follow how a Google Maps place becomes a lead.
     #    tmp/demo/answers/<id>.json (only the JSON object)
     python exploration/demo_lead.py                    # 3) same command: scores, approves, exports
     python exploration/demo_lead.py --inputs FILE.xlsx # TWP's inputs Excel instead of the demo values
+        [--customers FILE.xlsx --customers-date YYYY-MM-DD]   # and Fluidra Austria's customer list
 
 Each run starts from scratch (in memory) and replays the saved Apify items, so it is free; it only
 re-downloads the websites. Output in tmp/demo/ (gitignored):
@@ -37,6 +38,7 @@ from leadgen import seed_loader  # noqa: E402
 from leadgen.apify import ActorRun  # noqa: E402
 from leadgen.crawl import Crawler, CrawlLimits  # noqa: E402
 from leadgen.llm import LLMResult  # noqa: E402
+from leadgen.loaders import load_customers  # noqa: E402
 from leadgen.state import RunContext  # noqa: E402
 from leadgen.steps.capture import CaptureRequest, run_capture  # noqa: E402
 from leadgen.steps.enrich import EnrichRequest, run_enrich  # noqa: E402
@@ -155,7 +157,7 @@ def _cell(v):
     return s if len(s) <= 2000 else s[:2000] + f"… [{len(s)} chars]"
 
 
-def _store(inputs: Path | None) -> MemoryStore:
+def _store(inputs: Path | None, customers: Path | None = None, customers_date: str | None = None) -> MemoryStore:
     st = MemoryStore()
     seed_loader.load_csv_seeds(st, BY)
     config = DEMO_CONFIG
@@ -175,6 +177,11 @@ def _store(inputs: Path | None) -> MemoryStore:
                                                                           [15.53, 47.13], [15.34, 47.13],
                                                                           [15.34, 46.99]]]})}])
     st.advance(seconds=1)
+    if customers:  # Fluidra's Austrian customer list, as TWP normalises it (DT.5.1)
+        cfg = RunContext(st, "demo", "LOAD", "AT", "POOL_SPECIALIST", BY).config()
+        r = load_customers(st, cfg, customers, "AT", "TWP_SHEET_AT", "AT", customers_date, BY)
+        print(f"  customers: {r['customers']} loaded from {customers.name}")
+        st.advance(seconds=1)
     return st
 
 
@@ -237,6 +244,8 @@ def main() -> int:
     p.add_argument("--places", default=str(OUT / "places.json"))
     p.add_argument("--term", default="Poolbau", help="the term the Apify run searched (for the record)")
     p.add_argument("--inputs", type=Path, help="TWP's inputs Excel: its configuration replaces the demo's")
+    p.add_argument("--customers", type=Path, help="Fluidra Austria's customer list (TWP's layout, TWP_SHEET_AT)")
+    p.add_argument("--customers-date", help="date of that list, YYYY-MM-DD (its file name prefix)")
     a = p.parse_args()
     area = "AT-601" if a.inputs else AREA
     items = json.loads(Path(a.places).read_text(encoding="utf-8"))
@@ -244,7 +253,7 @@ def main() -> int:
     shutil.rmtree(OUT / "stages", ignore_errors=True)
     shutil.rmtree(OUT / "export", ignore_errors=True)
 
-    st = _store(a.inputs)
+    st = _store(a.inputs, a.customers, a.customers_date)
     stages = Stages(st)
     stages.mark()
 

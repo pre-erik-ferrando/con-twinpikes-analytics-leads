@@ -121,10 +121,14 @@ engine uses are shown)
 
 Across all steps: `pipeline_run` (state of each run) and `cost_ledger` (estimated and actual cost).
 
-**TWP's configuration:** with `--inputs FILE.xlsx` the demo loads TWP's inputs Excel (tested with v3,
-261013): areas, zones, keywords, category and name rules, pool words and brands. Graz(Stadt) is then
+**TWP's configuration:** with `--inputs FILE.xlsx` the demo loads TWP's inputs Excel (tested with v3
+and v4): areas, zones, keywords, category and name rules, pool words and brands. Graz(Stadt) is then
 DEFEND (2.5 zone points). Without it, the demo uses a few stand-in rules and zone points are 0.
 
-**Not in the demo:** the dbt views (`lgn_v_lead` and the others, which need ClickHouse), the customer
-extract (none received, so the customer match finds nothing) and the sales owner (TWP's tab is empty;
-a placeholder is used).
+**Customers:** with `--customers FILE.xlsx --customers-date YYYY-MM-DD` it loads Fluidra Austria's
+customer list (TWP's layout). On the saved Graz places all four pool businesses turned out to be
+customers, so that run exports nothing ([findings.md](findings.md)). The stale-extract block is approved
+in the demo.
+
+**Not in the demo:** the dbt views (`lgn_v_lead` and the others, which need ClickHouse) and the sales
+owner (TWP's tab is empty; a placeholder is used).

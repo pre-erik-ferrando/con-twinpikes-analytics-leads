@@ -49,7 +49,7 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 
 | Qué | De quién | Qué bloquea | Valor provisional en el código |
 |---|---|---|---|
-| Instantánea congelada del Excel de inputs v4 | TWP | Configuración definitiva | Tenemos la v3 (261013) y se carga: el cargador salta el título y la descripción de cada pestaña y lee los grupos de marca «Group 1 (7.5)»; si falta una cabecera, falla con la lista de las encontradas |
+| Excel de inputs v4 | TWP | — | Recibida (261020): igual a la v3 salvo una frase de la pestaña de exportación. Se carga: el cargador salta el título y la descripción de cada pestaña y lee los grupos de marca «Group 1 (7.5)»; si falta una cabecera, falla con la lista de las encontradas. Siguen pendientes la tabla de comerciales (vacía) y los valores de Salesforce |
 | Reglas, términos y tipología de Pool & Spa, HVAC, Mass market y Pond | TWP | Activar esos perfiles | Inactivos en `biz_cfg_profile` |
 | Tabla subregión → comercial | Fluidra | Columna Owner | Propietario por defecto por país |
 | Valores de Salesforce: Lead Status, país, provincia, correo obligatorio | Fluidra | Formato final del fichero | `SF_LEAD_STATUS` NEW → New, `SF_COUNTRY` en inglés |

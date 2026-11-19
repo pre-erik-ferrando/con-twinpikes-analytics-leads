@@ -24,6 +24,7 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 | `state.py` | I/O | current state of the insert-only tables; run context and snapshot; syncs Intelek's decisions |
 | `apify.py`, `crawl.py`, `llm.py` | I/O | Google Maps actor, crawler (+ Playwright), Anthropic direct and Message Batches |
 | `loaders.py`, `seed_loader.py` | I/O | customer extracts, cockpit CSV, boundaries, own lists; seeds and TWP's Excel |
+| `geo_convert.py` | I/O | DE/CH boundaries (GeoPackage, UTM 32N / LV95) to GeoJSON in lon/lat, for `load-geo` |
 | `steps/` | I/O | one module per run type: `capture`, `enrich`, `export`, `maintenance` |
 
 ## Run types (review DT.9)

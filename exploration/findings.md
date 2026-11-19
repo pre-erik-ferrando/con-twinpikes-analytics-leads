@@ -31,6 +31,23 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
 - It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
 
+## 2026-11-19 · The customer match on real data: every Graz pool business is a customer
+
+The demo (in memory, `demo_lead.py --inputs v4 --customers AT`) on the 5 saved Graz places: 4 pool
+businesses pass the filter, and all 4 are Fluidra customers, so nothing is exported.
+
+| Place | Customer in the list | Signal | Pass |
+|---|---|---|---|
+| A | same company, same Graz address | same phone | capture (free) |
+| B | same company, head office elsewhere in Styria | phone on the website | enrichment |
+| C | same company, head office in Lower Austria | same VAT | enrichment |
+| D | same company, under its legal name, elsewhere in Styria | same VAT | enrichment |
+
+Names left out: they come from Fluidra's customer list (client data). All four were checked by hand
+and are real matches; three are branches of companies with their head office elsewhere, which only
+the website's phone or VAT reveals. For the demo, an area with fewer established customers is needed:
+a new Apify search (cents).
+
 ## 2026-11-19 · Fluidra's customer lists (AT, CH, DE)
 
 Three files from TWP, one per country, all in TWP's normalised layout (tab Customers, the same 15

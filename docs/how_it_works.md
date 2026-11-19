@@ -46,8 +46,10 @@ Cada paso es un comando aparte que lanza una persona. Nada se ejecuta de forma p
 Código: [steps/capture.py](../dwh/transf_py/leadgen/steps/capture.py).
 
 1. **Búsqueda.** Para cada área y término de búsqueda (p. ej. el distrito `AT-501` × `Poolbau`), el
-   actor de Google Maps de Apify devuelve fichas. La respuesta se guarda tal cual en `fld_landinglgn`,
-   para no tener que pagarla dos veces.
+   actor de Google Maps de Apify devuelve fichas. El área se envía como su contorno oficial
+   (`customGeolocation`, de los límites cargados con `load-geo`), no por su nombre: por nombre, Apify
+   descarta todas las fichas ([Decisiones](outline/decisiones.md)). La respuesta se guarda tal cual en
+   `fld_landinglgn`, para no tener que pagarla dos veces.
 2. **Normalización** ([normalize.py](../dwh/transf_py/leadgen/normalize.py)):
    - teléfonos a E.164;
    - webs a su dominio registrable;
@@ -80,8 +82,8 @@ Código: [steps/capture.py](../dwh/transf_py/leadgen/steps/capture.py).
 El resultado es un **lote de captación** (`cb_…`) con una estimación del coste del paso siguiente,
 calculada con la misma fórmula que usa el enriquecimiento (`cost.enrich_estimate`).
 
-Antes de capturar se comprueba la antigüedad del extracto de clientes: aviso desde 31 días y bloqueo
-por encima de 35. Para seguir sin cargar uno nuevo hay que lanzar la captación con
+Antes de capturar se comprueba la antigüedad del extracto de clientes: bloqueo por encima de 7 días
+(definición v3.2, DT.5). Para seguir sin cargar uno nuevo hay que lanzar la captación con
 `--approve-stale-extract`, que queda registrado como aprobación de quien la lanza.
 
 También se estima el coste de Apify antes de llamar (consultas × tope × precio por ficha). Si supera
@@ -289,9 +291,10 @@ REQUESTED → SNAPSHOT_FROZEN → [AWAITING_COST_APPROVAL] → RUNNING → [AWAI
 - **Sintaxis SQL.** Cada modelo dbt se analiza como SQL de ClickHouse (sqlglot).
 
 **Lo que los tests no demuestran:** que el SQL funcione en el ClickHouse real (hace falta
-`python leadgen.py dbt -- test` con la VPN), los nombres reales de los campos de entrada del actor de
-Apify y las cabeceras reales del Excel de TWP. Están como pendientes en
-[Decisiones](outline/decisiones.md).
+`python leadgen.py dbt -- test` con la VPN) ni el comportamiento de Apify, que solo se ha comprobado
+con búsquedas sueltas de pago (un distrito de Austria y uno de Alemania,
+[findings](../exploration/findings.md)). El Excel de inputs de TWP (v3 y v4) y sus listados de clientes
+de AT, CH y DE sí se han cargado con los ficheros reales.
 
 ---
 
@@ -310,6 +313,7 @@ dwh/transf_py/leadgen/
 ├── store                       ClickHouse ↔ memoria; nombres lógicos ↔ físicos
 ├── ddl                         el contrato de todas las tablas
 ├── loaders, seed_loader        extractos de clientes, cockpit, límites, listas propias; seeds y Excel
+├── geo_convert                 límites de DE y CH (GeoPackage) a GeoJSON en lon/lat
 └── seeds/                      nuestros valores de configuración (CSV)
 dwh/transf_dbt/models/leads/    vistas dbt: srclgn → stglgn → crplgn → bizlgn (lgn_v_* para Intelek)
 dwh/governance/                 scripts de bases de datos, roles y permisos (los ejecutan los admins)

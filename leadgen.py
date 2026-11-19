@@ -3,7 +3,7 @@ upload files, everything is launched from here and the results are read in the l
 
     python leadgen.py init                       # databases, tables and *_current views (idempotent)
     python leadgen.py seed                       # seeds/*.csv into biz_cfg_* (only keys not yet there)
-    python leadgen.py load-config FILE.xlsx --version v4-261014
+    python leadgen.py load-config FILE.xlsx --version v4-261020
     python leadgen.py load-geo FILE.geojson --country AT --level SUBREGION --source STATISTIK_AUSTRIA \
         --version 2026 --code-prop g_id --name-prop g_name   # capture sends each area as this outline
     python leadgen.py geo-convert DE_VG250.gpkg de_kreise.geojson --crs 25832 \
