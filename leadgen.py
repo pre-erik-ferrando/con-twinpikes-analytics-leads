@@ -6,6 +6,8 @@ upload files, everything is launched from here and the results are read in the l
     python leadgen.py load-config FILE.xlsx --version v4-261014
     python leadgen.py load-geo FILE.geojson --country AT --level SUBREGION --source STATISTIK_AUSTRIA \
         --version 2026 --code-prop g_id --name-prop g_name   # capture sends each area as this outline
+    python leadgen.py geo-convert DE_VG250.gpkg de_kreise.geojson --crs 25832 \
+        --sql "SELECT geom, AGS, GEN FROM vg250_krs WHERE GF = 4"   # DE/CH packages -> load-geo input
     python leadgen.py load-customers FILE --country AT --source-system TWP_SHEET_AT --extract-date 2026-11-01
     python leadgen.py precheck --country AT --profile POOL_SPECIALIST --areas AT-501 --terms Poolbau
     python leadgen.py capture --country AT --profile POOL_SPECIALIST --areas AT-501,AT-502 --terms Poolbau,Poolshop
@@ -94,6 +96,10 @@ def cmd(ns) -> int:
         env = {**os.environ, "DBT_CH_SCHEMA": os.environ.get("DBT_CH_SCHEMA", ddl.DB["landing"])}
         args = ns.rest or ["build"]
         return subprocess.call(["dbt", *args, "--profiles-dir", "."], cwd=DBT_DIR, env=env)
+    if c == "geo-convert":                                      # files only, no database
+        from leadgen import geo_convert
+        print(f"{geo_convert.write(Path(ns.file), Path(ns.out), ns.sql, int(ns.crs))} areas written to {ns.out}")
+        return 0
 
     st = store()
     if c == "init":
@@ -252,6 +258,8 @@ def parser() -> argparse.ArgumentParser:
     for a in ("--country", "--level", "--source", "--version", "--code-prop", "--name-prop"):
         s.add_argument(a, required=True)
     s.add_argument("--parent-prop")
+    s = sub.add_parser("geo-convert"); s.add_argument("file"); s.add_argument("out")
+    s.add_argument("--crs", required=True, choices=["25832", "2056"]); s.add_argument("--sql", required=True)
     s = sub.add_parser("load-customers"); s.add_argument("file"); s.add_argument("--country", required=True)
     s.add_argument("--source-system", required=True); s.add_argument("--subsidiary")
     s.add_argument("--extract-date"); s.add_argument("--sheet")

@@ -26,10 +26,28 @@ inside the area, which is what the spec wants, without free text. Recorded in
 VvIgdWt0Ing7M9ehW, $0.025).
 
 **Still open:**
-- Outlines come from the sources the spec names: Statistik Austria (AT, see below), BKG VG250 for
-  Germany and swisstopo for Switzerland (not done).
+- Outlines come from the sources the spec names: Statistik Austria, BKG VG250 and swisstopo (all
+  three loaded, see below).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
-- It changes how spec DT.3.2 sends the area: tell TWP.
+- It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
+
+## 2026-11-19 · German and Swiss district outlines
+
+BKG VG250 (01.01.2026) and swisstopo swissBOUNDARIES3D (2026-01), the sources DT.4.1 names. Both come
+as GeoPackages in projected coordinates (UTM 32N, LV95); `leadgen.py geo-convert` turns them into
+GeoJSON in lon/lat without a GIS library (commands in [onboarding.md](../docs/outline/onboarding.md)).
+
+- Accuracy: within 6 m of BKG's own lon/lat service (its rounding); swisstopo's reference point exact
+  to 1e-5°. Zürich, Bern, Lugano, Genève, Zug, Basel, Neuchâtel and Moutier fall in the right district.
+- Germany: all 401 of TWP's Kreise match, Hanau (06415, kreisfrei since 2026) included. VG250 also
+  has 33 sea and lake areas with the land codes: only GF = 4 (land) is loaded. BKG's online service
+  (WFS) is still at 2025 and lacks Hanau, so the 2026 download is used.
+- Switzerland: 134 of TWP's districts are swisstopo districts; the other 9 are cantons without
+  districts, coded canton × 100 (Genève 2500), taken from the canton layer. Moutier (2604) moved to
+  Jura on 1 Jan 2026 and is not in TWP's list: `load-geo` skips it, so a business there gets no
+  district (no zone points, no owner). For TWP.
+- Request size (simplified to about 100 m): a German Kreis median 7 KB, max 38 KB; a Swiss district
+  median 3 KB. A whole state is large: Bern 55 KB, Bayern 851 KB. Untested against Apify.
 
 ## 2026-11-19 · TWP's district codes match Statistik Austria's
 

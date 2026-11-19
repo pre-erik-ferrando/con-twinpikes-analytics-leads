@@ -35,6 +35,20 @@ python leadgen.py load-geo data/geo/at_bezirke.geojson --country AT --level SUBR
     --source STATISTIK_AUSTRIA --version 2026 --code-prop g_id --name-prop g_name
 # solo carga los distritos del Excel de TWP (por eso va después de load-config): en Austria salta
 # los distritos de Viena 901-923, que se solapan con el 900 que usa TWP
+# Alemania (BKG VG250) y Suiza (swisstopo) vienen como GeoPackage en coordenadas proyectadas:
+# descargar, extraer el .gpkg del zip, convertir a GeoJSON con geo-convert y cargar igual
+curl -L -o data/geo/vg250.zip "https://daten.gdz.bkg.bund.de/produkte/vg/vg250_ebenen_0101/aktuell/vg250_01-01.utm32s.gpkg.ebenen.zip"
+python leadgen.py geo-convert DE_VG250.gpkg data/geo/de_kreise.geojson --crs 25832 \
+    --sql "SELECT geom, AGS, GEN FROM vg250_krs WHERE GF = 4"          # GF = 4: tierra, sin mar ni lagos
+python leadgen.py load-geo data/geo/de_kreise.geojson --country DE --level SUBREGION \
+    --source BKG_VG250 --version 2026 --code-prop code --name-prop name
+curl -L -o data/geo/sb3d.zip "https://data.geo.admin.ch/ch.swisstopo.swissboundaries3d/swissboundaries3d_2026-01/swissboundaries3d_2026-01_2056_5728.gpkg.zip"
+python leadgen.py geo-convert swissBOUNDARIES3D_1_5_LV95_LN02.gpkg data/geo/ch_bezirke.geojson --crs 2056 \
+    --sql "SELECT geom, bezirksnummer, name FROM tlm_bezirksgebiet UNION ALL SELECT geom, kantonsnummer * 100, name FROM tlm_kantonsgebiet WHERE kantonsnummer IN (4, 6, 7, 8, 9, 12, 16, 24, 25)"
+# los cantones sin distritos (Uri, Obwalden, Nidwalden, Glarus, Zug, Basel-Stadt, Appenzell I.,
+# Neuchâtel, Genève) son un distrito en el Excel de TWP, con código cantón × 100 (Genève 2500)
+python leadgen.py load-geo data/geo/ch_bezirke.geojson --country CH --level SUBREGION \
+    --source SWISSTOPO --version 2026 --code-prop code --name-prop name
 python leadgen.py load-customers data/inputs/customers_at.xlsx --country AT --source-system TWP_SHEET_AT \
     --extract-date 2026-11-01
 python leadgen.py dbt                                   # las vistas

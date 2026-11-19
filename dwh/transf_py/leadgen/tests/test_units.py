@@ -482,3 +482,30 @@ def test_load_geo_keeps_only_twp_codes(tmp_path):
     assert r == {"loaded": 2, "skipped": ["909"], "missing": ["107"]}
     assert sorted(x["admin_code"] for x in st.select("reference_geo")) == ["601", "900"]
     assert loaders.load_geo(MemoryStore(), path, "AT", "SUBREGION", "TEST", "1", "g_id", "g_name")["loaded"] == 3
+
+
+def test_geo_convert_coordinates_and_geopackage(tmp_path):
+    """UTM 32N and LV95 to lon/lat, checked against the publishers' own values."""
+    import sqlite3
+    import struct
+    from leadgen import geo_convert as G
+    lon, lat = G.lv95_to_lonlat(2600000, 1200000)           # swisstopo: Bern, 7°26'19.1" E 46°57'3.9" N
+    assert abs(lon - 7.43863) < 1e-4 and abs(lat - 46.95108) < 1e-4
+    lon, lat = G.utm_to_lonlat(526513.7529, 6075133.4119)   # a Flensburg vertex; BKG's WFS: 9.4127, 54.8226
+    assert abs(lon - 9.4127) < 6e-5 and abs(lat - 54.8226) < 6e-5
+    assert G.utm_to_lonlat(500000, 0)[0] == pytest.approx(9.0)
+    # A GeoPackage blob: header with a 2D envelope, then ISO WKB Polygon Z (as swissBOUNDARIES3D)
+    ring = [(2600000, 1200000, 500), (2601000, 1200000, 500), (2601000, 1201000, 500), (2600000, 1200000, 500)]
+    wkb = struct.pack("<BII", 1, 1003, 1) + struct.pack("<I", 4) + b"".join(struct.pack("<3d", *p) for p in ring)
+    blob = b"GP" + bytes([0, 0b0000_0011]) + struct.pack("<i", 2056) + struct.pack("<4d", 0, 1, 0, 1) + wkb
+    db = tmp_path / "t.gpkg"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE b (geom BLOB, nr INTEGER, name TEXT)")
+    con.execute("INSERT INTO b VALUES (?, 25, 'Genève')", (blob,))
+    con.commit()
+    con.close()
+    fc = G.convert(db, "SELECT geom, nr * 100, name FROM b", 2056)
+    f = fc["features"][0]
+    assert f["properties"] == {"code": "2500", "name": "Genève"}
+    assert f["geometry"]["type"] == "MultiPolygon" and len(f["geometry"]["coordinates"][0][0]) == 4
+    assert f["geometry"]["coordinates"][0][0][0] == [round(v, 6) for v in G.lv95_to_lonlat(2600000, 1200000)]
