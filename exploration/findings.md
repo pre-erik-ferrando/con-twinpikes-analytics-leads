@@ -48,6 +48,9 @@ GeoJSON in lon/lat without a GIS library (commands in [onboarding.md](../docs/ou
   district (no zone points, no owner). For TWP.
 - Request size (simplified to about 100 m): a German Kreis median 7 KB, max 38 KB; a Swiss district
   median 3 KB. A whole state is large: Bern 55 KB, Bayern 851 KB. Untested against Apify.
+- Tested against Apify (19 Nov): Landkreis München (09184) as its outline, Poolbau, max 5. Five places,
+  all pool builders, all inside 09184 (Baierbrunn, Hohenbrunn, Grünwald, Oberhaching, Taufkirchen),
+  none in the city of München (09162), which the Landkreis surrounds.
 
 ## 2026-11-19 · TWP's district codes match Statistik Austria's
 
