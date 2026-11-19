@@ -31,6 +31,18 @@ CH,TWP_SHEET_CH,CUSTOMER,CH,email_normalized,email,TRIM,,
 CH,TWP_SHEET_CH,CUSTOMER,CH,corporate_email_domain,corporate_email_domain,TRIM,,
 CH,TWP_SHEET_CH,CUSTOMER,CH,Latitude,latitude,DECIMAL_COMMA,,POSTAL_CODE
 CH,TWP_SHEET_CH,CUSTOMER,CH,Longitude,longitude,DECIMAL_COMMA,,POSTAL_CODE
+DE,TWP_SHEET_DE,CUSTOMER,DE,customer_number,customer_code,TRIM,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,customer_name_original,customer_name,TRIM,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,Address,street,TRIM,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,postal_code_normalized,postal_code,POSTAL_CODE,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,city_normalized,city,TRIM,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,country_code,address_country,COUNTRY_NAME_TO_ISO,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,phone_normalized,phone,PHONE_E164,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,vat_id_normalized,vat_id,VAT,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,email_normalized,email,TRIM,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,corporate_email_domain,corporate_email_domain,TRIM,,
+DE,TWP_SHEET_DE,CUSTOMER,DE,Latitude,latitude,DECIMAL_COMMA,,POSTAL_CODE
+DE,TWP_SHEET_DE,CUSTOMER,DE,Longitude,longitude,DECIMAL_COMMA,,POSTAL_CODE
 ,COCKPIT_FULL,COCKPIT_OUTCOME,,ID,lead_code,TRIM,,
 ,COCKPIT_FULL,COCKPIT_OUTCOME,,Status,status,VALUE_MAP,COCKPIT_STATUS_IN,
 ,COCKPIT_FULL,COCKPIT_OUTCOME,,Not-qualified reason,not_qualified_reason,VALUE_MAP,COCKPIT_REASON_IN,

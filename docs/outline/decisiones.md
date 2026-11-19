@@ -53,7 +53,7 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 | Reglas, términos y tipología de Pool & Spa, HVAC, Mass market y Pond | TWP | Activar esos perfiles | Inactivos en `biz_cfg_profile` |
 | Tabla subregión → comercial | Fluidra | Columna Owner | Propietario por defecto por país |
 | Valores de Salesforce: Lead Status, país, provincia, correo obligatorio | Fluidra | Formato final del fichero | `SF_LEAD_STATUS` NEW → New, `SF_COUNTRY` en inglés |
-| Extractos de clientes de BE y NL; extracto en bruto de AT y CH | Fluidra | Cruce en BE/NL | Cruce omitido con aviso; pestañas de TWP (`TWP_SHEET_AT/CH`) |
+| Extractos de clientes de BE y NL; extracto en bruto de AT y CH | Fluidra | Cruce en BE/NL | Cruce omitido con aviso; listados normalizados por TWP (`TWP_SHEET_AT/CH/DE`), recibidos el 19/11: AT del 29/09, CH del 06/10, DE del 18/11 |
 | Build del actor de Apify y prueba de idioma | Prenomics | Fijar `apify_actor_build`, `apify_language` | `0.14.793` [PROPUESTA], la build contra la que se comprobaron los campos de entrada; idioma por subregión |
 | Comprobación VIES / UID | Prenomics | `des_vat_id` en `lgn_v_lead` (solo con VALID) | `vat_check_status = NOT_CHECKED` |
 | Identificadores de las sociedades de Fluidra | Fluidra | Señal FLUIDRA_ENTITY | `fluidra_entity_ids` vacío |

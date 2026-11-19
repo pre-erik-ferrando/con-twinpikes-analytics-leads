@@ -49,8 +49,14 @@ python leadgen.py geo-convert swissBOUNDARIES3D_1_5_LV95_LN02.gpkg data/geo/ch_b
 # Neuchâtel, Genève) son un distrito en el Excel de TWP, con código cantón × 100 (Genève 2500)
 python leadgen.py load-geo data/geo/ch_bezirke.geojson --country CH --level SUBREGION \
     --source SWISSTOPO --version 2026 --code-prop code --name-prop name
-python leadgen.py load-customers data/inputs/customers_at.xlsx --country AT --source-system TWP_SHEET_AT \
-    --extract-date 2026-11-01
+# los listados de clientes que normaliza TWP (pestaña Customers), uno por país; la fecha es la del
+# prefijo del nombre del fichero
+python leadgen.py load-customers "data/inputs/260929_Customers_Fluidra Austria_leads_generator.xlsx" \
+    --country AT --source-system TWP_SHEET_AT --extract-date 2026-09-29
+python leadgen.py load-customers "data/inputs/261006_Customers_Astral Switzerland_Leads generator.xlsx" \
+    --country CH --source-system TWP_SHEET_CH --extract-date 2026-10-06
+python leadgen.py load-customers "data/inputs/261118_Customers_Fluidra Deutschland_leads_generator.xlsx" \
+    --country DE --source-system TWP_SHEET_DE --extract-date 2026-11-18
 python leadgen.py dbt                                   # las vistas
 python leadgen.py precheck --country AT --areas AT-501 --terms Poolbau
 ```

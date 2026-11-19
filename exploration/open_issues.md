@@ -12,7 +12,7 @@ v4 is v3 with one sentence changed (the export tab now cites the Spain upload fo
 
 | Missing | Without it | Weight | Question |
 |---|---|---|---|
-| Customer lists AT, CH, DE | Current Fluidra customers can show up as new leads | High | 3 |
+| ~~Customer lists AT, CH, DE~~ received 19 Nov, they load ([findings.md](findings.md)). But AT (29 Sep) and CH (6 Oct) are older than the definition's 7 days: capture blocks unless approved (`--approve-stale-extract`) or they send fresh ones | Current Fluidra customers can show up as new leads | Done; freshness open | 3 |
 | Subregion → sales rep (empty in v4) | The Owner column is a placeholder | Low | 2 |
 | Salesforce export values: Province format, Country, Lead Status, mandatory Email (Pending in v4) | Our provisional values are used; the file is still produced | Lowest | 1 |
 
@@ -25,6 +25,8 @@ v4 is v3 with one sentence changed (the export tab now cites the Spain upload fo
 
 ## Later
 
+- Benelux: BE and NL customer lists (TWP, 19 Nov: "De Benelux aún no lo tengo, está pedido"), their
+  district outlines (Statbel, CBS) and the search pilot the technical review proposes.
 - Find out with Intelek whether their app can launch runs and accept file uploads.
 - A whole state sent to Apify at once (Bayern would be an 851 KB request). Single districts tested in
   AT (Graz) and DE (Landkreis München) ([findings.md](findings.md)).

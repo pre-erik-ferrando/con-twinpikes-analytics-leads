@@ -31,6 +31,23 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
 - It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
 
+## 2026-11-19 · Fluidra's customer lists (AT, CH, DE)
+
+Three files from TWP, one per country, all in TWP's normalised layout (tab Customers, the same 15
+columns), as DT.5.1 describes: AT 1,693 customers (29 Sep), CH 936 (6 Oct), DE 4,672 (18 Nov). They
+load with `load-customers` (`TWP_SHEET_AT/CH/DE`); DE needed its own mapping, added as seeds.
+
+- Address country comes as car-plate codes in AT and DE (A, D, B, I…), which the loader now reads. DE's
+  file holds 111 customers with an Austrian address and 48 with a Swiss one, as the definition says.
+- DE has name, address and coordinates only: no phone, VAT or email, so German leads match on name
+  plus postcode or city only.
+- CH: 3 rows recognised as test records and set aside.
+- AT and CH also have a "Rules" tab: the old n8n scoring (brands, zones by postcode). Not read: the
+  inputs Excel and the definition replace it.
+- Age: on 19 Nov AT is 51 days old and CH 44, over the 7 days of DT.5, so capture blocks there unless
+  the run is approved (`--approve-stale-extract`).
+- Fluidra's own companies' VAT or register numbers (asked in question 3) are not in the files.
+
 ## 2026-11-19 · German and Swiss district outlines
 
 BKG VG250 (01.01.2026) and swisstopo swissBOUNDARIES3D (2026-01), the sources DT.4.1 names. Both come

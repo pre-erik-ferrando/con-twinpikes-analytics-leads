@@ -509,3 +509,9 @@ def test_geo_convert_coordinates_and_geopackage(tmp_path):
     assert f["properties"] == {"code": "2500", "name": "Genève"}
     assert f["geometry"]["type"] == "MultiPolygon" and len(f["geometry"]["coordinates"][0][0]) == 4
     assert f["geometry"]["coordinates"][0][0][0] == [round(v, 6) for v in G.lv95_to_lonlat(2600000, 1200000)]
+
+
+def test_country_car_plate_codes_from_erp_extracts():
+    """Fluidra Austria's and Deutschland's extracts give the address country as A, D, B."""
+    from leadgen.loaders import country_to_iso
+    assert [country_to_iso(c) for c in ("A", "D", "B", "CH", "Österreich", "I")] == ["AT", "DE", "BE", "CH", "AT", None]

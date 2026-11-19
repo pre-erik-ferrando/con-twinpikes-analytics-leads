@@ -22,6 +22,8 @@ COUNTRY_NAMES = {
     "schweiz": "CH", "switzerland": "CH", "suisse": "CH", "svizzera": "CH", "zwitserland": "CH", "ch": "CH",
     "belgien": "BE", "belgium": "BE", "belgique": "BE", "belgie": "BE", "be": "BE",
     "niederlande": "NL", "netherlands": "NL", "nederland": "NL", "pays-bas": "NL", "nl": "NL",
+    # car-plate codes, as in the ERP extracts of Fluidra Austria and Fluidra Deutschland (A, D, B)
+    "a": "AT", "d": "DE", "b": "BE",
 }
 
 
