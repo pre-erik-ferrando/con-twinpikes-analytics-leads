@@ -7,6 +7,10 @@ country,map_name,source_value,target_value
 ,COCKPIT_REASON_IN,Business closed,BUSINESS_CLOSED
 ,COCKPIT_REASON_IN,Doesn't purchase pool equipment,NO_POOL_EQUIPMENT
 ,COCKPIT_REASON_IN,Already Fluidra client,ALREADY_CUSTOMER
+,SF_STATUS_IN,Converted,CONVERTED
+,SF_STATUS_IN,Working,WORKING
+,SF_STATUS_IN,Nurturing,NURTURING
+,SF_STATUS_IN,Discarded,NOT_QUALIFIED
 ,SF_RATING,HOT,Hot
 ,SF_RATING,WARM,Warm
 ,SF_RATING,COLD,Cold

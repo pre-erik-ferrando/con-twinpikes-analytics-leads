@@ -515,3 +515,16 @@ def test_country_car_plate_codes_from_erp_extracts():
     """Fluidra Austria's and Deutschland's extracts give the address country as A, D, B."""
     from leadgen.loaders import country_to_iso
     assert [country_to_iso(c) for c in ("A", "D", "B", "CH", "Österreich", "I")] == ["AT", "DE", "BE", "CH", "AT", None]
+
+
+def test_import_list_reads_the_inputs_excel_columns(tmp_path):
+    """v4's Import list tab: company_name, country_code, city, postal_code, website, phone, list_source."""
+    from leadgen.loaders import load_import_list
+    from leadgen.store import MemoryStore
+    f = tmp_path / "list.csv"
+    f.write_text("company_name,country_code,city,postal_code,website,phone,list_source\n"
+                 "Poolbau Muster,AT,Villach,9500,poolbau-muster.at,,Interbad 2026\n", encoding="utf-8")
+    st = MemoryStore()
+    _, rows = load_import_list(st, f, "AT", "POOL_SPECIALIST", "t")
+    assert rows == [{"name": "Poolbau Muster", "city": "Villach", "phone": None, "website": "poolbau-muster.at"}]
+    assert "Interbad 2026" in st.select("import_list_row")[0]["row_json"]

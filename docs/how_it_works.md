@@ -159,8 +159,9 @@ después.
 
 ### Paso 5: Retroalimentación
 
-- **`load-cockpit`**: los resultados de las llamadas del cockpit. "Ya es cliente" o "no existe" se
-  convierten en correcciones que mandan sobre las decisiones automáticas.
+- **`load-cockpit`**: los resultados de las llamadas del cockpit o, con `--source-system SF_STATUS`, el
+  fichero de estado mensual de Salesforce (Excel v4). "Ya es cliente" o "no existe" (Discarded en
+  Salesforce) se convierten en correcciones que mandan sobre las decisiones automáticas.
 - **`load-customers` y después `rematch`** (mensual): un extracto de clientes nuevo se vuelve a
   cruzar con todos los leads, de todos los perfiles.
 - **`reprocess`**: tras cambiar las reglas (términos, categorías, puntos), vuelve a aplicar el filtro,

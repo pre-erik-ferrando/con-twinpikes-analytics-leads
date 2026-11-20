@@ -11,7 +11,8 @@ leads AS (
            count()                                                              AS n_leads,
            countIf(l.des_status = 'Published')                                  AS n_published,
            countIf(l.des_cockpit_status IN ('WORKING', 'NURTURING'))            AS n_in_progress,
-           countIf(l.des_cockpit_status = 'NOT_QUALIFIED')                      AS n_not_qualified
+           countIf(l.des_cockpit_status = 'NOT_QUALIFIED')                      AS n_not_qualified,
+           countIf(l.des_cockpit_status = 'CONVERTED')                          AS n_converted   -- Salesforce
     FROM {{ ref('lgn_v_lead') }} AS l
     GROUP BY l.des_country, l.des_subregion_code
 )
@@ -28,7 +29,8 @@ SELECT
     coalesce(ld.n_leads, 0)                      AS val_leads,
     coalesce(ld.n_published, 0)                  AS val_published,
     coalesce(ld.n_in_progress, 0)                AS val_in_progress,
-    coalesce(ld.n_not_qualified, 0)              AS val_not_qualified
+    coalesce(ld.n_not_qualified, 0)              AS val_not_qualified,
+    coalesce(ld.n_converted, 0)                  AS val_converted
 FROM {{ ref('lgn_a_search_area') }} AS a
 LEFT JOIN {{ ref('lgn_a_strategic_zone') }} AS z ON z.country = a.country AND z.admin_code = a.admin_code
 LEFT JOIN searched AS s ON s.area_id = a.area_id

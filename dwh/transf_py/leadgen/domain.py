@@ -85,7 +85,7 @@ APPROVAL_SCOPES = ("LEAD", "REST_OF_BATCH")
 # DF.4's six states. Computed in lgn_v_lead, never stored (insert-only model).
 LEAD_STATUSES = ("Found", "Excluded by engine", "To review", "Rejected", "Approved", "Published")
 EXPORT_STATUSES = ("GENERATED", "UPLOADED", "FAILED")
-COCKPIT_STATUSES = ("NEW", "NO_ANSWER", "WORKING", "NURTURING", "NOT_QUALIFIED")
+COCKPIT_STATUSES = ("NEW", "NO_ANSWER", "WORKING", "NURTURING", "NOT_QUALIFIED", "CONVERTED")  # CONVERTED: Salesforce
 COCKPIT_REASONS = ("BUSINESS_CLOSED", "NO_POOL_EQUIPMENT", "ALREADY_CUSTOMER")
 
 # --- Runs (review, DT.9) -----------------------------------------------------------------------

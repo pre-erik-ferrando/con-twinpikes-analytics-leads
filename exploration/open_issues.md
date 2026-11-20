@@ -23,6 +23,13 @@ v4 is v3 with one sentence changed (the export tab now cites the Spain upload fo
 | ~~Where the tables go in the database~~ done 19 Nov: the six `fld_*lgn` databases exist; `init`, seeds, v4, outlines (AT/DE/CH), customer lists (AT/CH/DE) and dbt loaded | — | Done |
 | Model: which one, whose Anthropic key, spending cap | The model's answers are typed by hand; the next demo (Villach Land, [demo_lead.md](demo_lead.md)) waits for it | This week |
 
+## Ask TWP now
+
+- **The Word v3.3.** The inputs Excel v4 (20 Oct) cites "Word v3.3" (DF.10, DT.8.4), newer than our
+  definition v3.2 (14 Oct). They differ on call results: v3.2 loads the cockpit's CSV; v4 describes a
+  monthly **Salesforce status file**. Both are now loaded (`load-cockpit`, `--source-system SF_STATUS`
+  for the second), but v3.3 may say more ([findings.md](findings.md)).
+
 ## Later
 
 - Benelux: BE and NL customer lists (TWP, 19 Nov: "De Benelux aún no lo tengo, está pedido"), their

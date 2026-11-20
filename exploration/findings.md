@@ -31,6 +31,25 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
 - It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
 
+## 2026-11-20 · The project against the four input files (v4 and the three customer lists)
+
+- Loaded and matching: areas and zones, keywords, Google categories, name exclusions, pool words,
+  brands (AstralPool and Zodiac kept from our seeds, also Fluidra brands), the three customer lists.
+- Matching the code exactly: scoring (every factor and its points, max 37.5), rating bands (Hot ≥ 30,
+  Warm ≥ 20), rejection reasons (six codes, with customer number and "company that stays"), and the 24
+  Salesforce columns, in order and content (Last Name = contact or company, CHF for Switzerland, Mobile
+  only for mobiles, Lead Status New).
+- Fixed: the Import list tab names its column `company_name`, which the loader did not read.
+- Empty or pending in v4: the sales reps ("Pending Fluidra", blocks the export), the Salesforce values
+  marked Pending, market size per district (not used: zone points use the quadrant).
+- Built after this check: the Salesforce status file tab, loaded like the cockpit's CSV
+  (`load-cockpit --source-system SF_STATUS`): Discarded becomes an exclusion, Converted is counted in the
+  zone map. v4 cites a "Word v3.3" that we don't have (v3.2 only has the cockpit): to ask TWP for it.
+  Salesforce's exact status values are still pending (our mapping is [PROPUESTA]).
+- The Customer file tab lists columns the received files don't have (subsidiary, sales_rep_name,
+  geo_precision, extract_date): the files are TWP's normalised layout, as DT.5.1 describes, and the
+  missing values come from the `load-customers` arguments.
+
 ## 2026-11-19 · Where to search for the demo: Villach Land
 
 Fluidra's Austrian customers placed in TWP's districts (1,506 with coordinates), within the 30 districts

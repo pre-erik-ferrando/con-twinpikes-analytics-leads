@@ -165,10 +165,14 @@ def parse_lead_code(code: str | None) -> tuple[str | None, int | None]:
     return (m.group(1), int(m.group(2))) if m else (None, None)
 
 
-def load_cockpit(store, cfg, path: Path, country: str, exported_at: str | None, loaded_by: str) -> dict:
-    mapping = cfg.source_columns("COCKPIT_FULL")
+def load_cockpit(store, cfg, path: Path, country: str, exported_at: str | None, loaded_by: str,
+                 source_system: str = "COCKPIT_FULL") -> dict:
+    """Call results: the Market Cockpit's full CSV (COCKPIT_FULL, definition v3.2 DF.10) or Salesforce's
+    monthly status file (SF_STATUS, inputs Excel v4, tab Salesforce status file). Same landing and outcome
+    tables; Salesforce's Discarded arrives as NOT_QUALIFIED, so both become the same exclusions."""
+    mapping = cfg.source_columns(source_system)
     if not mapping:
-        raise ValueError("no biz_cfg_source_column rows for COCKPIT_FULL")
+        raise ValueError(f"no biz_cfg_source_column rows for {source_system}")
     rows = read_table(path)
     file_id = runs.new_id("ck")
     store.insert("cockpit_export_file", [{"cockpit_file_id": file_id, "country": country, "exported_at": exported_at,
@@ -236,10 +240,12 @@ def load_geo(store, path: Path, country: str, level: str, source: str, version: 
 
 
 def load_import_list(store, path: Path, country: str, profile: str, loaded_by: str) -> tuple[str, list[dict]]:
-    """[PROPUESTA] An own list: a name column and, if present, city, country, phone and website."""
+    """[PROPUESTA] An own list: a name column and, if present, city, country, phone and website. Column
+    names as in the inputs Excel's Import list tab (company_name…) or loose ones; the whole row, list_source
+    included, is kept as received in import_list_row."""
     rows = read_table(path)
     cols = {k.lower(): k for k in (rows[0] if rows else {})}
-    name_col = next((cols[c] for c in ("name", "company", "firma", "empresa", "nombre") if c in cols), None)
+    name_col = next((cols[c] for c in ("company_name", "name", "company", "firma", "empresa", "nombre") if c in cols), None)
     if name_col is None:
         raise ValueError(f"{path.name}: no name column (name, company, firma…)")
     pick = lambda r, *keys: next((r.get(cols[k]) for k in keys if k in cols), None)   # noqa: E731

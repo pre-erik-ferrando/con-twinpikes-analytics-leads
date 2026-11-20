@@ -32,6 +32,12 @@ lista). Necesita la VPN y el `.env`.
 **Resultados de llamada**: `load-cockpit CSV_COMPLETO --country AT`. Los Not qualified quedan excluidos
 para siempre; los "ya cliente" cuentan además como fallo del cruce.
 
+Cuando Salesforce sustituya al cockpit, el fichero de estado mensual de Salesforce (Excel de inputs v4,
+pestaña Salesforce status file):
+`load-cockpit lgn_sf_status_AAAAMM.csv --country AT --source-system SF_STATUS --exported-at AAAA-MM-DD`
+(fin de mes). Discarded se excluye igual que Not qualified; Converted, Working y Nurturing quedan
+registrados y el lead sigue Published.
+
 ## Cada mes y antes de abrir una zona nueva
 
 `load-customers EXTRACTO --country AT --source-system TWP_SHEET_AT --extract-date AAAA-MM-DD` y después

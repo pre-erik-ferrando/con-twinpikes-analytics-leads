@@ -16,7 +16,7 @@ lectura de las webs.
 | Enriquecimiento | `leadgen.py enrich` | Webs leídas, análisis del modelo comprobado, segundo cruce con clientes, puntuación y Rating |
 | Validación | Intelek (o `review`, `reject`, `approve-rest`) | Rechazos con motivo; el resto aprobado con alcance explícito |
 | Exportación | `leadgen.py export` + `confirm-export` | Fichero de Salesforce; Published al confirmar la subida |
-| Resultados de llamada | `leadgen.py load-cockpit` | Los Not qualified no vuelven a salir; mapa 3 |
+| Resultados de llamada | `leadgen.py load-cockpit` (cockpit, o el fichero de estado de Salesforce con `--source-system SF_STATUS`) | Los Not qualified y Discarded no vuelven a salir; mapa 3 |
 | Actualización mensual | `load-customers` + `rematch` | Los leads que ya son clientes se descualifican |
 
 Estados del lead (DF.4), calculados en `lgn_v_lead.des_status`: Found, Excluded by engine, To review,

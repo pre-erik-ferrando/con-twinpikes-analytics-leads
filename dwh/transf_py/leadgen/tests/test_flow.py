@@ -412,3 +412,21 @@ def test_reject_reason_must_apply_to_the_profile(store):
     with pytest.raises(ValueError, match="unknown"):
         reject(store, ctx.capture_batch_id, bid, "NO_SUCH_REASON", "ops")
     reject(store, ctx.capture_batch_id, bid, "KA_CHAIN", "ops")              # applies to every profile
+
+
+def test_salesforce_status_file_excludes_discarded_leads(store, tmp_path):
+    """Inputs Excel v4, tab Salesforce status file: Discarded becomes an exclusion like the cockpit's Not
+    qualified; Already Fluidra client also a customer match; Converted is kept as CONVERTED."""
+    from leadgen.loaders import load_cockpit
+    ctx, _ = _capture(store, ITEMS[:1])
+    bid = store.select("business_link_out")[0]["business_id"]
+    sf = tmp_path / "lgn_sf_status_202612.csv"
+    sf.write_text("Lead code,Salesforce ID,Company,Status,Status month,Subregion code,Discard reason\n"
+                  f"AT-{bid},00Q1,Huber,Discarded,2026-12,501,Already Fluidra client\n"
+                  "AT-123,00Q2,Other,Converted,2026-12,501,\n", encoding="utf-8")
+    cfg = RunContext(store, "t", "LOAD", "AT", "POOL_SPECIALIST", "t").config()
+    load_cockpit(store, cfg, sf, "AT", "2026-12-31", "sales.ops", "SF_STATUS")
+    out = {r["lead_code"]: r for r in store.select("cockpit_outcome_out")}
+    assert out[f"AT-{bid}"]["status"] == "NOT_QUALIFIED" and out["AT-123"]["status"] == "CONVERTED"
+    assert out[f"AT-{bid}"]["not_qualified_reason"] == "ALREADY_CUSTOMER"
+    assert apply_cockpit_outcomes(store, "AT") == 1
