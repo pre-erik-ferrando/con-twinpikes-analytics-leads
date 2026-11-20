@@ -85,14 +85,39 @@ def read_csv_seeds(folder: Path = SEEDS) -> dict[str, list[dict]]:
     return out
 
 
+CSV_SEEDS = "seeds/*.csv"
+
+
+def csv_seed_stamps(store, version: str) -> set[str]:
+    """The updated_by values the CSV seeds have written: one per seed_load of seeds/*.csv. The Excel's
+    rows are told apart by their file in seed_load (older loads stamped them seed:<version> too)."""
+    return {f"seed:{version}"} | {f"seed:{r['seed_version']}" for r in store.select("seed_load")
+                                  if r.get("file_name") == CSV_SEEDS}
+
+
 def load(store, tables: dict[str, list[dict]], seed_version: str, loaded_by: str, file_name: str,
-         overwrite: bool = False) -> dict[str, int]:
-    """Inserts the keys that do not exist yet (all of them with overwrite=True)."""
+         overwrite: bool = False, refresh_seeded: bool = False, stamp: str = "seed") -> dict[str, int]:
+    """Inserts the keys that do not exist yet (all of them with overwrite=True). refresh_seeded (the CSV
+    seeds): a key whose current row a CSV seed wrote and that now differs is written again; a key edited
+    since (Excel, Intelek) is left alone. stamp: the prefix of updated_by (seed, excel)."""
+    from .config import latest_by_key
+
     done = {}
+    seeded = csv_seed_stamps(store, seed_version) if refresh_seeded else set()
     for table, rows in tables.items():
         t = ddl.CONFIG_TABLES[table]
         existing = {tuple(r.get(k) for k in t.key) for r in store.select(table, columns=list(t.key))}
-        new = [r for r in rows if overwrite or tuple(r.get(k) for k in t.key) not in existing]
+        stale = set()
+        if refresh_seeded and not overwrite:
+            current = {tuple(r.get(k) for k in t.key): r for r in latest_by_key(store.select(table), t.key)}
+            for r in rows:
+                k = tuple(r.get(c) for c in t.key)
+                cur = current.get(k)
+                if cur and cur.get("updated_by") in seeded and \
+                        any(cur.get(c) != v for c, v in r.items() if c != "active"):
+                    stale.add(k)
+        new = [r for r in rows if overwrite or tuple(r.get(k) for k in t.key) not in existing
+               or tuple(r.get(k) for k in t.key) in stale]
         seen, unique = set(), []
         for r in new:                         # the same key twice in one input: the last one wins
             k = tuple(r.get(c) for c in t.key)
@@ -100,7 +125,7 @@ def load(store, tables: dict[str, list[dict]], seed_version: str, loaded_by: str
                 unique = [u for u in unique if tuple(u.get(c) for c in t.key) != k]
             seen.add(k)
             unique.append(r)
-        store.insert(table, [{**r, "updated_by": f"seed:{seed_version}"} for r in unique])
+        store.insert(table, [{**r, "updated_by": f"{stamp}:{seed_version}"} for r in unique])
         store.insert("seed_load", [{"seed_version": seed_version, "table_name": table, "n_rows": len(unique),
                                     "file_name": file_name, "overwrite": int(overwrite), "loaded_by": loaded_by}])
         done[table] = len(unique)
@@ -109,7 +134,32 @@ def load(store, tables: dict[str, list[dict]], seed_version: str, loaded_by: str
 
 def load_csv_seeds(store, loaded_by: str, overwrite: bool = False) -> dict[str, int]:
     version = (SEEDS / "VERSION").read_text().strip()
-    return load(store, read_csv_seeds(), version, loaded_by, "seeds/*.csv", overwrite)
+    seeds = read_csv_seeds()
+    seeded = csv_seed_stamps(store, version)        # before this load adds its own seed_load rows
+    done = load(store, seeds, version, loaded_by, CSV_SEEDS, overwrite, refresh_seeded=True)
+    retired = retire_removed_seeds(store, seeds, version, seeded)
+    if retired:
+        done["retired"] = retired
+    return done
+
+
+def retire_removed_seeds(store, seeds: dict[str, list[dict]], version: str, seeded: set[str]) -> int:
+    """A key a seed wrote that no seed file has any more (e.g. the cockpit's mapping, gone with v3.3) is
+    deleted the insert-only way: a new row with active = 0. Rows whose current version came from the
+    Excel or from Intelek are left alone."""
+    from .config import latest_by_key
+
+    n = 0
+    for table, rows in seeds.items():
+        t = ddl.CONFIG_TABLES[table]
+        keep = {tuple(r.get(k) for k in t.key) for r in rows}
+        gone = [r for r in latest_by_key(store.select(table), t.key)
+                if r.get("updated_by") in seeded and tuple(r.get(k) for k in t.key) not in keep]
+        if gone:
+            store.insert(table, [{**{k: v for k, v in r.items() if k != "inserted_at"}, "active": 0,
+                                  "updated_by": f"seed:{version}"} for r in gone])
+            n += len(gone)
+    return n
 
 
 # --------------------------------------------------------------------------- TWP's inputs Excel (DF.14)
@@ -177,7 +227,7 @@ def _slug(s: str) -> str:
 
 def excel_to_rows(path: Path) -> dict[str, list[dict]]:
     """TWP's inputs Excel -> rows per biz_cfg_* table (logical names, untyped). Reference-only tabs
-    (Leads n8n table) and the column contracts of the files (Customer file, Load call results,
+    (Leads n8n table) and the column contracts of the files (Customer file, Salesforce status file,
     Salesforce and MC export, Import list), which are maintained as seeds, are not read."""
     from openpyxl import load_workbook
 
@@ -301,4 +351,4 @@ def excel_to_rows(path: Path) -> dict[str, list[dict]]:
 def load_excel(store, path: Path, version: str, loaded_by: str, overwrite: bool = False) -> dict[str, int]:
     raw = excel_to_rows(path)
     typed = {table: typed_rows(table, rows) for table, rows in raw.items()}
-    return load(store, typed, version, loaded_by, path.name, overwrite)
+    return load(store, typed, version, loaded_by, path.name, overwrite, stamp="excel")

@@ -5,7 +5,7 @@ country,parameter,value,value_type,unit,notes
 ,apify_price_per_place_usd,0.007,FLOAT,USD,[PROPUESTA] for the estimate only
 ,apify_outline_tolerance_deg,0.001,FLOAT,deg,[PROPUESTA] about 100 m; how much the area outline sent to Apify is simplified
 ,default_max_places_per_search,50,INT,,default of the launch form
-,customer_extract_max_age_days,7,INT,days,[PROPUESTA] definition v3.2 DT.5: block above 7 unless approved
+,customer_extract_max_age_days,7,INT,days,[PROPUESTA] definition v3.3 DT.5: block above 7 unless approved
 ,customer_test_name_patterns,"test,prueba,dummy,xxx",LIST,,
 ,run_request_poll_interval_s,60,INT,s,only with biz_run_request
 ,html_retention_days,365,INT,days,

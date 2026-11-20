@@ -9,5 +9,5 @@ Everything database-side (ClickHouse). The entry point is [`leadgen.py`](../lead
 | [`governance/`](governance) | Databases, roles and GRANTs: `schemas/<database>/` + `users/`. **Written, not executed** (see [`governance/README.md`](governance/README.md)). |
 
 There is no `extraction/` folder (the template's CSV loader): the files this project receives (customer
-extracts, cockpit CSVs, the inputs Excel, boundaries) are loaded by the engine's
+extracts, Salesforce status files, the inputs Excel, boundaries) are loaded by the engine's
 [`loaders.py`](transf_py/leadgen/loaders.py) and [`seed_loader.py`](transf_py/leadgen/seed_loader.py).

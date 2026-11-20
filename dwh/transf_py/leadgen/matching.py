@@ -11,7 +11,7 @@ ADDRESS precision and an active COORDINATES rule they count as "same location".
 The rest go to the model with the web analysis: at most max_candidates_per_request, C1..Cn.
 When in doubt, the business is set aside: UNSURE counts as customer.
 
-Priority when sources disagree: human or cockpit correction > hard signal > model verdict > soft
+Priority when sources disagree: human or Salesforce correction > hard signal > model verdict > soft
 confirmation (resolve_priority).
 """
 from __future__ import annotations
@@ -88,7 +88,7 @@ class MatchResult:
 
 SIGNAL_LABEL = {"VAT": "VAT", "REGISTER": "Commercial register", "PHONE": "Phone", "DOMAIN": "Domain",
                 "FLUIDRA_ENTITY": "Fluidra entity", "NAME_CONFIRM": "Name and location",
-                "MODEL": "Model verdict", "HUMAN": "Sales Ops validation", "COCKPIT": "Cockpit result"}
+                "MODEL": "Model verdict", "HUMAN": "Sales Ops validation", "SALESFORCE": "Salesforce status (discarded, already a customer)"}
 
 
 def reason_text(signal: str, c: Customer, verdict: str | None = None) -> str:
@@ -229,18 +229,18 @@ def apply_verdicts(result: MatchResult, verdicts: dict[str, str]) -> MatchResult
 
 
 
-PRIORITY = {"HUMAN": 0, "COCKPIT": 0, "VAT": 1, "REGISTER": 1, "PHONE": 1, "DOMAIN": 1, "FLUIDRA_ENTITY": 1,
+PRIORITY = {"HUMAN": 0, "SALESFORCE": 0, "VAT": 1, "REGISTER": 1, "PHONE": 1, "DOMAIN": 1, "FLUIDRA_ENTITY": 1,
             "MODEL": 2, "NAME_CONFIRM": 3}
 
 
 def resolve_priority(results: list[dict]) -> dict | None:
     """Of several match rows of a business (dicts with origin/signal/outcome/inserted_at), the one
-    that decides: human/cockpit > hard signal > model > soft confirmation; the latest within a level."""
+    that decides: human/Salesforce > hard signal > model > soft confirmation; the latest within a level."""
     def level(r):
-        if r.get("origin") in ("HUMAN", "COCKPIT"):
+        if r.get("origin") in ("HUMAN", "SALESFORCE"):
             return 0
         return PRIORITY.get(r.get("signal") or "", 9)
-    deciding = [r for r in results if r.get("outcome") == "CUSTOMER" or r.get("origin") in ("HUMAN", "COCKPIT")]
+    deciding = [r for r in results if r.get("outcome") == "CUSTOMER" or r.get("origin") in ("HUMAN", "SALESFORCE")]
     if not deciding:
         return max(results, key=lambda r: r.get("inserted_at") or "") if results else None
     best = min(level(r) for r in deciding)

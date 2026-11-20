@@ -11,7 +11,7 @@ website crawl, model analysis, scoring, export) plus **dbt** views that Intelek'
 stack and conventions as [`con-twinpikes-analytics`](https://github.com/Prenomics/con-twinpikes-analytics)
 (the Insight Generator), whose skeleton this repo copies.
 
-The specification is in [`docs/spec/`](docs/spec): the functional and technical definition v3.2 and the
+The specification is in [`docs/spec/`](docs/spec): the functional and technical definition v3.3 and the
 technical review of v3.2. What this delivery builds and what it leaves out: [Proyecto Lead
 Generator](docs/outline/proyecto_lead_generator.md); where the code departs from the Word, and why:
 [Decisiones](docs/outline/decisiones.md). How it all works, end to end: [How it works](docs/how_it_works.md).
@@ -24,8 +24,8 @@ Generator](docs/outline/proyecto_lead_generator.md); where the code departs from
 ## The weekly flow (DF.4)
 
 ```
-capture  ──▶ enrich ──▶ validation ──▶ export ──▶ (call in the cockpit / Salesforce) ──▶ call results
-Google Maps   website     Sales Ops      xlsx for                                        load-cockpit
+capture  ──▶ enrich ──▶ validation ──▶ export ──▶ (call in the cockpit, then Salesforce) ──▶ monthly status
+Google Maps   website     Sales Ops      xlsx for                                            load-sf-status
 filter        model       rejects with   Salesforce
 1st match     2nd match   a reason
               score

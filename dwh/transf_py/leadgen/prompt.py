@@ -6,7 +6,7 @@
 | Country | countries/languages, valid identifiers, register formats             | country_code |
 | Profile | what a valid lead is, what is not, and the company types             | profile_code |
 
-For Pool specialist in DE, AT and CH the assembled text is the v3.2 prompt word for word (the only base
+For Pool specialist in DE, AT and CH the assembled text is the definition's prompt word for word (unchanged from v3.2 to v3.3) (the only base
 accepted in this phase; tests/test_prompt.py pins it). Other profiles have no block until TWP delivers
 their rules: building one raises ProfileNotConfigured.
 

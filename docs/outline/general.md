@@ -22,7 +22,7 @@ Inside Sales las llame por orden de interés.
 - **Código**: este repositorio. Mismo stack y convenciones que el Insight Generator
   (`con-twinpikes-analytics`), cuya plantilla copia.
 - **Base de datos**: ClickHouse, bases `fld_*lgn` ([Arquitectura](arquitectura.md)).
-- **Definición**: el Word v3.2 y su revisión técnica, en [`docs/spec/`](../spec); el Excel de inputs,
+- **Definición**: el Word v3.3 y la revisión técnica de la v3.2, en [`docs/spec/`](../spec); el Excel de inputs,
   en el SharePoint de TWP (fuera del repositorio).
 - **Qué se ha construido y qué no**: [Proyecto Lead Generator](proyecto_lead_generator.md) y
   [Decisiones](decisiones.md).

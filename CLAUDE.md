@@ -3,7 +3,7 @@
 Lead Generator DACH for Fluidra (client "twinpikes", with TWP): Google Maps capture -> filter ->
 customer match -> website + model -> score -> Sales Ops validation -> Salesforce export, on ClickHouse,
 read by Intelek's DataApp. Overview and environment: [README.md](README.md). Spec: [docs/spec/](docs/spec)
-(definition v3.2 + technical review). Where the code departs from it: [decisiones.md](docs/outline/decisiones.md).
+(definition v3.3 + the technical review of v3.2). Where the code departs from it: [decisiones.md](docs/outline/decisiones.md).
 
 ## Flow
 
@@ -35,12 +35,12 @@ Runs that call Apify or the model cost money and write to the shared DB: the use
 ## Rules
 
 - Code, comments, READMEs: English. `docs/outline/`: Spanish. Commit messages: Spanish, `tipo(ámbito): resumen`.
-- Never commit client data (customer extracts, cockpit exports, the inputs Excel, Salesforce files, leads).
+- Never commit client data (customer extracts, Salesforce status files, the inputs Excel, Salesforce files, leads).
 - Insert-only everywhere: no UPDATE, no DELETE, no FINAL; the current row is argMax by (inserted_at, updated_by).
   A config "delete" is a new row with active = 0.
 - Never invent a parameter: business values are biz_cfg_* rows (seeds or TWP's Excel), marked [PROPUESTA]
   when ours. A new table or column starts in `ddl.py`, then regenerate `_sources.yml`.
 - Logical names in code; style A physical names (pk_/des_/imp_/val_) only in tables Intelek reads or writes,
   translated by `store.py`.
-- The DACH Pool-specialist prompt is the v3.2 text: changing it changes `prompt_version` (cache, custom_id).
+- The DACH Pool-specialist prompt is the definition's text (unchanged from v3.2 to v3.3): changing it changes `prompt_version` (cache, custom_id).
 - When code or a decision changes, update the matching `docs/outline/` page in the same change.

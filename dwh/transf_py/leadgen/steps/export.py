@@ -3,7 +3,7 @@
 Only Approved leads go: current decision ACCEPTED, not exported before (a FAILED export can be
 regenerated), still not a customer after the latest match (the monthly rematch disqualifies them), not
 excluded. The export is GENERATED; `confirm` marks it UPLOADED (the leads become Published) or FAILED.
-While the Market Cockpit is in use, the same file is loaded there.
+While the Market Cockpit is in use, the same file is loaded there (v3.3 DT.8.5).
 """
 from __future__ import annotations
 

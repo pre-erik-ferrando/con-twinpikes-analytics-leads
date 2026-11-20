@@ -1,4 +1,4 @@
-"""REPROCESS_RULES, SCORE_ONLY, CUSTOMER_REMATCH, the cockpit's effects and the validation helpers.
+"""REPROCESS_RULES, SCORE_ONLY, CUSTOMER_REMATCH, Salesforce's status effects and the validation helpers.
 
 - REPROCESS_RULES: re-applies the filter and the customer match with the current configuration, with no
   new capture, crawl or model call (free). Mandatory after activating a new profile (review DT.4.4).
@@ -183,26 +183,40 @@ def reopen(store, capture_batch_id: str, business_id: int, by: str) -> None:
         "capture_batch_id": capture_batch_id, "decision": "PENDING", "approval_scope": "LEAD", "reviewed_by": by}])
 
 
-# --------------------------------------------------------------------------- cockpit effects (DT.8.4)
-def apply_cockpit_outcomes(store, country: str) -> int:
-    """NOT_QUALIFIED results become permanent exclusions; ALREADY_CUSTOMER also a customer match from
-    the cockpit (a failure of the automatic match in the metric). Idempotent per file and lead."""
-    done = {r.get("source_ref") for r in store.select("exclusion_out", {"country": country}) if r["origin"] == "COCKPIT"}
+# --------------------------------------------------------------------------- Salesforce status (DT.8.4)
+def current_sf_status(store, country: str) -> dict[str, dict]:
+    """lead_code -> its current state in Salesforce: the row of the latest month (the latest import wins
+    within a month)."""
+    out: dict[str, dict] = {}
+    for r in store.select("sf_status_out", {"country": country}):
+        cur = out.get(r["lead_code"])
+        if cur is None or (r["status_month"], r["inserted_at"]) >= (cur["status_month"], cur["inserted_at"]):
+            out[r["lead_code"]] = r
+    return out
+
+
+def apply_sf_status(store, country: str) -> int:
+    """v3.3 DT.8.4: a lead currently DISCARDED in Salesforce is excluded for good, with or without a
+    reason; with ALREADY_CUSTOMER it also counts as a failure of the automatic match (a SALESFORCE match
+    without customer code: the file does not bring it). CONVERTED, WORKING and NURTURING change nothing:
+    the lead stays Published. Idempotent per file and lead."""
+    done = {r.get("source_ref") for r in store.select("exclusion_out", {"country": country})
+            if r["origin"] == "SALESFORCE"}
     excl, matches = [], []
-    for (code,), r in latest(store.select("cockpit_outcome_out", {"country": country}), ("lead_code",)).items():
-        if r.get("status") != "NOT_QUALIFIED" or r.get("business_id") is None:
+    for code, r in current_sf_status(store, country).items():
+        if r["status"] != "DISCARDED":
             continue
-        ref = f"cockpit:{r['cockpit_file_id']}:{code}"
+        ref = f"sf:{r['status_file_id']}:{code}"
         if ref in done:
             continue
-        reason = r.get("not_qualified_reason") or "NOT_QUALIFIED"
+        reason = r.get("discard_reason") or "DISCARDED"
         excl.append({"business_id": r["business_id"], "country": country, "scope": "ALL", "profile": None,
-                     "origin": "COCKPIT", "reason": reason, "source_ref": ref})
+                     "origin": "SALESFORCE", "reason": reason, "source_ref": ref})
         if reason == "ALREADY_CUSTOMER":
-            matches.append({"run_id": "cockpit", "business_id": r["business_id"], "country": country, "profile": None,
-                            "match_pass": "MANUAL", "origin": "COCKPIT", "outcome": "CUSTOMER", "signal": "COCKPIT",
-                            "customer_code": r.get("customer_code"),
-                            "reason_text": f"Cockpit result: customer {r.get('customer_code')}"})
+            matches.append({"run_id": "salesforce", "business_id": r["business_id"], "country": country,
+                            "profile": None, "match_pass": "MANUAL", "origin": "SALESFORCE", "outcome": "CUSTOMER",
+                            "signal": None, "customer_code": None,
+                            "reason_text": f"Salesforce status {r['status_month']}: discarded, already a customer"})
     store.insert("exclusion_out", excl)
     store.insert("customer_match_out", matches)
     return len(excl)

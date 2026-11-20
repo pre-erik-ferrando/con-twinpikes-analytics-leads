@@ -1,5 +1,5 @@
 {{ config(materialized='view') }}
--- Business absorbed in a merge -> the surviving one (DT.4.2). Validations, exclusions and cockpit
+-- Business absorbed in a merge -> the surviving one (DT.4.2). Validations, exclusions and Salesforce
 -- results follow the alias. One level here; the engine follows chains (identity.resolve_alias).
 SELECT
     a.old_id                          AS old_id,

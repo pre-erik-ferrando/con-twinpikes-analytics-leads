@@ -14,7 +14,7 @@ from leadgen.steps import maintenance
 from leadgen.steps.capture import CaptureRequest, RunFailed, run_capture
 from leadgen.steps.enrich import EnrichRequest, resume_enrich, run_enrich
 from leadgen.steps.export import confirm, run_export
-from leadgen.steps.maintenance import apply_cockpit_outcomes, approve_rest, reject, run_rematch, to_review
+from leadgen.steps.maintenance import apply_sf_status, approve_rest, reject, run_rematch, to_review
 
 from .conftest import SQUARE, FakeCapturer, FakeProvider, _cfg_rows, answer, crawler, item
 
@@ -99,19 +99,19 @@ def test_full_flow(store, tmp_path):
     ev2 = {r["business_id"]: r for r in store.select("rule_evaluation_out", {"run_id": ctx2.run_id})}
     assert ev2[mayr["business_id"]]["stage"] == "PREVIOUSLY_EXCLUDED"
 
-    # call results: the cockpit says Huber is already a customer
-    from leadgen.loaders import load_cockpit
-    ck = tmp_path / "cockpit.csv"
-    ck.write_text(f"ID,Status,Not-qualified reason,Fluidra customer code,Attempts,Potential €/year (entered),"
-                  f"Indicative potential €/year (from questions),Contact,Role,Phone,Email,Last call,Last comment\n"
-                  f"AT-{huber['business_id']},Not qualified,Already Fluidra client,C555,2,,,,,,,2026-11-05,known\n"
-                  f"AT-NL-002,New,,,0,,,,,,,,\n", encoding="utf-8")
+    # Salesforce's monthly status file: Huber was discarded in the call, already a customer (DT.8.4)
+    from leadgen.loaders import load_sf_status
+    sf = tmp_path / "lgn_sf_status_202611.csv"
+    sf.write_text("Lead code,Salesforce ID,Company,Status,Status month,Subregion code,Discard reason\n"
+                  f"AT-{huber['business_id']},00Q1,Huber,Discarded,2026-11,501,Already Fluidra client\n"
+                  "AT-NL-002,,Old cockpit lead,Working,2026-11,501,\n", encoding="utf-8")
     cfg = RunContext(store, "t", "LOAD", "AT", "POOL_SPECIALIST", "t").config()
-    res = load_cockpit(store, cfg, ck, "AT", "2026-11-06", "sales.ops")
-    assert res["unresolved_lead_codes"] == 1
-    assert apply_cockpit_outcomes(store, "AT") == 1 and apply_cockpit_outcomes(store, "AT") == 0   # idempotent
-    m = [r for r in store.select("customer_match_out") if r["origin"] == "COCKPIT"]
-    assert m[0]["customer_code"] == "C555"
+    res = load_sf_status(store, cfg, sf, "sales.ops")
+    assert res["loaded"] == 1 and res["unknown_lead_codes"] == ["AT-NL-002"]
+    assert apply_sf_status(store, "AT") == 1 and apply_sf_status(store, "AT") == 0   # idempotent
+    m = [r for r in store.select("customer_match_out") if r["origin"] == "SALESFORCE"]
+    assert m[0]["outcome"] == "CUSTOMER" and m[0]["customer_code"] is None          # the file has no code
+    assert huber["business_id"] in published_ids(store, "AT")                        # stays Published
 
 
 def test_rematch_disqualifies_unpublished_leads(store, tmp_path):
@@ -414,19 +414,36 @@ def test_reject_reason_must_apply_to_the_profile(store):
     reject(store, ctx.capture_batch_id, bid, "KA_CHAIN", "ops")              # applies to every profile
 
 
-def test_salesforce_status_file_excludes_discarded_leads(store, tmp_path):
-    """Inputs Excel v4, tab Salesforce status file: Discarded becomes an exclusion like the cockpit's Not
-    qualified; Already Fluidra client also a customer match; Converted is kept as CONVERTED."""
-    from leadgen.loaders import load_cockpit
-    ctx, _ = _capture(store, ITEMS[:1])
-    bid = store.select("business_link_out")[0]["business_id"]
-    sf = tmp_path / "lgn_sf_status_202612.csv"
-    sf.write_text("Lead code,Salesforce ID,Company,Status,Status month,Subregion code,Discard reason\n"
-                  f"AT-{bid},00Q1,Huber,Discarded,2026-12,501,Already Fluidra client\n"
-                  "AT-123,00Q2,Other,Converted,2026-12,501,\n", encoding="utf-8")
+def test_salesforce_status_current_month_and_checks(store, tmp_path):
+    """DT.8.4: the latest month is the current state; a discard without reason also excludes; a zone that
+    differs from the lead's is a warning; Working changes nothing."""
+    from leadgen.loaders import load_sf_status
+    from leadgen.steps.maintenance import current_sf_status
+    ctx, _ = _capture(store, ITEMS[:2])
+    run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
+    approve_rest(store, ctx.capture_batch_id, "ops")
+    _, xs = run_export(store, ctx.capture_batch_id, "ops", tmp_path)
+    codes = [r["lead_code"] for r in store.select("export_lead_out")]
     cfg = RunContext(store, "t", "LOAD", "AT", "POOL_SPECIALIST", "t").config()
-    load_cockpit(store, cfg, sf, "AT", "2026-12-31", "sales.ops", "SF_STATUS")
-    out = {r["lead_code"]: r for r in store.select("cockpit_outcome_out")}
-    assert out[f"AT-{bid}"]["status"] == "NOT_QUALIFIED" and out["AT-123"]["status"] == "CONVERTED"
-    assert out[f"AT-{bid}"]["not_qualified_reason"] == "ALREADY_CUSTOMER"
-    assert apply_cockpit_outcomes(store, "AT") == 1
+    head = "Lead code,Salesforce ID,Company,Status,Status month,Subregion code,Discard reason\n"
+    nov = tmp_path / "lgn_sf_status_202611.csv"
+    nov.write_text(head + "".join(f"{c},,X,Working,2026-11,999,\n" for c in codes), encoding="utf-8")
+    res = load_sf_status(store, cfg, nov, "ops")
+    assert res["loaded"] == len(codes) and res["zone_mismatch"] == codes          # 999 is not their zone
+    assert apply_sf_status(store, "AT") == 0                                       # Working: nothing
+    dec = tmp_path / "lgn_sf_status_202612.csv"
+    dec.write_text(head + f"{codes[0]},,X,Discarded,2026-12,,\n", encoding="utf-8")
+    load_sf_status(store, cfg, dec, "ops")
+    cur = current_sf_status(store, "AT")
+    assert cur[codes[0]]["status"] == "DISCARDED" and cur[codes[0]]["status_month"] == "2026-12"
+    assert apply_sf_status(store, "AT") == 1
+    assert [r["reason"] for r in store.select("exclusion_out") if r["origin"] == "SALESFORCE"] == ["DISCARDED"]
+
+
+def test_salesforce_status_file_needs_its_columns(store, tmp_path):
+    from leadgen.loaders import load_sf_status
+    f = tmp_path / "s.csv"
+    f.write_text("Lead code,Status\nAT-1,Working\n", encoding="utf-8")
+    cfg = RunContext(store, "t", "LOAD", "AT", "POOL_SPECIALIST", "t").config()
+    with pytest.raises(ValueError, match="Company"):
+        load_sf_status(store, cfg, f, "ops")

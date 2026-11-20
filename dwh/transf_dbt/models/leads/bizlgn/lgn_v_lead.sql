@@ -5,7 +5,8 @@
 -- des_status, DF.4's six states, computed (never stored: insert-only model), review "Estado del lead":
 --   Published           its export was confirmed UPLOADED
 --   Rejected            Sales Ops' current decision is EXCLUDED
---   Excluded by engine  filter EXCLUDE, customer match, NOT_VALID website, or a cockpit/engine exclusion
+--   Excluded by engine  filter EXCLUDE, customer match, NOT_VALID website, or a Salesforce/engine exclusion
+-- A published lead stays Published whatever its state in Salesforce (des_sf_status, DT.8.4).
 --   Approved            current decision ACCEPTED, not published
 --   To review           scored, decision PENDING or none
 --   Found               in a capture batch, nothing else yet
@@ -113,9 +114,9 @@ SELECT
     v.reviewed_by                                                     AS des_reviewed_by,
     v.reviewed_at                                                     AS dt_reviewed_at,
     pub.published_at                                                  AS dt_published_at,
-    ck.status                                                         AS des_cockpit_status,
-    ck.not_qualified_reason                                           AS des_cockpit_reason,
-    ck.last_call_date                                                 AS des_last_call_date,
+    sf.status                                                         AS des_sf_status,
+    sf.discard_reason                                                 AS des_sf_discard_reason,
+    sf.status_month                                                   AS des_sf_status_month,
     -- appearances
     l.capture_batch_id                                                AS des_capture_batch_id,
     l.n_captures                                                      AS val_captures,
@@ -131,7 +132,7 @@ LEFT JOIN {{ ref('lgn_f_customer_match') }} AS m ON m.business_id = l.business_i
 LEFT JOIN {{ ref('lgn_f_validation') }} AS v ON v.business_id = l.business_id AND v.profile = l.profile
 LEFT JOIN published AS pub ON pub.business_id = l.business_id
 LEFT JOIN engine_exclusion AS xe ON xe.business_id = l.business_id
-LEFT JOIN {{ ref('lgn_d_cockpit_outcome') }} AS ck ON ck.lead_code = concat(l.country, '-', toString(l.business_id))
+LEFT JOIN {{ ref('lgn_d_sf_status') }} AS sf ON sf.business_id = l.business_id AND sf.is_current = 1
 LEFT JOIN {{ ref('lgn_a_search_area') }} AS sa
        ON sa.country = l.country AND sa.admin_code = b.subregion_code AND sa.level = 'SUBREGION'
 LEFT JOIN {{ ref('lgn_a_strategic_zone') }} AS z ON z.country = l.country AND z.admin_code = b.subregion_code

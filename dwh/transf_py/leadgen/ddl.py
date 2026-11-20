@@ -216,10 +216,10 @@ LANDING_TABLES: dict[str, Table] = {t.name: t for t in [
                                        "file_name", "loaded_by"], ("loaded_at",), "One customer extract file"),
     _landing("customer_extract_row", ["extract_id", "source_row_id", "row_json"], ("extract_id",),
              "One extract row as received, columns as a JSON map of text"),
-    _landing("cockpit_export_file", ["cockpit_file_id", "country", "exported_at", "file_name", "loaded_by"],
-             ("loaded_at",), "One complete Market Cockpit CSV"),
-    _landing("cockpit_export_row", ["cockpit_file_id", "source_row_id", "lead_code", "row_json"], ("cockpit_file_id",),
-             "One cockpit row as received"),
+    _landing("sf_status_file", ["status_file_id", "status_month", "file_name", "loaded_by"], ("loaded_at",),
+             "One Salesforce status file imported (DT.8.4): month, file name; loaded_at is the import date"),
+    _landing("sf_status_row", ["status_file_id", "source_row_id", "lead_code", "row_json"], ("status_file_id", "lead_code"),
+             "One row of the status file as received"),
     _landing("import_list_file", ["import_file_id", "country", "profile", "file_name", "loaded_by"], ("loaded_at",),
              "One own list of companies (Import list)"),
     _landing("import_list_row", ["import_file_id", "source_row_id", "row_json"], ("import_file_id",),
@@ -376,22 +376,18 @@ OUT_TABLES: dict[str, Table] = {t.name: t for t in [
                                   C("median", "Float64"), C("n", "UInt32"), C("is_provisional", "UInt8")],
          ("country", "reference_version"), "Review cut-offs per country (DT.7.3)"),
     _out("exclusion_out", [C("business_id", "UInt64"), C("country", LC), C("scope", LC, ("ALL", "PROFILE")), PROFILE,
-                           C("origin", LC, ("HUMAN", "COCKPIT", "ENGINE")), C("reason", "String"), C("source_ref")],
+                           C("origin", LC, ("HUMAN", "SALESFORCE", "ENGINE")), C("reason", "String"), C("source_ref")],
          ("country", "business_id"), "Permanent exclusions by business (DT.8.1)"),
     _out("export_lead_out", [C("export_id", "String"), C("business_id", "UInt64"), C("country", LC), PROFILE,
                              C("capture_batch_id"), C("lead_code", "String"), C("status", LC, D.EXPORT_STATUSES),
                              C("generated_by", "String")],
          ("country", "business_id"), "A lead in an export; Published once its export is UPLOADED"),
-    _out("cockpit_outcome_out", [C("cockpit_file_id", "String"), C("lead_code", "String"),
-                                 C("business_id", "Nullable(UInt64)"), C("country", LC),
-                                 C("status", NLC, D.COCKPIT_STATUSES),
-                                 C("not_qualified_reason", NLC, D.COCKPIT_REASONS), C("customer_code"),
-                                 C("attempts", "Nullable(UInt16)"), C("potential_entered_eur", "Nullable(Float64)"),
-                                 C("potential_indicative_eur", "Nullable(Float64)"),
-                                 C("answers_json", "String", default="'{}'"),
-                                 C("contact_corrections_json", "String", default="'{}'"), C("last_call_date"),
-                                 C("last_comment"), C("exported_at")],
-         ("country", "lead_code"), "Cockpit call results, mapped (DT.8.4)"),
+    _out("sf_status_out", [C("status_file_id", "String"), C("lead_code", "String"), C("business_id", "UInt64"),
+                           C("country", LC), C("sf_lead_id"), C("company_name"),
+                           C("status", LC, D.SF_STATUSES), C("status_month", "String"),
+                           C("subregion_code"), C("discard_reason", NLC, D.SF_REASONS)],
+         ("country", "lead_code", "status_month"),
+         "A lead's state in Salesforce per month, mapped (DT.8.4); only lead codes known to the tool"),
 ]}
 
 ALL_TABLES: dict[str, Table] = {**CONFIG_TABLES, **WRITEBACK_TABLES, **LANDING_TABLES, **OPS_TABLES, **OUT_TABLES}
@@ -459,7 +455,8 @@ def sources_yml() -> str:
 
 
 def validate_domains(tables: dict[str, list[dict]]) -> None:
-    """Raises ValueError on the first closed-domain value out of its domain."""
+    """Raises ValueError on the first closed-domain value out of its domain. A row with active = 0 is a
+    deletion (insert-only) and may carry a value a later version took out of the domain."""
     for name, rows in tables.items():
         t = ALL_TABLES.get(name)
         if t is None:
@@ -468,6 +465,8 @@ def validate_domains(tables: dict[str, list[dict]]) -> None:
             if c.domain is None:
                 continue
             for r in rows:
+                if r.get("active", 1) in (0, False):
+                    continue
                 v = r.get(c.name)
                 if v is not None and v not in c.domain:
                     raise ValueError(f"{name}.{c.name}={v!r} is out of its domain ({', '.join(c.domain)})")

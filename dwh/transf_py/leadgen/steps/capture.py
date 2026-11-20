@@ -80,7 +80,7 @@ def start(store, run_type: str, req: CaptureRequest) -> tuple[RunContext, object
         c = conflicts[0]
         _fail(ctx, f"area {c.area_id} overlaps {c.other_area_id} of run {c.run_id}, still in progress")
 
-    # Customer extract age (definition v3.2 DT.5): block above customer_extract_max_age_days unless approved.
+    # Customer extract age (definition v3.3 DT.5): block above customer_extract_max_age_days unless approved.
     _, extracts = customer_index(store, req.country)
     age = extract_age_days(extracts, req.country, store.now())
     max_age = cfg.param("customer_extract_max_age_days", 7)

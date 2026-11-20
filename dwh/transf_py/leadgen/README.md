@@ -1,6 +1,6 @@
 # leadgen/ — the Lead Generator engine
 
-Run through [`leadgen.py`](../../../leadgen.py). Spec references (DF.x, DT.x) point to the definition v3.2
+Run through [`leadgen.py`](../../../leadgen.py). Spec references (DF.x, DT.x) point to the definition v3.3
 and its technical review in [`docs/spec/`](../../../docs/spec).
 
 ## Modules
@@ -23,7 +23,7 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 | `store.py` | I/O | the seam: `ClickHouseStore` and `MemoryStore` (tests), logical ↔ physical names |
 | `state.py` | I/O | current state of the insert-only tables; run context and snapshot; syncs Intelek's decisions |
 | `apify.py`, `crawl.py`, `llm.py` | I/O | Google Maps actor, crawler (+ Playwright), Anthropic direct and Message Batches |
-| `loaders.py`, `seed_loader.py` | I/O | customer extracts, cockpit CSV, boundaries, own lists; seeds and TWP's Excel |
+| `loaders.py`, `seed_loader.py` | I/O | customer extracts, Salesforce status file, boundaries, own lists; seeds and TWP's Excel |
 | `geo_convert.py` | I/O | DE/CH boundaries (GeoPackage, UTM 32N / LV95) to GeoJSON in lon/lat, for `load-geo` |
 | `steps/` | I/O | one module per run type: `capture`, `enrich`, `export`, `maintenance` |
 
@@ -51,7 +51,7 @@ Every run writes one `ops.pipeline_run` row per state change: REQUESTED → SNAP
 - A failed, truncated or schema-invalid answer is retried once through the direct API, then the lead is
   REVIEW with reason TECHNICAL.
 - Every claim of the model is dropped unless it appears on the page it cites.
-- UNSURE counts as customer. Human/cockpit corrections beat hard signals, which beat the model, which
+- UNSURE counts as customer. Human/Salesforce corrections beat hard signals, which beat the model, which
   beats soft confirmation.
 - A lead is exported once; Published only after the export is confirmed UPLOADED.
 

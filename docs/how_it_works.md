@@ -12,8 +12,8 @@ están en el [README](../README.md); dónde se aparta el código del Word, en
 El Lead Generator busca en Google Maps empresas de piscinas de Alemania, Austria y Suiza. Descarta las
 que no son relevantes o ya son clientes de Fluidra, lee las webs de las demás con un modelo de IA y
 puntúa cada lead sobre 37,5 puntos. Después Sales Ops revisa la lista, y los leads aprobados van a
-Salesforce en un fichero `.xlsx`. Más tarde, los resultados de las llamadas del cockpit vuelven a entrar
-para mejorar las siguientes ejecuciones. Todo esto lo hace un motor en Python, que lo guarda en
+Salesforce en un fichero `.xlsx`. Cada mes vuelve de Salesforce el estado de cada lead, para no volver a
+proponer lo ya descartado o trabajado. Todo esto lo hace un motor en Python, que lo guarda en
 ClickHouse. El DataApp de Intelek muestra los resultados a través de vistas dbt.
 
 ```mermaid
@@ -25,8 +25,8 @@ flowchart LR
     end
     E -. espera a .-> V{{Validación de Sales Ops<br/>rechazar con un motivo<br/>o aprobar el resto}}
     V --> X
-    X --> SF[Salesforce / cockpit]
-    SF -- resultados de llamadas --> L[load-cockpit]
+    X --> SF[cockpit / Salesforce]
+    SF -- estados mensuales --> L[load-sf-status]
     CU[Extractos de clientes<br/>mensuales] --> R[rematch]
     L --> Motor
     R --> Motor
@@ -83,7 +83,7 @@ El resultado es un **lote de captación** (`cb_…`) con una estimación del cos
 calculada con la misma fórmula que usa el enriquecimiento (`cost.enrich_estimate`).
 
 Antes de capturar se comprueba la antigüedad del extracto de clientes: bloqueo por encima de 7 días
-(definición v3.2, DT.5). Para seguir sin cargar uno nuevo hay que lanzar la captación con
+(definición v3.3, DT.5). Para seguir sin cargar uno nuevo hay que lanzar la captación con
 `--approve-stale-extract`, que queda registrado como aprobación de quien la lanza.
 
 También se estima el coste de Apify antes de llamar (consultas × tope × precio por ficha). Si supera
@@ -105,7 +105,7 @@ Código: [steps/enrich.py](../dwh/transf_py/leadgen/steps/enrich.py). Es el paso
    de caracteres y reserva sitio para los fragmentos que mencionan marcas.
 4. **Consulta al modelo** ([prompt.py](../dwh/transf_py/leadgen/prompt.py),
    [llm.py](../dwh/transf_py/leadgen/llm.py)):
-   - **El prompt.** El prompt de sistema es el texto v3.2 del especialista de piscinas DACH, sin
+   - **El prompt.** El prompt de sistema es el texto de la definición (igual en la v3.2 y la v3.3) del especialista de piscinas DACH, sin
      cambios. El modelo debe responder con un esquema JSON estricto que incluye:
      - validación: VALID / NOT_VALID / REVIEW;
      - tipo de empresa;
@@ -159,9 +159,9 @@ después.
 
 ### Paso 5: Retroalimentación
 
-- **`load-cockpit`**: los resultados de las llamadas del cockpit o, con `--source-system SF_STATUS`, el
-  fichero de estado mensual de Salesforce (Excel v4). "Ya es cliente" o "no existe" (Discarded en
-  Salesforce) se convierten en correcciones que mandan sobre las decisiones automáticas.
+- **`load-sf-status`** (mensual): el fichero de estados de Salesforce. Un lead descartado queda excluido
+  para siempre y, si era «ya cliente», cuenta como corrección del cruce, que manda sobre las decisiones
+  automáticas. Convertido, en curso o en seguimiento: el lead sigue Published.
 - **`load-customers` y después `rematch`** (mensual): un extracto de clientes nuevo se vuelve a
   cruzar con todos los leads, de todos los perfiles.
 - **`reprocess`**: tras cambiar las reglas (términos, categorías, puntos), vuelve a aplicar el filtro,
@@ -192,7 +192,7 @@ todas las filiales de Fluidra:
     uno.
 - **Ante la duda, se aparta:** `UNSURE` cuenta como cliente. Llamar a un cliente como si fuera un lead
   nuevo es el error caro.
-- **Cuando las fuentes no coinciden:** corrección humana o del cockpit › señal fuerte › veredicto del
+- **Cuando las fuentes no coinciden:** corrección humana o de Salesforce › señal fuerte › veredicto del
   modelo › confirmación débil.
 
 ---
@@ -222,7 +222,7 @@ lead generator.
 
 | Capa | Base de datos | Qué contiene | Quién la escribe |
 |---|---|---|---|
-| landing | `fld_landinglgn` | Lo que llega de fuera, tal cual: Apify, páginas web, extractos, cockpit | motor |
+| landing | `fld_landinglgn` | Lo que llega de fuera, tal cual: Apify, páginas web, extractos, estados de Salesforce | motor |
 | ops | `fld_opslgn` | Ejecuciones, instantáneas de configuración, peticiones al modelo, coste, exportaciones | motor |
 | biz | `fld_bizlgn` | Configuración (`biz_cfg_*`), decisiones de validación, resultados del motor (`*_out`) | Intelek, motor |
 | src → stg → crp → biz | `fld_srclgn` … | Solo vistas: tipado, configuración vigente, datos conformados y `lgn_v_*` para Intelek | dbt |
@@ -287,7 +287,7 @@ REQUESTED → SNAPSHOT_FROZEN → [AWAITING_COST_APPROVAL] → RUNNING → [AWAI
   reprocess.
 - **Tests unitarios.** Cubren la normalización, el orden del filtro, el cruce, la puntuación y la
   comprobación de respuestas.
-- **Tests de contrato.** El prompt conserva el texto v3.2, los seeds están completos y el DDL coincide
+- **Tests de contrato.** El prompt conserva el texto de la definición, los seeds están completos y el DDL coincide
   con los sources de dbt.
 - **Sintaxis SQL.** Cada modelo dbt se analiza como SQL de ClickHouse (sqlglot).
 
@@ -313,7 +313,7 @@ dwh/transf_py/leadgen/
 ├── config, state, runs         configuración vigente e instantánea; estado actual; estados y bloqueos
 ├── store                       ClickHouse ↔ memoria; nombres lógicos ↔ físicos
 ├── ddl                         el contrato de todas las tablas
-├── loaders, seed_loader        extractos de clientes, cockpit, límites, listas propias; seeds y Excel
+├── loaders, seed_loader        extractos de clientes, estados de Salesforce, límites, listas propias; seeds y Excel
 ├── geo_convert                 límites de DE y CH (GeoPackage) a GeoJSON en lon/lat
 └── seeds/                      nuestros valores de configuración (CSV)
 dwh/transf_dbt/models/leads/    vistas dbt: srclgn → stglgn → crplgn → bizlgn (lgn_v_* para Intelek)

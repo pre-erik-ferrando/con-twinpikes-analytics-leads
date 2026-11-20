@@ -19,9 +19,7 @@ upload files, everything is launched from here and the results are read in the l
     python leadgen.py approve-rest --capture-batch cb_… [--yes]
     python leadgen.py export --capture-batch cb_… --out exports/
     python leadgen.py confirm-export exp_… --status UPLOADED
-    python leadgen.py load-cockpit FILE.csv --country AT        # call results (learning loop)
-    python leadgen.py load-cockpit lgn_sf_status_YYYYMM.csv --country AT --source-system SF_STATUS \
-        --exported-at YYYY-MM-DD                                # Salesforce's monthly status file (v4)
+    python leadgen.py load-sf-status lgn_sf_status_YYYYMM.csv  # Salesforce's monthly status file (DT.8.4)
     python leadgen.py rematch --country AT                      # after a new customer extract
     python leadgen.py reprocess --country AT --profile POOL_SPECIALIST [--capture-batch cb_…] [--score-only]
     python leadgen.py status [RUN_ID]
@@ -133,11 +131,13 @@ def cmd(ns) -> int:
         show(loaders.load_customers(st, cfg, Path(ns.file), ns.country, ns.source_system, ns.subsidiary,
                                     ns.extract_date, user(ns), ns.sheet or 0))
         return 0
-    if c == "load-cockpit":
-        from leadgen.steps.maintenance import apply_cockpit_outcomes
-        cfg = _cfg(st, ns.country)
-        res = loaders.load_cockpit(st, cfg, Path(ns.file), ns.country, ns.exported_at, user(ns), ns.source_system)
-        res["new_exclusions"] = apply_cockpit_outcomes(st, ns.country)
+    if c == "load-sf-status":
+        # Until step 0 reads the shared folder by itself (v3.3 DT.1.6, [PENDIENTE] which folder and how often).
+        from leadgen.steps.maintenance import apply_sf_status
+        cfg = _cfg(st, None)
+        res = loaders.load_sf_status(st, cfg, Path(ns.file), user(ns))
+        countries = sorted({r["country"] for r in st.select("sf_status_out", {"status_file_id": res["status_file_id"]})})
+        res["new_exclusions"] = {cc: apply_sf_status(st, cc) for cc in countries}
         show(res)
         return 0
     if c == "precheck":
@@ -233,9 +233,9 @@ def cmd(ns) -> int:
         ctx, summary = run_rematch(st, ns.country, user(ns))
         show({"run_id": ctx.run_id, **summary})
         return 0
-    if c == "apply-cockpit":
-        from leadgen.steps.maintenance import apply_cockpit_outcomes
-        print(f"{apply_cockpit_outcomes(st, ns.country)} new exclusions")
+    if c == "apply-sf-status":
+        from leadgen.steps.maintenance import apply_sf_status
+        print(f"{apply_sf_status(st, ns.country)} new exclusions")
         return 0
     if c == "status":
         states = runs.current_states(st.select("pipeline_run", {"run_id": ns.run_id} if ns.run_id else None))
@@ -265,9 +265,7 @@ def parser() -> argparse.ArgumentParser:
     s = sub.add_parser("load-customers"); s.add_argument("file"); s.add_argument("--country", required=True)
     s.add_argument("--source-system", required=True); s.add_argument("--subsidiary")
     s.add_argument("--extract-date"); s.add_argument("--sheet")
-    s = sub.add_parser("load-cockpit"); s.add_argument("file"); s.add_argument("--country", required=True)
-    s.add_argument("--exported-at")
-    s.add_argument("--source-system", default="COCKPIT_FULL", choices=["COCKPIT_FULL", "SF_STATUS"])
+    s = sub.add_parser("load-sf-status"); s.add_argument("file")
     s = sub.add_parser("precheck"); s.add_argument("--country", required=True)
     s.add_argument("--profile", default="POOL_SPECIALIST"); s.add_argument("--areas"); s.add_argument("--terms")
     s = sub.add_parser("capture"); s.add_argument("--country", required=True)
@@ -303,7 +301,7 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--profile", default="POOL_SPECIALIST"); s.add_argument("--capture-batch")
     s.add_argument("--score-only", action="store_true")
     s = sub.add_parser("rematch"); s.add_argument("--country", required=True)
-    s = sub.add_parser("apply-cockpit"); s.add_argument("--country", required=True)
+    s = sub.add_parser("apply-sf-status"); s.add_argument("--country", required=True)
     s = sub.add_parser("status"); s.add_argument("run_id", nargs="?")
     s = sub.add_parser("dbt"); s.add_argument("rest", nargs=argparse.REMAINDER)
     return p

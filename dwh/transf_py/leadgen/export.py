@@ -20,7 +20,7 @@ class ExportError(Exception):
 
 
 def lead_code(country: str, business_id: int) -> str:
-    """country-business_id (DT.8.3), to match the call results afterwards."""
+    """country-business_id (DT.8.3), to match Salesforce's status file afterwards (DT.8.4)."""
     return f"{country}-{business_id}"
 
 

@@ -31,4 +31,4 @@ subregiones sin cuadrante, marcas sin grupo y países sin lista de marcas propia
 
 `biz_cfg_run_parameter` (anexo B.22 con los cambios de la revisión): topes de gasto, límites del
 rastreo, presupuesto de tokens, modelo, modos de envío, umbral de aprobación de coste (10 USD),
-antigüedad del extracto (7 días, definición v3.2), referencia de reseñas provisional (34,8 y 10,5, Austria).
+antigüedad del extracto (7 días, definición v3.3), referencia de reseñas provisional (34,8 y 10,5, Austria).

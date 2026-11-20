@@ -16,7 +16,7 @@ lectura de las webs.
 | Enriquecimiento | `leadgen.py enrich` | Webs leídas, análisis del modelo comprobado, segundo cruce con clientes, puntuación y Rating |
 | Validación | Intelek (o `review`, `reject`, `approve-rest`) | Rechazos con motivo; el resto aprobado con alcance explícito |
 | Exportación | `leadgen.py export` + `confirm-export` | Fichero de Salesforce; Published al confirmar la subida |
-| Resultados de llamada | `leadgen.py load-cockpit` (cockpit, o el fichero de estado de Salesforce con `--source-system SF_STATUS`) | Los Not qualified y Discarded no vuelven a salir; mapa 3 |
+| Estado en Salesforce (mensual) | `leadgen.py load-sf-status` | Los descartados no vuelven a salir; mapa 3 por zona y mes |
 | Actualización mensual | `load-customers` + `rematch` | Los leads que ya son clientes se descualifican |
 
 Estados del lead (DF.4), calculados en `lgn_v_lead.des_status`: Found, Excluded by engine, To review,
@@ -32,7 +32,7 @@ La que propone la revisión técnica ("Qué construiría ahora"):
 - Validación por rechazo con alcance explícito y auditoría; deshacer antes de exportar.
 - Exportación con identificador y estado (GENERATED, UPLOADED, FAILED).
 - Configuración en tablas `biz_cfg_*` editables, con carga desde el Excel de inputs y semillas.
-- Cargador del CSV del cockpit y su efecto (exclusiones permanentes, fallo del cruce).
+- Cargador del fichero de estados de Salesforce y su efecto (exclusiones permanentes, fallo del cruce).
 - Recruce mensual con extractos nuevos y vista de conflictos de leads ya publicados.
 - Listado propio (Import list) con la definición mínima de la revisión [PROPUESTA].
 - Vistas de consumo para las cinco pantallas y los tres mapas.

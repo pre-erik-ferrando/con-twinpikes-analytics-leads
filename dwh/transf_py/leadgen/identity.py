@@ -119,7 +119,7 @@ def assign(listings: list[Listing], businesses: list[Business], known_links: dic
 
 
 def resolve_alias(business_id: int, aliases: dict[int, int]) -> int:
-    """Follows old_id -> surviving_id chains (validations, exclusions and cockpit results follow the alias)."""
+    """Follows old_id -> surviving_id chains (validations, exclusions and Salesforce statuses follow the alias)."""
     seen = set()
     while business_id in aliases and business_id not in seen:
         seen.add(business_id)

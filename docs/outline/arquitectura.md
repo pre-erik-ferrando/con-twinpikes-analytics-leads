@@ -7,7 +7,7 @@
  Webs (crawler)       │                    motor Python                    dbt (vistas)
  Modelo (Anthropic)   ├─▶ fld_landinglgn ─▶ dwh/transf_py/leadgen ─▶ *_out ─▶ src → stg → crp → biz ─▶ Intelek
  Extractos clientes   │   (tal cual)        normaliza, identifica,          lgn_e  lgn_a  lgn_d  lgn_f / lgn_v
- CSV del cockpit      │                     filtra, cruza, puntúa              ▲
+ Estados Salesforce   │                     filtra, cruza, puntúa              ▲
  Límites oficiales  ──┘                          ▲                            │
                                                  └── biz_cfg_* y biz_lead_validation (los escribe Intelek)
                                                       fld_opslgn: ejecuciones, instantáneas, coste

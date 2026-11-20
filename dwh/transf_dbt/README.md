@@ -10,7 +10,7 @@ generated from [`ddl.py`](../transf_py/leadgen/ddl.py)).
 models/leads/
 ├── srclgn/   lgn_e_*  typed landing (actor items, categories, pages, boundaries)
 ├── stglgn/   lgn_a_*  current configuration (argMax per key, active only)
-├── crplgn/   lgn_d_*  place, business (master listing), alias, customer, extract, enrichment, cockpit result
+├── crplgn/   lgn_d_*  place, business (master listing), alias, customer, extract, enrichment, Salesforce status
 └── bizlgn/   lgn_f_*  current decisions (filter, customer match, score, exclusion, export, validation)
               lgn_v_*  what Intelek reads, style A names: lead, discarded, validation queue, pending
                        categories, run summary, Salesforce export preview, KPIs, maps, conflicts, coverage

@@ -23,20 +23,18 @@ lista). Necesita la VPN y el `.env`.
 4. **Validación** en Intelek (`lgn_v_validation_queue`) o por línea de comandos: `review`, `reject
    --business-id N --reason KA_CHAIN`, y `approve-rest --capture-batch cb_… --yes` para aprobar el resto.
 5. **Exportación**: `export --capture-batch cb_… --out exports/` genera
-   `<país>_salesforce_upload_<fecha>.xlsx`. Tras subirlo a Salesforce (y al cockpit mientras se use):
+   `<país>_salesforce_upload_<fecha>.xlsx`. Tras subirlo al cockpit (o a Salesforce, cuando lo sustituya):
    `confirm-export exp_… --status UPLOADED`; si la carga falla, `--status FAILED` y se puede regenerar.
    Una exportación se confirma una sola vez: después no se puede cambiar de UPLOADED a FAILED ni al revés.
 
-## Cada semana, día 5
+## Cada mes: estado en Salesforce
 
-**Resultados de llamada**: `load-cockpit CSV_COMPLETO --country AT`. Los Not qualified quedan excluidos
-para siempre; los "ya cliente" cuentan además como fallo del cruce.
-
-Cuando Salesforce sustituya al cockpit, el fichero de estado mensual de Salesforce (Excel de inputs v4,
-pestaña Salesforce status file):
-`load-cockpit lgn_sf_status_AAAAMM.csv --country AT --source-system SF_STATUS --exported-at AAAA-MM-DD`
-(fin de mes). Discarded se excluye igual que Not qualified; Converted, Working y Nurturing quedan
-registrados y el lead sigue Published.
+No se cargan resultados de llamada (definición v3.3, DF.10). Del lead solo vuelve su estado, en el
+fichero de estados mensual de Salesforce. Mientras el paso 0 no lea solo la carpeta compartida:
+`load-sf-status lgn_sf_status_AAAAMM.csv`. Los descartados quedan excluidos para siempre (con motivo «ya
+cliente», cuentan además como fallo del cruce); convertidos, en curso y en seguimiento siguen en
+Published. Avisa de los lead codes que la herramienta no exportó (no se cargan) y de las zonas que no
+coinciden con la del lead.
 
 ## Cada mes y antes de abrir una zona nueva
 

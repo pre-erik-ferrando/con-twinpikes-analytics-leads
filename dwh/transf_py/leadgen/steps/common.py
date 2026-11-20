@@ -145,7 +145,7 @@ def run_match(ctx: RunContext, cfg: Config, facts: list[LeadFacts], match_pass: 
 
 
 def deciding_matches(store, country: str, business_ids: set[int] | None = None) -> dict[int, dict]:
-    """business_id -> the match row that decides (human/cockpit > hard > model > soft), taken among the
+    """business_id -> the match row that decides (human/Salesforce > hard > model > soft), taken among the
     LATEST automatic pass and every manual correction."""
     rows = [r for r in store.select("customer_match_out", {"country": country})
             if business_ids is None or r["business_id"] in business_ids]
@@ -154,7 +154,7 @@ def deciding_matches(store, country: str, business_ids: set[int] | None = None) 
         by.setdefault(r["business_id"], []).append(r)
     out = {}
     for bid, rs in by.items():
-        manual = [r for r in rs if r["origin"] in ("HUMAN", "COCKPIT")]
+        manual = [r for r in rs if r["origin"] in ("HUMAN", "SALESFORCE")]
         auto = [r for r in rs if r["origin"] == "AUTO"]
         last_auto = [max(auto, key=lambda r: r["inserted_at"])] if auto else []
         out[bid] = resolve_priority(manual + last_auto)

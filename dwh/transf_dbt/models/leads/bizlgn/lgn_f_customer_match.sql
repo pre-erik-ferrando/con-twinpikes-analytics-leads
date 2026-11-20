@@ -1,11 +1,11 @@
 {{ config(materialized='view') }}
--- The customer-match row that decides for each business (DT.5.4): human or cockpit correction > hard
+-- The customer-match row that decides for each business (DT.5.4): human or Salesforce correction > hard
 -- signal > model verdict > soft confirmation, among the latest automatic pass and every correction.
 -- Same rule as matching.resolve_priority + steps.common.deciding_matches.
 WITH ranked AS (
     SELECT
         m.*,
-        multiIf(m.origin IN ('HUMAN', 'COCKPIT'), 0,
+        multiIf(m.origin IN ('HUMAN', 'SALESFORCE'), 0,
                 m.signal IN ('VAT', 'REGISTER', 'PHONE', 'DOMAIN', 'FLUIDRA_ENTITY'), 1,
                 m.signal = 'MODEL', 2,
                 m.signal = 'NAME_CONFIRM', 3, 9)                                      AS priority_level,

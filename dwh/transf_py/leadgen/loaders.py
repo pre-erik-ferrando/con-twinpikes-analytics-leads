@@ -1,5 +1,5 @@
-"""File loaders: customer extracts (DT.5.1), Market Cockpit results (DT.8.4), official boundaries
-(DT.4.1) and own lists (review DT.3.5).
+"""File loaders: customer extracts (DT.5.1), Salesforce's monthly status file (DT.8.4), official
+boundaries (DT.4.1) and own lists (review DT.3.5).
 
 Every file lands as received (landing.*_file + *_row, columns as a JSON map of text); its mapping and
 normalization are applied with biz_cfg_source_column, so a new format is a configuration row, not code.
@@ -160,58 +160,68 @@ def load_customers(store, cfg, path: Path, country: str, source_system: str, sub
 
 
 def parse_lead_code(code: str | None) -> tuple[str | None, int | None]:
-    """'AT-1234567' -> ('AT', 1234567). The cockpit's old codes (AT-NL-002) do not resolve."""
+    """'AT-1234567' -> ('AT', 1234567). Anything else (e.g. the cockpit's old AT-NL-002) does not resolve."""
     m = re.fullmatch(r"([A-Z]{2})-(\d+)", (code or "").strip())
     return (m.group(1), int(m.group(2))) if m else (None, None)
 
 
-def load_cockpit(store, cfg, path: Path, country: str, exported_at: str | None, loaded_by: str,
-                 source_system: str = "COCKPIT_FULL") -> dict:
-    """Call results: the Market Cockpit's full CSV (COCKPIT_FULL, definition v3.2 DF.10) or Salesforce's
-    monthly status file (SF_STATUS, inputs Excel v4, tab Salesforce status file). Same landing and outcome
-    tables; Salesforce's Discarded arrives as NOT_QUALIFIED, so both become the same exclusions."""
-    mapping = cfg.source_columns(source_system)
+SF_STATUS_REQUIRED = ("lead_code", "company_name", "status", "status_month", "subregion_code")
+
+
+def load_sf_status(store, cfg, path: Path, loaded_by: str) -> dict:
+    """Salesforce's monthly status file (v3.3 DT.8.4): lands as received, then each row is mapped with
+    biz_cfg_source_column (SF_STATUS) into sf_status_out. A lead code the tool never exported is a
+    warning and is not loaded; a subregion that differs from the lead's is a warning (the lead keeps its
+    own). The effects (exclusions) are applied by maintenance.apply_sf_status."""
+    from .state import latest
+
+    mapping = cfg.source_columns("SF_STATUS")
     if not mapping:
-        raise ValueError(f"no biz_cfg_source_column rows for {source_system}")
+        raise ValueError("no biz_cfg_source_column rows for SF_STATUS")
     rows = read_table(path)
-    file_id = runs.new_id("ck")
-    store.insert("cockpit_export_file", [{"cockpit_file_id": file_id, "country": country, "exported_at": exported_at,
-                                          "file_name": path.name, "loaded_by": loaded_by}])
+    have = set(rows[0]) if rows else set()
+    missing = sorted(m["source_column"] for m in mapping
+                     if m["target_column"] in SF_STATUS_REQUIRED and m["source_column"] not in have)
+    if missing:
+        raise ValueError(f"{path.name}: required columns missing: {', '.join(missing)}")
     maps = {r["map_name"]: cfg.value_map(r["map_name"]) for r in cfg.rows("biz_cfg_value_map")}
     al = aliases(store)
-    landed, out, unresolved = [], [], 0
-    answers_cols = [m["target_column"] for m in mapping if m["target_column"].startswith("answer_")]
-    contact_cols = [m["target_column"] for m in mapping if m["target_column"].startswith("contact_")]
-    for i, r in enumerate(rows):
-        c = apply_mapping(r, mapping, country, maps)
-        code = c.get("lead_code")
-        landed.append({"cockpit_file_id": file_id, "source_row_id": str(i), "lead_code": code,
-                       "row_json": json.dumps(r, ensure_ascii=False)})
-        _, bid = parse_lead_code(code)
-        if bid is None:
-            unresolved += 1
-        else:
-            bid = resolve_alias(bid, al)       # an absorbed business's code becomes the survivor's
+    exported = {r["lead_code"]: r for r in store.select("export_lead_out")}
+    link = latest(store.select("business_link_out"), ("place_id",))
+    places_of: dict[int, list[str]] = {}
+    for (pid,), r in link.items():
+        places_of.setdefault(r["business_id"], []).append(pid)
+    sub_of = {r["place_id"]: r.get("subregion_code") for r in store.select("place_norm_out")}
 
-        def num(k):
-            v = c.get(k)
-            try:
-                return float(str(v).replace(",", ".")) if v not in (None, "") else None
-            except ValueError:
-                return None
-        out.append({"cockpit_file_id": file_id, "lead_code": code or "", "business_id": bid, "country": country,
-                    "status": c.get("status"), "not_qualified_reason": c.get("not_qualified_reason"),
-                    "customer_code": c.get("customer_code"),
-                    "attempts": int(num("attempts")) if num("attempts") is not None else None,
-                    "potential_entered_eur": num("potential_entered_eur"),
-                    "potential_indicative_eur": num("potential_indicative_eur"),
-                    "answers_json": json.dumps({k: c.get(k) for k in answers_cols}, ensure_ascii=False),
-                    "contact_corrections_json": json.dumps({k: c.get(k) for k in contact_cols}, ensure_ascii=False),
-                    "last_call_date": c.get("last_call_date"), "last_comment": c.get("last_comment"),
-                    "exported_at": exported_at})
-    store.insert("cockpit_export_row", landed)
-    store.insert("cockpit_outcome_out", out)
-    return {"cockpit_file_id": file_id, "rows": len(rows), "unresolved_lead_codes": unresolved}
+    file_id = runs.new_id("sfs")
+    mapped = [apply_mapping(r, mapping, "", maps) for r in rows]
+    months = sorted({c.get("status_month") for c in mapped if c.get("status_month")})
+    store.insert("sf_status_file", [{"status_file_id": file_id, "status_month": months[-1] if months else None,
+                                     "file_name": path.name, "loaded_by": loaded_by}])
+    store.insert("sf_status_row", [{"status_file_id": file_id, "source_row_id": str(i),
+                                    "lead_code": c.get("lead_code"), "row_json": json.dumps(r, ensure_ascii=False)}
+                                   for i, (r, c) in enumerate(zip(rows, mapped))])
+    out, unknown, bad_status, zone_mismatch = [], [], [], []
+    for c in mapped:
+        code = c.get("lead_code")
+        country, bid = parse_lead_code(code)
+        if code not in exported or bid is None:
+            unknown.append(code)
+            continue
+        if c.get("status") is None:
+            bad_status.append(code)
+            continue
+        bid = resolve_alias(bid, al)       # an absorbed business's code becomes the survivor's
+        own = {sub_of.get(p) for p in places_of.get(bid, [])} - {None}
+        if c.get("subregion_code") and own and c["subregion_code"] not in own:
+            zone_mismatch.append(code)
+        out.append({"status_file_id": file_id, "lead_code": code, "business_id": bid, "country": country,
+                    "sf_lead_id": c.get("sf_lead_id"), "company_name": c.get("company_name"),
+                    "status": c["status"], "status_month": c.get("status_month") or "",
+                    "subregion_code": c.get("subregion_code"), "discard_reason": c.get("discard_reason")})
+    store.insert("sf_status_out", out)
+    return {"status_file_id": file_id, "rows": len(rows), "loaded": len(out),
+            "unknown_lead_codes": unknown, "unmapped_status": bad_status, "zone_mismatch": zone_mismatch}
 
 
 def load_geo(store, path: Path, country: str, level: str, source: str, version: str, code_prop: str,

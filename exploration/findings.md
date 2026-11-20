@@ -31,6 +31,24 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
 - It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
 
+## 2026-11-20 · Definition v3.3: Salesforce status file instead of the cockpit's call results
+
+v3.3 (20 Oct) replaces v3.2. The prompt is unchanged. What changes:
+- No manual load of call results: the cockpit loading is gone (`load-cockpit`, its tables and views).
+- Salesforce's monthly status file, with its own tables: `sf_status_file`, `sf_status_row` (landing),
+  `sf_status_out` (mapped by the engine), `lgn_e_sf_status`, `lgn_d_sf_status` (per lead and month; the
+  latest month is current). Statuses CONVERTED, WORKING, NURTURING, DISCARDED; reasons in their own map.
+  `load-sf-status FILE`. DISCARDED is a permanent exclusion (`SALESFORCE_EXCLUSION`), with "already a
+  customer" also a SALESFORCE customer match, with no customer code; the others leave the lead Published.
+  An unknown lead code or a different zone is a warning. Map 3 by zone and month: `lgn_v_map_zones_month`.
+- Step 0: automatic import from a SharePoint folder. Not built: the folder is [PENDIENTE] in v3.3, and
+  the Insight Generator it names as the model has no such import.
+- `seed` now updates the rows its own seeds wrote when a seed changes, and deletes (active = 0) those a
+  seed dropped (the cockpit's mapping). Rows from the Excel are recognised through `seed_load` and left
+  alone; from now on the Excel stamps `excel:<version>`.
+- The cockpit tables already created in ClickHouse (`cockpit_export_file`, `cockpit_export_row`,
+  `cockpit_outcome_out`) are empty and no longer used: the admin can drop them.
+
 ## 2026-11-20 · The project against the four input files (v4 and the three customer lists)
 
 - Loaded and matching: areas and zones, keywords, Google categories, name exclusions, pool words,
@@ -42,10 +60,8 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - Fixed: the Import list tab names its column `company_name`, which the loader did not read.
 - Empty or pending in v4: the sales reps ("Pending Fluidra", blocks the export), the Salesforce values
   marked Pending, market size per district (not used: zone points use the quadrant).
-- Built after this check: the Salesforce status file tab, loaded like the cockpit's CSV
-  (`load-cockpit --source-system SF_STATUS`): Discarded becomes an exclusion, Converted is counted in the
-  zone map. v4 cites a "Word v3.3" that we don't have (v3.2 only has the cockpit): to ask TWP for it.
-  Salesforce's exact status values are still pending (our mapping is [PROPUESTA]).
+- v4 cites a "Word v3.3", which arrived the same day (`docs/spec`, 20 Oct) and replaces v3.2. The
+  Salesforce status file is built as v3.3 describes it (next entry).
 - The Customer file tab lists columns the received files don't have (subsidiary, sales_rep_name,
   geo_precision, extract_date): the files are TWP's normalised layout, as DT.5.1 describes, and the
   missing values come from the `load-customers` arguments.

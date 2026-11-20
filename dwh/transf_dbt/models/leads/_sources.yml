@@ -47,19 +47,18 @@ sources:
           - name: source_row_id
           - name: row_json
           - name: loaded_at
-      - name: cockpit_export_file
-        description: "One complete Market Cockpit CSV"
+      - name: sf_status_file
+        description: "One Salesforce status file imported (DT.8.4): month, file name; loaded_at is the import date"
         columns:
-          - name: cockpit_file_id
-          - name: country
-          - name: exported_at
+          - name: status_file_id
+          - name: status_month
           - name: file_name
           - name: loaded_by
           - name: loaded_at
-      - name: cockpit_export_row
-        description: "One cockpit row as received"
+      - name: sf_status_row
+        description: "One row of the status file as received"
         columns:
-          - name: cockpit_file_id
+          - name: status_file_id
           - name: source_row_id
           - name: lead_code
           - name: row_json
@@ -513,24 +512,19 @@ sources:
           - name: status
           - name: generated_by
           - name: inserted_at
-      - name: cockpit_outcome_out
-        description: "Cockpit call results, mapped (DT.8.4)"
+      - name: sf_status_out
+        description: "A lead's state in Salesforce per month, mapped (DT.8.4); only lead codes known to the tool"
         columns:
-          - name: cockpit_file_id
+          - name: status_file_id
           - name: lead_code
           - name: business_id
           - name: country
+          - name: sf_lead_id
+          - name: company_name
           - name: status
-          - name: not_qualified_reason
-          - name: customer_code
-          - name: attempts
-          - name: potential_entered_eur
-          - name: potential_indicative_eur
-          - name: answers_json
-          - name: contact_corrections_json
-          - name: last_call_date
-          - name: last_comment
-          - name: exported_at
+          - name: status_month
+          - name: subregion_code
+          - name: discard_reason
           - name: inserted_at
   - name: writeback
     schema: fld_bizlgn

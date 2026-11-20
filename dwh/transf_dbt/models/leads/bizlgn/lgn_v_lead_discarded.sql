@@ -8,7 +8,7 @@ SELECT
             l.des_filter_decision = 'EXCLUDE', l.des_filter_stage,
             l.des_customer_match = 'CUSTOMER', 'CUSTOMER_MATCH',
             l.des_web_validation = 'NOT_VALID', 'NOT_VALID',
-            l.des_exclusion_origin = 'COCKPIT', 'COCKPIT_EXCLUSION', 'OTHER')            AS des_stage,
+            l.des_exclusion_origin = 'SALESFORCE', 'SALESFORCE_EXCLUSION', 'OTHER')            AS des_stage,
     multiIf(l.des_status = 'Rejected', l.des_rejection_reason,
             l.des_filter_decision = 'EXCLUDE', l.des_filter_rule,
             l.des_customer_match = 'CUSTOMER', 'ALREADY_CUSTOMER',

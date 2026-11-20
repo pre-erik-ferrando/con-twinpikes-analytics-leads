@@ -1,6 +1,6 @@
 # Decisiones
 
-Dónde y por qué el código se aparta de la definición v3.2 y de su revisión técnica, y lo que queda
+Dónde y por qué el código se aparta de la definición v3.3 y de la revisión técnica de la v3.2, y lo que queda
 pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuestro que TWP valida,
 [PENDIENTE TWP] dato que TWP enviará, [PENDIENTE] decisión abierta.
 
@@ -10,7 +10,7 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 |---|---|---|---|
 | Reparto Python / dbt (DT.1.6) | Tres pasos en Python; normalización, filtro, cruce y puntuación en dbt | Hoy el motor en Python decide (normalización, identidad, filtro, cruce, puntuación) y escribe tablas `<paso>_out`; dbt son vistas que leen esos resultados para Intelek. **Reparto decidido (19-11-2026), a aplicar después de la primera demo:** Python se queda la normalización, la identidad y el cruce con clientes; el filtro y la puntuación pasan a dbt (primero la puntuación, después el filtro, con la captación lanzando dbt antes del enriquecimiento; luego `reprocess` sobre dbt) | Python: libphonenumber, la similitud de nombres (token_sort_ratio) y la identidad estable no existen en SQL de ClickHouse. dbt: el filtro y la puntuación son reglas sobre tablas `biz_cfg_*` que TWP irá ajustando; en SQL quedan a la vista, junto a sus otros modelos, y reprocesar tras un cambio de reglas es volver a lanzar dbt |
 | Zona de búsqueda en Apify (DT.3.2) | Campos estructurados (`countryCode`, `state`, `county`, `city`), nunca texto libre | Se envía el contorno oficial de la zona (`customGeolocation`), simplificado a unos 100 m (`apify_outline_tolerance_deg`, [PROPUESTA]); un Land es la unión de sus distritos. Sin contorno cargado, la captación falla antes de gastar | Con los campos por nombre, el actor (versiones 0.14.792 y 0.14.793) descarta todas las fichas por fuera de zona y devuelve 0; con el contorno devuelve las de Graz (pruebas del 18-11-2026, `exploration/findings.md`). Sigue sin texto libre. Avisar a TWP |
-| Resultados de llamada (DF.10, DT.8.4) | Se carga el CSV completo del cockpit; [PENDIENTE] cuando Salesforce lo sustituya | Además del cockpit, el fichero de estado mensual de Salesforce que describe el Excel de inputs v4 (pestaña Salesforce status file): `load-cockpit --source-system SF_STATUS`, a las mismas tablas. Discarded pasa a NOT_QUALIFIED y se excluye; Converted queda como CONVERTED (mapa de zonas). Valores de Salesforce en `SF_STATUS_IN` [PROPUESTA] hasta que Fluidra los confirme | El Excel v4 (20-10) es posterior a la definición v3.2 y cita una «Word v3.3» que no tenemos; [PENDIENTE] pedirla a TWP |
+| Importación automática (paso 0, DT.1.6) | El paso de carga lee solo la carpeta compartida del SharePoint: ficheros de clientes y fichero de estados de Salesforce | Por ahora por comando: `load-customers` y `load-sf-status`. El fichero de estados ya va a sus tablas (`sf_status_file`, `sf_status_row`, `sf_status_out` → `lgn_d_sf_status`) con sus efectos | La carpeta, sus permisos y cada cuánto se lee están [PENDIENTE] en la propia definición; el Insight Generator, que cita como modelo, no tiene esa importación |
 | Captación y enriquecimiento (DT.9) | La parte II describe una sola ejecución con fases A y B | Dos ejecuciones separadas (CAPTURE y ENRICH), como las pantallas de la parte I | El enriquecimiento va al modelo en modo BATCH, más barato, y puede tardar horas; la captación no tiene que esperarlo |
 | Cruce espacial (DT.1.2) | Diccionario polygon de ClickHouse | Punto en polígono en Python (`geo.py`) contra los GeoJSON oficiales de `reference_geo` | Mismo resultado sin depender de un diccionario que hay que pedir al administrador; probado sin base de datos |
 | Tablas creadas en un hook de dbt (DT.2.1) | `CREATE TABLE IF NOT EXISTS` en el arranque de dbt | `leadgen.py init` (desde `ddl.py`), y dbt las declara como fuentes | El motor escribe en landing y ops antes de que dbt corra; un único contrato de tablas genera DDL, vistas `_current` y fuentes de dbt |
@@ -27,7 +27,7 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 - "Lote de captación" es `capture_batch`; "lote" del proveedor es el envío en modo BATCH (`llm_batch`).
 - El Excel de inputs es la entrada versionada de cada carga (`seed_version`); después manda Intelek. Una
   semilla nunca pisa una clave editada; pisar exige `--overwrite` y queda en `ops.seed_load`.
-- Antigüedad del extracto de clientes: bloqueo por encima de 7 días (definición v3.2, DT.5) salvo aprobación
+- Antigüedad del extracto de clientes: bloqueo por encima de 7 días (definición v3.3, DT.5) salvo aprobación
   `STALE_CUSTOMER_EXTRACT`, que se da al lanzar la captación (`capture --approve-stale-extract`) porque el
   identificador de la ejecución nace en ese momento. Un país sin extracto omite el cruce con aviso.
 - Validación con alcance explícito: `approve-rest` muestra el recuento y exige `--yes`; un aprobado
@@ -53,6 +53,7 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 | Excel de inputs v4 | TWP | — | Recibida (261020): igual a la v3 salvo una frase de la pestaña de exportación. Se carga: el cargador salta el título y la descripción de cada pestaña y lee los grupos de marca «Group 1 (7.5)»; si falta una cabecera, falla con la lista de las encontradas. Siguen pendientes la tabla de comerciales (vacía) y los valores de Salesforce |
 | Reglas, términos y tipología de Pool & Spa, HVAC, Mass market y Pond | TWP | Activar esos perfiles | Inactivos en `biz_cfg_profile` |
 | Tabla subregión → comercial | Fluidra | Columna Owner | Propietario por defecto por país |
+| Fichero de estados de Salesforce: cabeceras y valores exactos (`SF_STATUS_IN`, `SF_REASON_IN` [PROPUESTA]) y quién lo deja cada mes | Fluidra, quien lleve el Salesforce nuevo | Lectura correcta del fichero | Columnas y valores de la pestaña Salesforce status file del Excel v4 |
 | Valores de Salesforce: Lead Status, país, provincia, correo obligatorio | Fluidra | Formato final del fichero | `SF_LEAD_STATUS` NEW → New, `SF_COUNTRY` en inglés |
 | Extractos de clientes de BE y NL; extracto en bruto de AT y CH | Fluidra | Cruce en BE/NL | Cruce omitido con aviso; listados normalizados por TWP (`TWP_SHEET_AT/CH/DE`), recibidos el 19/11: AT del 29/09, CH del 06/10, DE del 18/11 |
 | Build del actor de Apify y prueba de idioma | Prenomics | Fijar `apify_actor_build`, `apify_language` | `0.14.793` [PROPUESTA], la build contra la que se comprobaron los campos de entrada; idioma por subregión |
@@ -64,7 +65,7 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 
 ## Diferencias con la definición, por decidir más adelante
 
-El código sigue aquí la revisión técnica y no la definición v3.2. No se cambia hasta que haga falta.
+El código sigue aquí la revisión técnica y no la definición v3.3. No se cambia hasta que haga falta.
 
 - Aprobación de coste o de extracto antiguo: la definición deja la ejecución esperando en NEEDS_APPROVAL; la captación falla y se relanza con `--approve-cost` o `--approve-stale-extract`.
 - País sin extracto de clientes: la definición lo bloquea salvo aprobación; el código sigue sin cruce, con aviso.

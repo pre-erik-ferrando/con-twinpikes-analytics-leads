@@ -1,4 +1,4 @@
-"""Closed domains (definition v3.2, DT.1.1 and Annex A, plus the technical review of v3.2).
+"""Closed domains (definition v3.3, DT.1.1 and Annex A, plus the technical review of v3.2).
 
 Every value stored in a closed-domain column is upper case. The DDL (ddl.py) and the seed loader
 validate against these sets; tests/test_domain.py keeps them consistent with the scoring buckets.
@@ -35,12 +35,12 @@ MATCH_SIGNALS = ("VAT", "REGISTER", "PHONE", "DOMAIN", "FLUIDRA_ENTITY", "NAME_E
                  "NAME_CONFIRM", "COORDINATES")
 HARD_SIGNALS = ("VAT", "REGISTER", "PHONE", "DOMAIN", "FLUIDRA_ENTITY")
 SIGNAL_STRENGTHS = ("HARD", "SOFT")
-SOURCE_ENTITIES = ("CUSTOMER", "COCKPIT_OUTCOME", "IMPORT_LIST")
+SOURCE_ENTITIES = ("CUSTOMER", "SF_STATUS", "IMPORT_LIST")
 SOURCE_TRANSFORMS = ("NONE", "TRIM", "UPPER", "POSTAL_CODE", "PHONE_E164", "VAT", "COUNTRY_NAME_TO_ISO",
                      "DECIMAL_COMMA", "VALUE_MAP")
 COORDINATE_PRECISIONS = ("ADDRESS", "POSTAL_CODE")
 QUADRANTS = ("ATTACK", "DEFEND", "ACTIVATE", "OPTIMIZE")
-EXPORT_TARGETS = ("SALESFORCE", "COCKPIT")
+EXPORT_TARGETS = ("SALESFORCE",)   # v3.3 DT.8.3: the cockpit loads the same Salesforce file
 EXPORT_SOURCE_KINDS = ("FIELD", "CONSTANT", "VALUE_MAP")
 EXPORT_FORMATS = ("TEXT", "NUMBER", "DATE", "BOOLEAN_TEXT")
 VALUE_TYPES = ("INT", "FLOAT", "STRING", "BOOL", "LIST")
@@ -75,8 +75,8 @@ REVIEW_REASONS = ("INSUFFICIENT_EVIDENCE", "NO_WEBSITE", "BLOCKED", "UNREACHABLE
 
 # --- Decisions ---------------------------------------------------------------------------------
 DISCARD_STAGES = ("CLOSED", "SUPPRESSED", "PREVIOUSLY_EXCLUDED", "TITLE_RULE", "CATEGORY_RULE",
-                  "DEFAULT_EXCLUDE", "CUSTOMER_MATCH", "NOT_VALID", "HUMAN_EXCLUSION", "COCKPIT_EXCLUSION")
-MATCH_ORIGINS = ("AUTO", "HUMAN", "COCKPIT")
+                  "DEFAULT_EXCLUDE", "CUSTOMER_MATCH", "NOT_VALID", "HUMAN_EXCLUSION", "SALESFORCE_EXCLUSION")
+MATCH_ORIGINS = ("AUTO", "HUMAN", "SALESFORCE")
 MATCH_PASSES = ("CAPTURE", "ENRICH", "REMATCH", "MANUAL")
 VALIDATION_DECISIONS = ("PENDING", "ACCEPTED", "EXCLUDED")
 VALIDATION_REASONS = ("ALREADY_CUSTOMER", "KA_CHAIN", "DUPLICATE", "HOT_TUB_SAUNA_ONLY", "NOT_VALID",
@@ -85,8 +85,9 @@ APPROVAL_SCOPES = ("LEAD", "REST_OF_BATCH")
 # DF.4's six states. Computed in lgn_v_lead, never stored (insert-only model).
 LEAD_STATUSES = ("Found", "Excluded by engine", "To review", "Rejected", "Approved", "Published")
 EXPORT_STATUSES = ("GENERATED", "UPLOADED", "FAILED")
-COCKPIT_STATUSES = ("NEW", "NO_ANSWER", "WORKING", "NURTURING", "NOT_QUALIFIED", "CONVERTED")  # CONVERTED: Salesforce
-COCKPIT_REASONS = ("BUSINESS_CLOSED", "NO_POOL_EQUIPMENT", "ALREADY_CUSTOMER")
+# Salesforce's monthly status file (v3.3 DT.8.4): the lead's state there and why it was discarded.
+SF_STATUSES = ("CONVERTED", "WORKING", "NURTURING", "DISCARDED")
+SF_REASONS = ("BUSINESS_CLOSED", "NO_POOL_EQUIPMENT", "ALREADY_CUSTOMER")
 
 # --- Runs (review, DT.9) -----------------------------------------------------------------------
 RUN_TYPES = ("CAPTURE", "ENRICH", "REPROCESS_RULES", "SCORE_ONLY", "CUSTOMER_REMATCH", "IMPORT_LIST", "EXPORT")

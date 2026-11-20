@@ -528,3 +528,25 @@ def test_import_list_reads_the_inputs_excel_columns(tmp_path):
     _, rows = load_import_list(st, f, "AT", "POOL_SPECIALIST", "t")
     assert rows == [{"name": "Poolbau Muster", "city": "Villach", "phone": None, "website": "poolbau-muster.at"}]
     assert "Interbad 2026" in st.select("import_list_row")[0]["row_json"]
+
+
+def test_seed_refreshes_and_retires_only_its_own_rows():
+    """seed: a key a CSV seed wrote is updated when the seed changes and deleted (active = 0) when the seed
+    drops it; a key loaded from the Excel (even stamped seed: by older loads) or edited is left alone."""
+    from leadgen import seed_loader
+    from leadgen.config import latest_by_key
+    from leadgen.store import MemoryStore
+    st = MemoryStore()
+    vm = "biz_cfg_value_map"
+    seed_loader.load(st, {vm: [{"map_name": "M", "source_value": "a", "target_value": "A"},
+                               {"map_name": "M", "source_value": "old", "target_value": "OLD"}]},
+                     "v1", "t", seed_loader.CSV_SEEDS)
+    st.advance(seconds=1)
+    seed_loader.load(st, {vm: [{"map_name": "X", "source_value": "x", "target_value": "X"}]},
+                     "v4-excel", "t", "inputs.xlsx")          # stamped seed:v4-excel, as older loads did
+    st.advance(seconds=1)
+    new = {vm: [{"map_name": "M", "source_value": "a", "target_value": "A2"}]}
+    seed_loader.load(st, new, "v2", "t", seed_loader.CSV_SEEDS, refresh_seeded=True)
+    assert seed_loader.retire_removed_seeds(st, new, "v2", seed_loader.csv_seed_stamps(st, "v2")) == 1
+    cur = {(r["map_name"], r["source_value"]): r["target_value"] for r in latest_by_key(st.select(vm), ("country", "map_name", "source_value"))}
+    assert cur == {("M", "a"): "A2", ("X", "x"): "X"}           # refreshed, retired, Excel row kept
