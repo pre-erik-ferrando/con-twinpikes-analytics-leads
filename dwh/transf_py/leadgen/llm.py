@@ -1,8 +1,10 @@
 """Sending the analysis requests to the model (DT.6.4), BATCH or DIRECT, same prompt and schema.
 
-Provider behind an interface (`Provider`); implemented: Anthropic (Messages API with structured output
-`output_config.format`, and the Message Batches API at half price). The model is a run parameter
-(llm_model, [PENDIENTE] in the definition).
+Provider behind an interface (`Provider`), chosen with llm_provider (DT.10.1: "Anthropic u OpenAI"):
+- Anthropic: Messages API with structured output `output_config.format`, Message Batches at half price.
+- OpenAI: Responses API with strict structured output `text.format`, Batch API on /v1/responses at half
+  price. Responses are not stored on OpenAI's side (`store: false`): they carry personal data.
+The model is a run parameter (llm_model).
 
 Deviations from DT.10.1 imposed by the current models, documented in docs/outline/decisiones.md:
 - no `temperature` (sampling parameters are rejected by the current API);
@@ -159,10 +161,140 @@ class AnthropicProvider:
         return res.input_tokens
 
 
+class OpenAIProvider:
+    """OpenAI Responses API. Same request as Anthropic's: the system message as `instructions` (identical in
+    every request of a run, so OpenAI's automatic prompt caching applies), the lead as `input`, the output
+    schema in strict mode (every property required, optional ones as null, additionalProperties false:
+    OUTPUT_SCHEMA already is). Token counts are reported as Anthropic's: input without cache, cache reads
+    and cache writes apart."""
+    name = "OPENAI"
+    TERMINAL = ("completed", "failed", "expired", "cancelled")
+
+    def __init__(self, model: str, effort: str = "low", client=None):
+        if client is None:
+            import openai
+            client = openai.OpenAI()                    # OPENAI_API_KEY from the environment
+        self.model, self.effort, self.client = model, effort, client
+
+    def _params(self, req: LLMRequest, max_tokens: int) -> dict:
+        return {
+            "model": self.model,
+            "instructions": req.system,
+            "input": req.user,
+            "max_output_tokens": max_tokens,
+            "reasoning": {"effort": self.effort},
+            "text": {"format": {"type": "json_schema", "name": "lead_analysis", "schema": OUTPUT_SCHEMA,
+                                "strict": True}},
+            "store": False,
+        }
+
+    @staticmethod
+    def _get(obj, key, default=None):
+        """Field of an SDK object (direct calls) or of a plain dict (batch output files)."""
+        if obj is None:
+            return default
+        return obj.get(key, default) if isinstance(obj, dict) else getattr(obj, key, default)
+
+    @classmethod
+    def _from_response(cls, custom_id: str, resp) -> LLMResult:
+        g = cls._get
+        usage = g(resp, "usage")
+        details = g(usage, "input_tokens_details")
+        cached, written = int(g(details, "cached_tokens") or 0), int(g(details, "cache_write_tokens") or 0)
+        common = dict(input_tokens=max(0, int(g(usage, "input_tokens") or 0) - cached - written),
+                      output_tokens=int(g(usage, "output_tokens") or 0),
+                      cache_read_tokens=cached, cache_write_tokens=written)
+        status = g(resp, "status")
+        text, refused = None, False
+        for item in g(resp, "output") or []:
+            if g(item, "type") != "message":
+                continue
+            for part in g(item, "content") or []:
+                if g(part, "type") == "output_text":
+                    text = (text or "") + (g(part, "text") or "")
+                elif g(part, "type") == "refusal":
+                    refused = True
+        reason = g(g(resp, "incomplete_details"), "reason")
+        if refused or reason == "content_filter":
+            return LLMResult(custom_id, "REFUSED", stop_reason="refusal", **common)
+        if status == "incomplete" and reason == "max_output_tokens":
+            return LLMResult(custom_id, "TRUNCATED", stop_reason="max_tokens", **common)
+        if status != "completed":
+            error = g(g(resp, "error"), "message") or f"status {status}"
+            return LLMResult(custom_id, "ERRORED", stop_reason=status, error=str(error), **common)
+        return LLMResult(custom_id, "SUCCEEDED", text=text, stop_reason="end_turn", **common)
+
+    def _one(self, req: LLMRequest, max_tokens: int) -> LLMResult:
+        import openai as o
+        try:
+            resp = self.client.responses.create(**self._params(req, max_tokens))
+        except o.BadRequestError as e:
+            return LLMResult(req.custom_id, "ERRORED", error=f"invalid_request: {e}")
+        except o.RateLimitError as e:
+            return LLMResult(req.custom_id, "ERRORED", error=f"rate_limited: {e}")
+        except o.APIStatusError as e:
+            return LLMResult(req.custom_id, "ERRORED", error=f"api_{e.status_code}: {e}")
+        except o.APIConnectionError as e:
+            return LLMResult(req.custom_id, "ERRORED", error=f"connection: {e}")
+        return self._from_response(req.custom_id, resp)
+
+    def send_direct(self, reqs: list[LLMRequest], max_tokens: int, concurrency: int) -> list[LLMResult]:
+        with ThreadPoolExecutor(max_workers=max(1, concurrency)) as pool:
+            return list(pool.map(lambda r: self._one(r, max_tokens), reqs))
+
+    def batch_lines(self, reqs: list[LLMRequest], max_tokens: int) -> bytes:
+        """The batch input file: one JSON line per request (custom_id, method, url, body)."""
+        return "".join(json.dumps({"custom_id": r.custom_id, "method": "POST", "url": "/v1/responses",
+                                   "body": self._params(r, max_tokens)}, ensure_ascii=False) + "\n"
+                       for r in reqs).encode("utf-8")
+
+    def submit_batch(self, reqs: list[LLMRequest], max_tokens: int) -> str:
+        f = self.client.files.create(file=("lead_requests.jsonl", self.batch_lines(reqs, max_tokens)),
+                                     purpose="batch")
+        batch = self.client.batches.create(input_file_id=f.id, endpoint="/v1/responses", completion_window="24h")
+        return batch.id
+
+    def batch_ended(self, external_id: str) -> bool:
+        return self.client.batches.retrieve(external_id).status in self.TERMINAL
+
+    def _file_lines(self, file_id: str | None) -> list[dict]:
+        if not file_id:
+            return []
+        content = self.client.files.content(file_id)
+        raw = content.text if hasattr(content, "text") else content.read().decode("utf-8")
+        return [json.loads(line) for line in raw.splitlines() if line.strip()]
+
+    def parse_batch_line(self, line: dict) -> LLMResult:
+        cid = line.get("custom_id")
+        err = line.get("error")
+        if err:
+            code = (err.get("code") if isinstance(err, dict) else None) or "error"
+            return LLMResult(cid, "EXPIRED" if code == "batch_expired" else "ERRORED", error=str(code))
+        response = line.get("response") or {}
+        if int(response.get("status_code") or 0) != 200:
+            return LLMResult(cid, "ERRORED", error=f"http_{response.get('status_code')}")
+        return self._from_response(cid, response.get("body") or {})
+
+    def batch_results(self, external_id: str) -> list[LLMResult]:
+        # Results arrive in any order: keyed by custom_id. Failed and expired requests are in the error file;
+        # a request in neither file (a failed or cancelled batch) gets no result and is retried by the caller.
+        b = self.client.batches.retrieve(external_id)
+        return [self.parse_batch_line(line)
+                for line in self._file_lines(b.output_file_id) + self._file_lines(b.error_file_id)]
+
+    def count_tokens(self, req: LLMRequest) -> int:
+        p = self._params(req, 1)
+        res = self.client.responses.input_tokens.count(model=p["model"], instructions=p["instructions"],
+                                                       input=p["input"], text=p["text"], reasoning=p["reasoning"])
+        return res.input_tokens
+
+
 def make_provider(cfg) -> Provider:
     provider = (cfg.param("llm_provider") or "ANTHROPIC").upper()
+    if provider == "OPENAI":
+        return OpenAIProvider(model=cfg.param("llm_model") or "gpt-6.2-sol", effort=cfg.param("llm_effort") or "low")
     if provider != "ANTHROPIC":
-        raise NotImplementedError(f"llm_provider={provider}: only ANTHROPIC is implemented")
+        raise NotImplementedError(f"llm_provider={provider}: ANTHROPIC or OPENAI")
     return AnthropicProvider(model=cfg.param("llm_model") or "claude-opus-5-5",
                              effort=cfg.param("llm_effort") or "low",
                              use_fallbacks=bool(cfg.param("llm_fallbacks", True)))
@@ -175,8 +307,9 @@ def choose_mode(requested: str, n_requests: int, direct_max: int) -> str:
     return "DIRECT" if n_requests <= direct_max else "BATCH"
 
 
-def split_batches(reqs: list[LLMRequest], max_requests: int, max_bytes: int = 200 * 1024 * 1024) -> list[list[LLMRequest]]:
-    """Batches of at most llm_batch_max_requests, with a byte check under the provider's limit (256 MB)."""
+def split_batches(reqs: list[LLMRequest], max_requests: int, max_bytes: int = 180 * 1024 * 1024) -> list[list[LLMRequest]]:
+    """Batches of at most llm_batch_max_requests, with a byte check under the providers' limits (Anthropic
+    256 MB per batch, OpenAI 200 MB per input file)."""
     out, cur, size = [], [], 0
     for r in reqs:
         n = len(r.system.encode()) + len(r.user.encode()) + 2048

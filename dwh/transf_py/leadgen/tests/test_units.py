@@ -1,6 +1,7 @@
 """Unit tests of the pure modules, written from the definition's own examples where it gives them."""
 from __future__ import annotations
 
+import json
 from datetime import datetime, timedelta
 
 import pytest
@@ -550,3 +551,81 @@ def test_seed_refreshes_and_retires_only_its_own_rows():
     assert seed_loader.retire_removed_seeds(st, new, "v2", seed_loader.csv_seed_stamps(st, "v2")) == 1
     cur = {(r["map_name"], r["source_value"]): r["target_value"] for r in latest_by_key(st.select(vm), ("country", "map_name", "source_value"))}
     assert cur == {("M", "a"): "A2", ("X", "x"): "X"}           # refreshed, retired, Excel row kept
+
+
+# --------------------------------------------------------------------------- OpenAI provider (DT.10.1)
+def _oa_response(text=None, status="completed", reason=None, refusal=False, cached=0, written=0):
+    content = [{"type": "refusal", "refusal": "no"}] if refusal else [{"type": "output_text", "text": text or "{}"}]
+    return {"status": status, "incomplete_details": {"reason": reason} if reason else None,
+            "output": [{"type": "reasoning"}, {"type": "message", "content": content}],
+            "usage": {"input_tokens": 5000, "output_tokens": 400,
+                      "input_tokens_details": {"cached_tokens": cached, "cache_write_tokens": written}}}
+
+
+class _FakeOpenAI:
+    """Just enough of the OpenAI client: responses.create, files, batches."""
+    def __init__(self, reply):
+        from types import SimpleNamespace as NS
+        self.sent, self.files_store = [], {}
+        self.responses = NS(create=lambda **p: (self.sent.append(p), reply(p))[1],
+                            input_tokens=NS(count=lambda **p: NS(input_tokens=1234)))
+        self.files = NS(create=self._upload, content=lambda fid: NS(text=self.files_store[fid]))
+        self.batch = None
+        self.batches = NS(create=self._batch, retrieve=lambda bid: self.batch)
+
+    def _upload(self, file, purpose):
+        from types import SimpleNamespace as NS
+        self.files_store["in"] = file[1].decode("utf-8")
+        return NS(id="in")
+
+    def _batch(self, input_file_id, endpoint, completion_window):
+        from types import SimpleNamespace as NS
+        lines = [json.loads(x) for x in self.files_store[input_file_id].splitlines()]
+        out = [{"custom_id": l["custom_id"], "response": {"status_code": 200, "body": _oa_response(json.dumps(answer()))},
+                "error": None} for l in lines[:-1]]
+        err = [{"custom_id": lines[-1]["custom_id"], "response": None, "error": {"code": "batch_expired"}}]
+        self.files_store.update(out="\n".join(json.dumps(x) for x in out), err="\n".join(json.dumps(x) for x in err))
+        self.batch = NS(id="batch_1", status="completed", output_file_id="out", error_file_id="err")
+        return self.batch
+
+
+def test_openai_request_is_strict_json_and_not_stored():
+    from leadgen.llm import LLMRequest, OpenAIProvider
+    from leadgen.prompt import OUTPUT_SCHEMA
+    p = OpenAIProvider("gpt-6.2-sol", "low", client=object())._params(LLMRequest("b1_v1", "SYS", "USER"), 2000)
+    assert p["instructions"] == "SYS" and p["input"] == "USER" and p["max_output_tokens"] == 2000
+    assert p["reasoning"] == {"effort": "low"} and p["store"] is False
+    assert p["text"]["format"] == {"type": "json_schema", "name": "lead_analysis", "schema": OUTPUT_SCHEMA, "strict": True}
+
+
+def test_openai_results_map_to_our_statuses_and_token_split():
+    from leadgen.llm import OpenAIProvider
+    f = OpenAIProvider._from_response
+    r = f("b1_v1", _oa_response('{"a": 1}', cached=3000, written=1000))
+    assert (r.status, r.text, r.input_tokens, r.cache_read_tokens, r.cache_write_tokens, r.output_tokens) == \
+        ("SUCCEEDED", '{"a": 1}', 1000, 3000, 1000, 400)               # input without the cached part
+    assert f("x", _oa_response(status="incomplete", reason="max_output_tokens")).status == "TRUNCATED"
+    assert f("x", _oa_response(refusal=True)).status == "REFUSED"
+    assert f("x", _oa_response(status="incomplete", reason="content_filter")).status == "REFUSED"
+    assert f("x", {"status": "failed", "error": {"message": "boom"}, "output": []}).error == "boom"
+
+
+def test_openai_batch_round_trip():
+    from leadgen.llm import LLMRequest, OpenAIProvider
+    prov = OpenAIProvider("gpt-6.2-sol", client=_FakeOpenAI(lambda p: None))
+    reqs = [LLMRequest(f"b{i}_v1", "SYS", f"lead {i}") for i in range(3)]
+    bid = prov.submit_batch(reqs, 2000)
+    line = json.loads(prov.client.files_store["in"].splitlines()[0])
+    assert line["method"] == "POST" and line["url"] == "/v1/responses" and line["body"]["model"] == "gpt-6.2-sol"
+    assert prov.batch_ended(bid)
+    res = {r.custom_id: r.status for r in prov.batch_results(bid)}
+    assert res == {"b0_v1": "SUCCEEDED", "b1_v1": "SUCCEEDED", "b2_v1": "EXPIRED"}
+    assert prov.count_tokens(reqs[0]) == 1234
+
+
+def test_make_provider_picks_openai(monkeypatch):
+    from leadgen.llm import OpenAIProvider, make_provider
+    monkeypatch.setenv("OPENAI_API_KEY", "test-not-a-key")
+    params = {"llm_provider": "OPENAI", "llm_model": "gpt-6.2-sol", "llm_effort": "low"}
+    prov = make_provider(type("Cfg", (), {"param": staticmethod(lambda k, d=None: params.get(k, d))}))
+    assert isinstance(prov, OpenAIProvider) and prov.model == "gpt-6.2-sol"

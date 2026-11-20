@@ -55,7 +55,7 @@ pip install -r dwh/transf_py/leadgen/requirements.txt -r dwh/transf_dbt/requirem
             -r dwh/transf_dbt/dev-requirements.txt
 playwright install chromium     # browser for JavaScript-only websites (WSL may need: playwright install-deps chromium)
 python leadgen.py dbt -- deps   # dbt packages (dbt_utils)
-cp .env.example .env            # and fill it in: ClickHouse, Apify, Anthropic (ask for the values)
+cp .env.example .env            # and fill it in: ClickHouse, Apify, OpenAI (ask for the values)
 ```
 
 - Databases need the `fld_` prefix and its GRANTs, requested before the first run:

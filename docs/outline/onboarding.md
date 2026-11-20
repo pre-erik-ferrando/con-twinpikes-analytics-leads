@@ -11,7 +11,7 @@
 ## Accesos que pedir
 
 - VPN y usuario de ClickHouse con los permisos de [`dwh/governance/`](../../dwh/governance/README.md).
-- El `.env` (ClickHouse, Apify, Anthropic).
+- El `.env` (ClickHouse, Apify, OpenAI).
 - SharePoint de TWP (Word y Excel de inputs) y los extractos de clientes.
 
 ## Puesta en marcha local

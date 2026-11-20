@@ -34,20 +34,20 @@ country,parameter,value,value_type,unit,notes
 ,brand_snippets_per_brand,3,INT,,
 ,brand_snippet_chars,200,INT,chars,
 ,max_candidates_per_request,5,INT,,
-,llm_provider,ANTHROPIC,STRING,,[PENDIENTE] in the definition
-,llm_model,claude-opus-5-5,STRING,,[PENDIENTE] in the definition
+,llm_provider,OPENAI,STRING,,[PROPUESTA] ANTHROPIC or OPENAI (DT.10.1); OpenAI chosen 2026-11-20
+,llm_model,gpt-6.2-sol,STRING,,[PROPUESTA] OpenAI's mid-range model; e.g. claude-sonnet-5-5 with ANTHROPIC
 ,llm_effort,low,STRING,,reasoning cannot be disabled on the current models: lowest effort instead
-,llm_fallbacks,true,BOOL,,server-side fallback on a refusal (DIRECT only)
+,llm_fallbacks,true,BOOL,,Anthropic only: server-side fallback on a refusal (DIRECT only)
 ,llm_max_tokens_out,2000,INT,tokens,
 ,llm_max_tokens_retry,4000,INT,tokens,
 ,llm_mode_default,AUTO,STRING,,
 ,llm_direct_max_requests,50,INT,,
 ,llm_direct_concurrency,5,INT,,
 ,llm_batch_max_requests,2000,INT,,
-,llm_price_in_per_mtok,4.0,FLOAT,USD,for the estimate
-,llm_price_out_per_mtok,20.0,FLOAT,USD,for the estimate
-,llm_price_cache_read_per_mtok,0.20,FLOAT,USD,for the estimate
-,llm_price_cache_write_per_mtok,5.0,FLOAT,USD,actual cost; 5-minute cache write = 1.25 x input
+,llm_price_in_per_mtok,2.0,FLOAT,USD,gpt-6.2-sol list price (≤272K input); batch is half
+,llm_price_out_per_mtok,10.0,FLOAT,USD,gpt-6.2-sol list price
+,llm_price_cache_read_per_mtok,0.10,FLOAT,USD,gpt-6.2-sol cached input
+,llm_price_cache_write_per_mtok,2.5,FLOAT,USD,"cache write = 1.25 x input (OpenAI 30 minutes, Anthropic 5 minutes)"
 ,batch_poll_interval_min,15,INT,min,
 ,cost_approval_threshold_usd,10,FLOAT,USD,
 ,cost_overrun_ratio,0.20,FLOAT,,

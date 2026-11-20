@@ -280,7 +280,7 @@ def test_actual_llm_cost_counts_only_paid_calls_at_their_price(store):
     ctx, _ = _capture(store, ITEMS[:1])
     prov = FakeProvider()                                     # 1000 input / 300 output tokens per call
     e1, _ = run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
-    assert _ledger(store, e1.run_id, "ACTUAL") == [0.01]      # (1000 x 4 + 300 x 20) / 1e6, DIRECT
+    assert _ledger(store, e1.run_id, "ACTUAL") == [0.005]     # (1000 x 2 + 300 x 10) / 1e6, DIRECT
     e2, s2 = run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops", reread=True))
     assert len(prov.sent) == 1 and _ledger(store, e2.run_id, "ACTUAL") == [0.0]   # cached: nothing paid
 
@@ -290,14 +290,14 @@ def test_actual_llm_cost_applies_the_batch_discount(store):
     prov = FakeProvider()
     e, _ = run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops", llm_mode="BATCH"))
     resume_enrich(store, prov, crawler(), e.run_id)
-    assert _ledger(store, e.run_id, "ACTUAL") == [0.005]
+    assert _ledger(store, e.run_id, "ACTUAL") == [0.0025]
 
 
 def test_actual_llm_cost_includes_retries(store):
     ctx, _ = _capture(store, ITEMS[:1])
     bad = FakeProvider(default={"validation": "VALID"})
     e, _ = run_enrich(store, bad, crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
-    assert len(bad.sent) == 2 and _ledger(store, e.run_id, "ACTUAL") == [0.02]
+    assert len(bad.sent) == 2 and _ledger(store, e.run_id, "ACTUAL") == [0.01]
 
 
 def test_failed_rerun_does_not_hide_a_valid_cached_answer(store, monkeypatch):
@@ -447,3 +447,17 @@ def test_salesforce_status_file_needs_its_columns(store, tmp_path):
     cfg = RunContext(store, "t", "LOAD", "AT", "POOL_SPECIALIST", "t").config()
     with pytest.raises(ValueError, match="Company"):
         load_sf_status(store, cfg, f, "ops")
+
+
+def test_enrich_runs_with_the_openai_provider(store):
+    """The whole enrichment with OpenAIProvider over a fake client: same pipeline, same results."""
+    from leadgen.llm import OpenAIProvider
+    from .test_units import _FakeOpenAI, _oa_response
+    ctx, _ = _capture(store, ITEMS[:1])
+    fake = _FakeOpenAI(lambda p: _oa_response(json.dumps(answer()), cached=900))
+    _, s = run_enrich(store, OpenAIProvider("gpt-6.2-sol", client=fake), crawler(),
+                      EnrichRequest(ctx.capture_batch_id, "ops", llm_mode="DIRECT"))
+    assert fake.sent and fake.sent[0]["model"] == "gpt-6.2-sol" and fake.sent[0]["store"] is False
+    assert s["scored"] >= 1
+    resp = store.select("llm_response")
+    assert resp and resp[0]["status"] == "SUCCEEDED"

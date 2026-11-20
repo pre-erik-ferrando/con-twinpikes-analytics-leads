@@ -27,7 +27,7 @@ upload files, everything is launched from here and the results are read in the l
 
 Credentials from the environment or `.env` next to this file (an exported variable wins):
 DBT_CH_HOST, DBT_CH_PORT, DBT_CH_USER, DBT_CH_PASSWORD, DBT_CH_SCHEMA (= fld_landinglgn), APIFY_TOKEN,
-ANTHROPIC_API_KEY. The user running it: LEADGEN_USER (default: the OS user).
+OPENAI_API_KEY or ANTHROPIC_API_KEY (per llm_provider). The user running it: LEADGEN_USER (default: the OS user).
 """
 from __future__ import annotations
 

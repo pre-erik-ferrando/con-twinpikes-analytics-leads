@@ -14,7 +14,7 @@ from dataclasses import dataclass
 @dataclass
 class Prices:
     apify_per_place_usd: float = 0.007          # pay-per-event incl. detail page; ~2 USD per 58 searches
-    llm_in_per_mtok: float = 4.0                # claude-opus-5-5 list price
+    llm_in_per_mtok: float = 4.0                # code fallback only: the prices are run parameters (llm_price_*)
     llm_out_per_mtok: float = 20.0
     llm_cache_read_per_mtok: float = 0.20
     llm_cache_write_per_mtok: float = 5.0       # 5-minute cache write: 1.25 x input

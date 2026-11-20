@@ -5,7 +5,7 @@
 ```
  Google Maps (Apify) ─┐
  Webs (crawler)       │                    motor Python                    dbt (vistas)
- Modelo (Anthropic)   ├─▶ fld_landinglgn ─▶ dwh/transf_py/leadgen ─▶ *_out ─▶ src → stg → crp → biz ─▶ Intelek
+ Modelo (OpenAI)      ├─▶ fld_landinglgn ─▶ dwh/transf_py/leadgen ─▶ *_out ─▶ src → stg → crp → biz ─▶ Intelek
  Extractos clientes   │   (tal cual)        normaliza, identifica,          lgn_e  lgn_a  lgn_d  lgn_f / lgn_v
  Estados Salesforce   │                     filtra, cruza, puntúa              ▲
  Límites oficiales  ──┘                          ▲                            │

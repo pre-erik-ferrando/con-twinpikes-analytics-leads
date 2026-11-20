@@ -112,7 +112,8 @@ Código: [steps/enrich.py](../dwh/transf_py/leadgen/steps/enrich.py). Es el paso
      - enriquecimiento: contacto, email, IVA…;
      - marcas de la competencia;
      - un veredicto SAME / DIFFERENT / UNSURE para cada cliente candidato.
-   - **Modo.** Las peticiones van por la Message Batches API, más barata y más lenta, o directas para
+   - **Proveedor.** OpenAI (`gpt-6.2-sol`) o Anthropic, según `llm_provider`; mismo prompt y mismo esquema.
+   - **Modo.** Las peticiones van por la API de lotes del proveedor, más barata y más lenta, o directas para
      lotes pequeños (`--mode AUTO|BATCH|DIRECT`).
    - **Registro y reutilización.** Cada petición se guarda en la base de datos *antes* de enviarse. Si
      no cambian la empresa, la versión del prompt, la lista de marcas, los candidatos ni el contenido,
