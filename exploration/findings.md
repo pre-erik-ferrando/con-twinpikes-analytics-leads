@@ -31,6 +31,23 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
 - It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
 
+## 2026-11-20 · Control set for Austria: the ÖVS members
+
+DF.12 measures coverage against known pool businesses (v3.3: associations in DE and AT, builders in CH).
+Austria's association is the ÖVS; its members are in the WKO directory (firmen.wko.at, filter
+zertifikate=66, one page per state; linked from wko.at/handel/oevs/oevs-mitgliedersuche): about 120
+entries counting branches. Since coverage matches on website domain or phone, only the 47 members with
+one of them are in `seeds/biz_cfg_control_set.csv` (source OEVS). WKO refused automated requests (403)
+halfway, so many contacts come from the result lists, not the detail pages; sole traders are listed under
+their trade name.
+
+- Expected: MUST_EXCLUDE when TWP's name exclusions (v4) catch the name: BWT and Peraqua (manufacturer),
+  GWT ("Therme": public pool). The rest MUST_INCLUDE, manufacturers among them (Steinbach, Lutz-Jesco,
+  ProMinent…): if the model sets them aside, coverage shows it, and TWP can add them to the exclusions.
+- 30 of the 47 are already Fluidra customers in Austria (by phone or email domain): the list mostly tests
+  the customer match. `lgn_v_coverage` now counts "excluded as a customer" as correct for MUST_INCLUDE.
+- Germany (BSW) and Switzerland: not done.
+
 ## 2026-11-20 · Definition v3.3: Salesforce status file instead of the cockpit's call results
 
 v3.3 (20 Oct) replaces v3.2. The prompt is unchanged. What changes:
@@ -47,7 +64,7 @@ v3.3 (20 Oct) replaces v3.2. The prompt is unchanged. What changes:
   seed dropped (the cockpit's mapping). Rows from the Excel are recognised through `seed_load` and left
   alone; from now on the Excel stamps `excel:<version>`.
 - The cockpit tables already created in ClickHouse (`cockpit_export_file`, `cockpit_export_row`,
-  `cockpit_outcome_out`) are empty and no longer used: the admin can drop them.
+  `cockpit_outcome_out`) and the view `lgn_d_cockpit_outcome` were empty and were dropped (20 Nov).
 
 ## 2026-11-20 · The project against the four input files (v4 and the three customer lists)
 

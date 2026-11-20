@@ -14,7 +14,7 @@ Intelek. Reglas comunes (DT.2.1):
 |---|---|---|
 | Excel de inputs de TWP (DF.14) | `search_area`, `strategic_zone` (Admin divisions), `search_term` (Profiles & keywords), `category_rule` (Google categories), `title_rule` (Name exclusions), `pool_signal` (Pool words), `brand` (Brands), `sales_owner` (Subregion → sales rep) | `leadgen.py load-config FICHERO.xlsx --version <v>` |
 | Semillas del repositorio (valores del Word y [PROPUESTA]) | `profile`, `scoring_rule`, `rating_band`, `validation_reason`, `shared_domain`, `name_stopword`, `page_priority`, `matching_rule`, `source_column`, `value_map`, `category_of_interest`, `export_column`, `legal_form`, `run_parameter`, y unas pocas filas de `title_rule`, `pool_signal`, `brand` y `search_term` que cita el Word | `leadgen.py seed` ([`seeds/`](../../dwh/transf_py/leadgen/seeds)) |
-| Conjunto de control (DF.12) | `control_set` | [PENDIENTE] |
+| Conjunto de control (DF.12) | `control_set` | Semilla [PROPUESTA]: Austria, socios del ÖVS (directorio de la WKO, 20-11-2026). Alemania (BSW) y Suiza, pendientes |
 
 Cada carga es una versión (`seed_version`) y queda en `ops.seed_load`. Solo inserta las claves que no
 existen: nunca pisa lo que se ha cambiado en Intelek salvo con `--overwrite`.

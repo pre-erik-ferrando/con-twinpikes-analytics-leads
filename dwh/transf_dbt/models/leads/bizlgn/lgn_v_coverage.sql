@@ -1,6 +1,8 @@
 {{ config(materialized='view') }}
 -- Acceptance (DF.12): each company of the control set, found or not, and where it ended. A MUST_INCLUDE
--- company that was found must reach the list; a MUST_EXCLUDE one (a competitor's branch) must not.
+-- company that was found must reach the list, or be set aside as an existing Fluidra customer (most
+-- association members are: that is the customer match working); a MUST_EXCLUDE one (a competitor's
+-- branch, or what TWP's name exclusions catch) must not reach it.
 WITH found AS (
     SELECT b.business_id AS business_id, b.country AS country, b.domain AS domain, arrayJoin(
         if(empty(b.phones), [''], b.phones)) AS phone
@@ -14,9 +16,11 @@ SELECT
     c.expected_reason                                        AS des_expected_reason,
     any(f.business_id)                                       AS val_business_id,
     any(l.des_status)                                        AS des_status,
+    any(l.des_customer_match)                                AS des_customer_match,
     toUInt8(isNotNull(any(f.business_id)))                   AS val_is_found,
     multiIf(isNull(any(f.business_id)), NULL,
-            c.expected = 'MUST_INCLUDE', toUInt8(any(l.des_status) NOT IN ('Excluded by engine', 'Found')),
+            c.expected = 'MUST_INCLUDE', toUInt8(any(l.des_status) NOT IN ('Excluded by engine', 'Found')
+                                                 OR any(l.des_customer_match) = 'CUSTOMER'),
             toUInt8(any(l.des_status) = 'Excluded by engine'))                        AS val_is_ok
 FROM {{ ref('lgn_a_control_set') }} AS c
 LEFT JOIN found AS f
