@@ -1,4 +1,5 @@
-"""ENRICH (review DT.9): crawl, model, second customer match and scoring of one capture batch.
+"""ENRICH (review DT.9): crawl, model and second customer match of one capture batch. The score is not
+computed here: the dbt view lgn_f2_score computes it in SQL from what this step writes.
 Old phase B of the v2.2 run, now launched by a person on an existing batch.
 
 States: REQUESTED -> SNAPSHOT_FROZEN -> [AWAITING_COST_APPROVAL] -> RUNNING -> [AWAITING_BATCHES ->
@@ -20,9 +21,10 @@ from ..normalize import registrable_domain
 from ..response import SchemaError, check_answer, check_schema, technical_review
 from ..state import RunContext, business_views, customer_index, latest, permanent_exclusions, resume_context, \
     suppressed, is_suppressed, sync_human_decisions
+from ..store import SCORE_VIEWS
 from .capture import RunFailed
 from .common import (capture_batch_leads, current_web, deciding_matches, facts_from_google, facts_with_web,
-                     is_customer, latest_filter, match_row, score_businesses, scoring_context)
+                     is_customer, latest_filter, match_row)
 
 NO_CONTENT = {"NO_WEBSITE": "NO_WEBSITE", "SOCIAL_ONLY": "SOCIAL_ONLY", "BLOCKED": "BLOCKED",
               "ROBOTS_DISALLOWED": "BLOCKED", "UNREACHABLE": "UNREACHABLE", "EMPTY": "INSUFFICIENT_EVIDENCE"}
@@ -108,6 +110,9 @@ def run_enrich(store, provider: llm.Provider, crawler: Crawler | None, req: Enri
     ctx.log += [f"warning: {w}" for w in pre.warnings]
     if pre.blocking:
         _fail(ctx, "precheck: " + "; ".join(pre.blocking))
+    missing = store.missing_views(SCORE_VIEWS)
+    if missing:
+        _fail(ctx, f"the score views {', '.join(missing)} are not in the database: run `python leadgen.py dbt`")
     try:
         prompt.system_template(ctx.country, ctx.profile)
     except (prompt.ProfileNotConfigured, ValueError) as e:
@@ -436,9 +441,10 @@ def _collect(ctx, cfg, provider, reused: list[int], direct: list[int] = ()) -> t
         all_ids = bids | set(reused) | set(direct)
         web = current_web(store, ctx.country, ctx.profile, all_ids)
         matches = deciding_matches(store, ctx.country, all_ids)
-        to_score = {b: v for b, v in business_views(store, ctx.country, all_ids).items()
-                    if not is_customer(matches.get(b))}
-        scores = score_businesses(ctx, cfg, to_score, web, scoring_context(ctx, cfg))
+        # scored = VALID or REVIEW and not a customer: exactly the leads lgn_f2_score computes
+        scored = {b for b in all_ids if web.get(b, {}).get("validation") in ("VALID", "REVIEW")
+                  and not is_customer(matches.get(b))}
+        scores = store.lead_scores(ctx.country, ctx.profile, scored)
         usages = _run_usages(store, ctx.run_id)
         actual = cost.llm_actual_cost(usages, cost.Prices.from_config(cfg))
         n_in = sum(int(u.get("input_tokens") or 0) for u in usages)
@@ -449,8 +455,8 @@ def _collect(ctx, cfg, provider, reused: list[int], direct: list[int] = ()) -> t
                                       "detail": f"{len(usages)} calls: {n_in} input / {n_cache} cache-read / {n_write} cache-write / "
                                                 f"{n_out} output tokens"}])
         processed = bids | set(direct)
-        summary = {"run_id": ctx.run_id, "enriched": len(processed), "reused": len(reused), "scored": len(scores),
-                   "by_rating": {k: sum(1 for s in scores.values() if s.rating == k) for k in ("HOT", "WARM", "COLD")},
+        summary = {"run_id": ctx.run_id, "enriched": len(processed), "reused": len(reused), "scored": len(scored),
+                   "by_rating": {k: sum(1 for s in scores.values() if s["rating"] == k) for k in ("HOT", "WARM", "COLD")},
                    "review": sum(1 for b in processed if web.get(b, {}).get("validation") == "REVIEW"),
                    "not_valid": sum(1 for b in processed if web.get(b, {}).get("validation") == "NOT_VALID"),
                    "llm_cost_usd": actual}

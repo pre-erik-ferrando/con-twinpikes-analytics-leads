@@ -64,16 +64,14 @@ def test_full_flow(store, tmp_path):
     assert len(prov.sent) == 1                      # Mayr Bau has no website and no candidates: REVIEW, no model
     huber = next(r for r in store.select("web_validation_out") if r["domain"] == "poolbau-huber.at")
     assert huber["validation"] == "VALID" and huber["vat_id"] == "ATU12345678" and huber["has_ecommerce"] == 1
-    scores = {r["business_id"]: r for r in store.select("score_out", {"run_id": ectx.run_id})}
-    hs = scores[huber["business_id"]]
-    # type 10, brands G1 7.5, zone ATTACK 7.5, e-commerce 5, person+email+phone 5, 40 reviews > P75 provisional 2.5
-    assert list(hs["breakdown"]) == [10, 7.5, 7.5, 5, 5, 2.5] and hs["total"] == 37.5 and hs["rating"] == "HOT"
+    # the score is computed in SQL (lgn_f2_score), checked on ClickHouse (tests_db): here only who is scored
+    assert es["scored"] == 2 and es["by_rating"] == {"HOT": 0, "WARM": 0, "COLD": 0}
     mayr = next(r for r in store.select("web_validation_out") if r["business_id"] != huber["business_id"])
     assert (mayr["validation"], mayr["review_reason"]) == ("REVIEW", "NO_WEBSITE")
 
     batch = ctx.capture_batch_id
     pending = to_review(store, batch)
-    assert set(pending) == set(scores)
+    assert set(pending) == {huber["business_id"], mayr["business_id"]}
     reject(store, batch, mayr["business_id"], "NOT_VALID", "sales.ops")
     assert approve_rest(store, batch, "sales.ops") == 1
     vals = current_validations(store, "AT", "POOL_SPECIALIST")
@@ -86,7 +84,8 @@ def test_full_flow(store, tmp_path):
     ws = load_workbook(xs["file"]).active
     header = [c.value for c in ws[1]]
     row = dict(zip(header, [c.value for c in ws[2]]))
-    assert row["Lead Source"] == "Web Scraping" and row["Rating"] == "Hot" and row["Owner Last Name"] == "Owner"
+    assert row["Lead Source"] == "Web Scraping" and row["Owner Last Name"] == "Owner"
+    assert row["Rating"] is None                     # no SQL engine in memory: the Rating is checked in tests_db
     assert row["Lead code"] == f"AT-{huber['business_id']}" and row["Currency"] == "EUR"
     assert row["E-Commerce"] == "True" and row["Category of Interest"] == "Pool Products & Services"
     assert huber["business_id"] not in published_ids(store, "AT")
@@ -215,7 +214,6 @@ def _mayr_and_huber(store):
 def test_review_without_model_is_scored_and_reviewable(store):
     ctx, (ectx, s) = _mayr_and_huber(store)
     mayr = next(r["business_id"] for r in store.select("web_validation_out") if r["review_reason"] == "NO_WEBSITE")
-    assert mayr in {r["business_id"] for r in store.select("score_out", {"run_id": ectx.run_id})}
     assert mayr in to_review(store, ctx.capture_batch_id)
     assert s["enriched"] == 2 and s["review"] == 1
 

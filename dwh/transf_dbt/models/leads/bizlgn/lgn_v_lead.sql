@@ -122,7 +122,7 @@ SELECT
     l.n_captures                                                      AS val_captures,
     l.first_found_at                                                  AS dt_first_found_at,
     b.last_seen_at                                                    AS dt_last_seen_at,
-    s.run_id                                                          AS des_last_scoring_run
+    s.score_source                                                    AS des_score_source
 FROM leads AS l
 LEFT JOIN {{ ref('lgn_d_business') }} AS b ON b.business_id = l.business_id
 LEFT JOIN {{ ref('lgn_d_enrichment') }} AS e ON e.business_id = l.business_id AND e.profile = l.profile

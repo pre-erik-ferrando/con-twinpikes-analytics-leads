@@ -21,7 +21,7 @@ upload files, everything is launched from here and the results are read in the l
     python leadgen.py confirm-export exp_… --status UPLOADED
     python leadgen.py load-sf-status lgn_sf_status_YYYYMM.csv  # Salesforce's monthly status file (DT.8.4)
     python leadgen.py rematch --country AT                      # after a new customer extract
-    python leadgen.py reprocess --country AT --profile POOL_SPECIALIST [--capture-batch cb_…] [--score-only]
+    python leadgen.py reprocess --country AT --profile POOL_SPECIALIST [--capture-batch cb_…]
     python leadgen.py status [RUN_ID]
     python leadgen.py dbt [-- <dbt args>]                       # dbt build of the views (src/stg/crp/biz)
 
@@ -144,6 +144,11 @@ def cmd(ns) -> int:
     if c == "precheck":
         cfg = _cfg(st, ns.country, ns.profile)
         res = precheck(cfg, ns.areas.split(",") if ns.areas else None, ns.terms.split(",") if ns.terms else None)
+        from leadgen.store import SCORE_VIEWS
+        missing = st.missing_views(SCORE_VIEWS)
+        if missing:
+            res.blocking.append(f"the score views {', '.join(missing)} are not in the database: run "
+                                "`python leadgen.py dbt`")
         show({"blocking": res.blocking, "warnings": res.warnings})
         return 1 if res.blocking else 0
     if c in ("capture", "import-list"):
@@ -192,7 +197,8 @@ def cmd(ns) -> int:
     if c == "review":
         from leadgen.steps.maintenance import to_review
         ids = to_review(st, ns.capture_batch)
-        scores = {r["business_id"]: r for r in st.select("score_out", {"business_id": ids})} if ids else {}
+        b = st.select("capture_batch", {"capture_batch_id": ns.capture_batch})[0]
+        scores = st.lead_scores(b["country"], b["profile"], ids) if ids else {}
         for b in ids:
             s = scores.get(b, {})
             print(f"{b}\t{s.get('total')}\t{s.get('rating')}")
@@ -226,7 +232,7 @@ def cmd(ns) -> int:
         return 0
     if c == "reprocess":
         from leadgen.steps.maintenance import run_reprocess
-        ctx, summary = run_reprocess(st, ns.country, ns.profile, user(ns), ns.capture_batch, ns.score_only)
+        ctx, summary = run_reprocess(st, ns.country, ns.profile, user(ns), ns.capture_batch)
         show({"run_id": ctx.run_id, **summary})
         return 0
     if c == "rematch":
@@ -300,7 +306,6 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--status", required=True, choices=["UPLOADED", "FAILED"])
     s = sub.add_parser("reprocess"); s.add_argument("--country", required=True)
     s.add_argument("--profile", default="POOL_SPECIALIST"); s.add_argument("--capture-batch")
-    s.add_argument("--score-only", action="store_true")
     s = sub.add_parser("rematch"); s.add_argument("--country", required=True)
     s = sub.add_parser("apply-sf-status"); s.add_argument("--country", required=True)
     s = sub.add_parser("status"); s.add_argument("run_id", nargs="?")

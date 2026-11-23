@@ -47,7 +47,7 @@ Detalle y motivo de cada desviación: [Decisiones](decisiones.md).
 | Criterio | Dónde se mide |
 |---|---|
 | Cobertura del conjunto de control | `lgn_v_coverage` (con `biz_cfg_control_set` cargado) |
-| Misma puntuación que el Excel de Austria de TWP | `lgn_f3_score_component` frente al Excel; test con el ejemplo [10, 7.5, 7.5, 2.5, 5, 0.5] = 33 |
+| Misma puntuación que el Excel de Austria de TWP | `lgn_f2_score_component` frente al Excel; test con el ejemplo [10, 7.5, 7.5, 2.5, 5, 0.5] = 33 (`run_db_tests.sh`) |
 | Prácticamente todos los leads con zona | `lgn_v_lead.des_quadrant` no nulo |
 | Los tres clientes de Austria apartados por el motor | `lgn_v_lead_discarded`, etapa CUSTOMER_MATCH |
 | Trazabilidad de cada dato | `lgn_d_enrichment.sources_json` (página de origen de cada dato) |

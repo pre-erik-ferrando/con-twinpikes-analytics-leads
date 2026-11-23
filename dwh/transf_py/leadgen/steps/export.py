@@ -15,6 +15,7 @@ from .. import export as X
 from .. import runs
 from ..domain import CURRENCY
 from ..state import RunContext, business_views, current_validations, exported, latest, permanent_exclusions
+from ..store import SCORE_VIEWS
 from .common import capture_batch_leads, current_web, deciding_matches, is_customer
 
 
@@ -41,9 +42,7 @@ def lead_fields(store, cfg, country: str, profile: str, ids: list[int]) -> list[
     """The fields export columns can point to (same names as lgn_v_salesforce_export)."""
     views = business_views(store, country, set(ids))
     web = current_web(store, country, profile, set(ids))
-    scores = {k[0]: v for k, v in latest([r for r in store.select("score_out", {"country": country})
-                                          if r.get("profile") == profile and r["business_id"] in set(ids)],
-                                         ("business_id",)).items()}
+    scores = store.lead_scores(country, profile, ids)          # live, computed in SQL (lgn_f2_score)
     areas = cfg.search_areas()
     by_code = {a["admin_code"]: a for a in areas.values() if a.get("level") == "SUBREGION"}
     today = date.today()
@@ -88,6 +87,11 @@ def run_export(store, capture_batch_id: str, requested_by: str, out_dir: Path) -
     ctx.set_state("SNAPSHOT_FROZEN")
     cfg = ctx.config()
     ctx.set_state("RUNNING")
+    missing = store.missing_views(SCORE_VIEWS)
+    if missing:
+        msg = f"the score views {', '.join(missing)} are not in the database: run `python leadgen.py dbt`"
+        ctx.set_state("FAILED", msg)
+        return ctx, {"exported": 0, "error": msg}
     ids = approved_leads(store, country, profile, capture_batch_leads(store, capture_batch_id))
     if not ids:
         ctx.set_state("CLOSED", "no approved leads to export")
@@ -111,6 +115,12 @@ def run_export(store, capture_batch_id: str, requested_by: str, out_dir: Path) -
                                       "profile": profile, "capture_batch_id": capture_batch_id,
                                       "lead_code": l["lead_code"], "status": "GENERATED", "generated_by": requested_by}
                                      for l in leads])
+    # the score as it was when exported: the live one follows the configuration, this one does not move
+    scores = store.lead_scores(country, profile, [l["business_id"] for l in leads])
+    store.insert("export_score_out", [{"export_id": export_id, "business_id": b, "country": country, "profile": profile,
+                                       "total": s["total"], "rating": s["rating"], "breakdown": s["breakdown"],
+                                       "buckets_json": json.dumps(s["buckets"], sort_keys=True)}
+                                      for b, s in scores.items()])
     store.insert("export_log", [{"export_id": export_id, "run_id": ctx.run_id, "country": country,
                                  "target": "SALESFORCE", "file_name": path.name, "n_leads": len(leads),
                                  "status": "GENERATED", "generated_by": requested_by}])

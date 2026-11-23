@@ -5,7 +5,8 @@ enrichment runs, table by table, plus one section per business. Read-only, free.
 
 Output in tmp/trace/<capture_batch_id>/ (gitignored: it holds leads and customer names):
     01_capture/<table>.csv   search log, Apify calls and items, normalised places, identity, filter, 1st match
-    02_enrich/<table>.csv    crawls, pages (text size, no HTML), model requests and answers, 2nd match, scores
+    02_enrich/<table>.csv    crawls, pages (text size, no HTML), model requests and answers, 2nd match, and
+                             the score (lgn_f_score: frozen at export or live; lgn_f2_score_component)
     trace.md                 one section per business: Google -> filter -> customer match -> website/model -> score
 """
 from __future__ import annotations
@@ -110,10 +111,17 @@ def main() -> int:
         n["web_validation_out"] = save(s2, "web_validation_out", valid)
         m2 = st.select("customer_match_out", {"run_id": enr})
         n["customer_match_out (enrich)"] = save(s2, "customer_match_out", m2)
-        comps = st.select("score_component_out", {"run_id": enr})
-        n["score_component_out"] = save(s2, "score_component_out", comps)
-        scores = st.select("score_out", {"run_id": enr})
-        n["score_out"] = save(s2, "score_out", scores)
+        # the score is computed in SQL: the one shown (frozen at export, else live) and the live buckets
+        bids = [r["business_id"] for r in st.select("capture_batch_lead", {"capture_batch_id": cb})]
+        q = st.client.query
+        cols = ["business_id", "country", "profile", "total", "rating", "breakdown", "score_source", "export_id"]
+        scores = [dict(zip(cols, r)) for r in q(f"SELECT {', '.join(cols)} FROM fld_bizlgn.lgn_f_score "
+                                                "WHERE business_id IN %(b)s", parameters={"b": bids}).result_rows]
+        n["lgn_f_score"] = save(s2, "lgn_f_score", scores)
+        ccols = ["business_id", "factor", "bucket_code", "points", "input_value"]
+        comps = [dict(zip(ccols, r)) for r in q(f"SELECT {', '.join(ccols)} FROM fld_bizlgn.lgn_f2_score_component "
+                                                "WHERE business_id IN %(b)s", parameters={"b": bids}).result_rows]
+        n["lgn_f2_score_component"] = save(s2, "lgn_f2_score_component", comps)
     n["cost_ledger"] = save(out, "cost_ledger", st.select("cost_ledger", {"run_id": cap + enr}))
     for k, v in n.items():
         print(f"  {k}: {v} rows")

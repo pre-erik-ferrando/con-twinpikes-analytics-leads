@@ -18,7 +18,6 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 | `content.py` | ✓ | website preparation: signals, text, dedupe, budget, brand mentions |
 | `prompt.py` | ✓ | system message (common + country + profile blocks), user message, JSON schema, versions |
 | `response.py` | ✓ | checking the model's answer without the model (each claim on its cited page) |
-| `scoring.py` | ✓ | buckets per factor, PERCENTILE.INC review reference, Rating |
 | `cost.py`, `runs.py`, `export.py` | ✓ | estimate/approval, states/area locking, Salesforce rows |
 | `store.py` | I/O | the seam: `ClickHouseStore` and `MemoryStore` (tests), logical ↔ physical names |
 | `state.py` | I/O | current state of the insert-only tables; run context and snapshot; syncs Intelek's decisions |
@@ -33,9 +32,9 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 |---|---|---|
 | CAPTURE | `capture` | gmaps_*, place_norm_out, business_link_out, rule_evaluation_out, customer_match_out (CAPTURE), capture_batch(_lead) |
 | IMPORT_LIST | `import-list` | as CAPTURE, source IMPORT |
-| ENRICH | `enrich`, `resume` | web_crawl/web_page, llm_request/response, llm_batch, web_validation_out, customer_match_out (ENRICH), score_* |
-| EXPORT | `export`, `confirm-export` | export_lead_out, export_log, the xlsx |
-| REPROCESS_RULES / SCORE_ONLY | `reprocess [--score-only]` | rule_evaluation_out, customer_match_out, score_* (no Apify, crawl or model) |
+| ENRICH | `enrich`, `resume` | web_crawl/web_page, llm_request/response, llm_batch, web_validation_out, customer_match_out (ENRICH); the score is the dbt view lgn_f2_score |
+| EXPORT | `export`, `confirm-export` | export_lead_out, export_score_out (the score frozen), export_log, the xlsx |
+| REPROCESS_RULES | `reprocess` | rule_evaluation_out, customer_match_out (no Apify, crawl or model; scores are live in SQL) |
 | CUSTOMER_REMATCH | `rematch` | customer_match_out (REMATCH) |
 
 Every run writes one `ops.pipeline_run` row per state change: REQUESTED → SNAPSHOT_FROZEN →

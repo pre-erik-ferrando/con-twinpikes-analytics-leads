@@ -6,7 +6,7 @@ data is saved, so you can follow how a Google Maps place becomes a lead.
     python exploration/demo_lead.py                    # 2) capture + crawl; writes the model prompts
     #    answer each tmp/demo/prompts/<id>.txt with the JSON the prompt asks for, in
     #    tmp/demo/answers/<id>.json (only the JSON object)
-    python exploration/demo_lead.py                    # 3) same command: scores, approves, exports
+    python exploration/demo_lead.py                    # 3) same command: approves, exports
     python exploration/demo_lead.py --inputs FILE.xlsx # TWP's inputs Excel instead of the demo values
         [--customers FILE.xlsx --customers-date YYYY-MM-DD]   # and Fluidra Austria's customer list
         [--area 207 --places tmp/v/poolbau.json tmp/v/poolshop.json …]   # another district, one file per term
@@ -14,7 +14,8 @@ data is saved, so you can follow how a Google Maps place becomes a lead.
 Each run starts from scratch (in memory) and replays the saved Apify items, so it is free; it only
 re-downloads the websites. Output in tmp/demo/ (gitignored):
     stages/NN_<step>/<table>.csv   the rows each step added, table by table
-    trace.md                       one section per place: raw -> normalized -> filter -> web -> score
+    trace.md                       one section per place: raw -> normalized -> filter -> web
+No score here: it is computed in SQL (dbt view lgn_f2_score), so only on ClickHouse (run_trace.py).
     export/                        the Salesforce upload file
 
 DEMO-ONLY values (not business configuration, see DEMO_CONFIG): the search area, a handful of
@@ -219,7 +220,7 @@ def trace(store, items) -> None:
     link = {r["place_id"]: r["business_id"] for r in sel("business_link_out")}
     ev = _latest(sel("rule_evaluation_out"), "business_id")
     web = _latest(sel("web_validation_out"), "business_id")
-    score = _latest(sel("score_out"), "business_id")
+    score = {}                 # computed in SQL (lgn_f2_score): not available in memory
     val = _latest(sel("biz_lead_validation"), "business_id")      # logical names in the engine
     exported = {r["business_id"] for r in sel("export_lead_out")}
     lines = ["# Demo trace\n", "Each place, step by step. Full rows: `stages/`.\n"]

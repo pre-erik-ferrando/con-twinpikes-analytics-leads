@@ -1,0 +1,1357 @@
+{
+ "source": "steps/common.score_businesses (Python), 2026-11-23, before it was removed",
+ "scores": [
+  {
+   "business_id": 1915346923464157918,
+   "country": "AT",
+   "profile": "POOL_SPECIALIST",
+   "total": 11.5,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    0.0,
+    7.5,
+    0.0,
+    1.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 10833357789472415048,
+   "country": "AT",
+   "profile": "POOL_SPECIALIST",
+   "total": 37.5,
+   "rating": "HOT",
+   "breakdown": [
+    10.0,
+    7.5,
+    7.5,
+    5.0,
+    5.0,
+    2.5
+   ]
+  },
+  {
+   "business_id": 17578837211651019840,
+   "country": "AT",
+   "profile": "POOL_SPECIALIST",
+   "total": 10.5,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    0.0,
+    7.5,
+    0.0,
+    0.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000001,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 23.0,
+   "rating": "WARM",
+   "breakdown": [
+    5.0,
+    7.5,
+    5.0,
+    2.5,
+    3.0,
+    0.0
+   ]
+  },
+  {
+   "business_id": 9000002,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 14.0,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    5.0,
+    2.5,
+    2.5,
+    1.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000003,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 16.5,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    2.5,
+    1.0,
+    5.0,
+    5.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000005,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 7.5,
+   "rating": "COLD",
+   "breakdown": [
+    5.0,
+    0.0,
+    0.0,
+    0.0,
+    1.0,
+    1.5
+   ]
+  },
+  {
+   "business_id": 9000006,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 25.0,
+   "rating": "WARM",
+   "breakdown": [
+    2.5,
+    7.5,
+    7.5,
+    5.0,
+    1.0,
+    1.5
+   ]
+  },
+  {
+   "business_id": 9000008,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 23.0,
+   "rating": "WARM",
+   "breakdown": [
+    10.0,
+    7.5,
+    2.5,
+    0.0,
+    3.0,
+    0.0
+   ]
+  },
+  {
+   "business_id": 9000010,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 5.5,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    2.5,
+    0.0,
+    0.0,
+    0.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000011,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 11.0,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    5.0,
+    0.0,
+    0.0,
+    3.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000012,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 20.5,
+   "rating": "WARM",
+   "breakdown": [
+    2.5,
+    0.0,
+    7.5,
+    5.0,
+    5.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000013,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 22.0,
+   "rating": "WARM",
+   "breakdown": [
+    5.0,
+    7.5,
+    5.0,
+    0.0,
+    3.0,
+    1.5
+   ]
+  },
+  {
+   "business_id": 9000015,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 19.5,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    7.5,
+    1.0,
+    5.0,
+    1.0,
+    2.5
+   ]
+  },
+  {
+   "business_id": 9000016,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 20.5,
+   "rating": "WARM",
+   "breakdown": [
+    10.0,
+    5.0,
+    0.0,
+    2.5,
+    3.0,
+    0.0
+   ]
+  },
+  {
+   "business_id": 9000017,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 10.5,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    2.5,
+    0.0,
+    2.5,
+    3.0,
+    0.0
+   ]
+  },
+  {
+   "business_id": 9000018,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 21.5,
+   "rating": "WARM",
+   "breakdown": [
+    2.5,
+    5.0,
+    7.5,
+    5.0,
+    1.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000020,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 21.5,
+   "rating": "WARM",
+   "breakdown": [
+    10.0,
+    7.5,
+    2.5,
+    0.0,
+    1.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000022,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 15.0,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    7.5,
+    0.0,
+    2.5,
+    1.0,
+    1.5
+   ]
+  },
+  {
+   "business_id": 9000023,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 13.0,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    5.0,
+    0.0,
+    0.0,
+    3.0,
+    2.5
+   ]
+  },
+  {
+   "business_id": 9000025,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 16.0,
+   "rating": "COLD",
+   "breakdown": [
+    5.0,
+    5.0,
+    5.0,
+    0.0,
+    1.0,
+    0.0
+   ]
+  },
+  {
+   "business_id": 9000026,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 9.0,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    0.0,
+    2.5,
+    2.5,
+    1.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000027,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 21.5,
+   "rating": "WARM",
+   "breakdown": [
+    2.5,
+    7.5,
+    1.0,
+    5.0,
+    5.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000030,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 22.5,
+   "rating": "WARM",
+   "breakdown": [
+    2.5,
+    5.0,
+    7.5,
+    5.0,
+    1.0,
+    1.5
+   ]
+  },
+  {
+   "business_id": 9000031,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 15.5,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    2.5,
+    5.0,
+    0.0,
+    3.0,
+    2.5
+   ]
+  },
+  {
+   "business_id": 9000032,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 13.0,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    5.0,
+    2.5,
+    0.0,
+    3.0,
+    0.0
+   ]
+  },
+  {
+   "business_id": 9000033,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 16.0,
+   "rating": "COLD",
+   "breakdown": [
+    5.0,
+    0.0,
+    1.0,
+    5.0,
+    5.0,
+    0.0
+   ]
+  },
+  {
+   "business_id": 9000036,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 35.5,
+   "rating": "HOT",
+   "breakdown": [
+    10.0,
+    7.5,
+    7.5,
+    5.0,
+    5.0,
+    0.5
+   ]
+  },
+  {
+   "business_id": 9000037,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 17.0,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    5.0,
+    5.0,
+    0.0,
+    3.0,
+    1.5
+   ]
+  },
+  {
+   "business_id": 9000038,
+   "country": "DE",
+   "profile": "POOL_SPECIALIST",
+   "total": 10.0,
+   "rating": "COLD",
+   "breakdown": [
+    2.5,
+    2.5,
+    2.5,
+    0.0,
+    1.0,
+    1.5
+   ]
+  }
+ ],
+ "buckets": [
+  {
+   "business_id": 9000001,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 9000001,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "MAINTENANCE_OR_PREFAB"
+  },
+  {
+   "business_id": 9000001,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000001,
+   "factor": "DIGITAL",
+   "bucket_code": "OWN_WEBSITE"
+  },
+  {
+   "business_id": 9000001,
+   "factor": "REVIEWS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000001,
+   "factor": "ZONE",
+   "bucket_code": "ACTIVATE"
+  },
+  {
+   "business_id": 9000002,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_2"
+  },
+  {
+   "business_id": 9000002,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000002,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000002,
+   "factor": "DIGITAL",
+   "bucket_code": "OWN_WEBSITE"
+  },
+  {
+   "business_id": 9000002,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000002,
+   "factor": "ZONE",
+   "bucket_code": "DEFEND"
+  },
+  {
+   "business_id": 9000003,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_3"
+  },
+  {
+   "business_id": 9000003,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000003,
+   "factor": "CONTACT",
+   "bucket_code": "PERSON_EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000003,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 9000003,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000003,
+   "factor": "ZONE",
+   "bucket_code": "OPTIMIZE"
+  },
+  {
+   "business_id": 9000005,
+   "factor": "BRANDS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000005,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "MAINTENANCE_OR_PREFAB"
+  },
+  {
+   "business_id": 9000005,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000005,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000005,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_MEDIAN"
+  },
+  {
+   "business_id": 9000005,
+   "factor": "ZONE",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000006,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 9000006,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000006,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000006,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 9000006,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_MEDIAN"
+  },
+  {
+   "business_id": 9000006,
+   "factor": "ZONE",
+   "bucket_code": "ATTACK"
+  },
+  {
+   "business_id": 9000008,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 9000008,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "BUILDER_INSTALLER_SHOP"
+  },
+  {
+   "business_id": 9000008,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000008,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000008,
+   "factor": "REVIEWS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000008,
+   "factor": "ZONE",
+   "bucket_code": "DEFEND"
+  },
+  {
+   "business_id": 9000010,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_3"
+  },
+  {
+   "business_id": 9000010,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000010,
+   "factor": "CONTACT",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000010,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000010,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000010,
+   "factor": "ZONE",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000011,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_2"
+  },
+  {
+   "business_id": 9000011,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000011,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000011,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000011,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000011,
+   "factor": "ZONE",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000012,
+   "factor": "BRANDS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000012,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000012,
+   "factor": "CONTACT",
+   "bucket_code": "PERSON_EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000012,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 9000012,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000012,
+   "factor": "ZONE",
+   "bucket_code": "ATTACK"
+  },
+  {
+   "business_id": 9000013,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 9000013,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "MAINTENANCE_OR_PREFAB"
+  },
+  {
+   "business_id": 9000013,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000013,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000013,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_MEDIAN"
+  },
+  {
+   "business_id": 9000013,
+   "factor": "ZONE",
+   "bucket_code": "ACTIVATE"
+  },
+  {
+   "business_id": 9000015,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 9000015,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000015,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000015,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 9000015,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_P75"
+  },
+  {
+   "business_id": 9000015,
+   "factor": "ZONE",
+   "bucket_code": "OPTIMIZE"
+  },
+  {
+   "business_id": 9000016,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_2"
+  },
+  {
+   "business_id": 9000016,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "BUILDER_INSTALLER_SHOP"
+  },
+  {
+   "business_id": 9000016,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000016,
+   "factor": "DIGITAL",
+   "bucket_code": "OWN_WEBSITE"
+  },
+  {
+   "business_id": 9000016,
+   "factor": "REVIEWS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000016,
+   "factor": "ZONE",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000017,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_3"
+  },
+  {
+   "business_id": 9000017,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000017,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000017,
+   "factor": "DIGITAL",
+   "bucket_code": "OWN_WEBSITE"
+  },
+  {
+   "business_id": 9000017,
+   "factor": "REVIEWS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000017,
+   "factor": "ZONE",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000018,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_2"
+  },
+  {
+   "business_id": 9000018,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000018,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000018,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 9000018,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000018,
+   "factor": "ZONE",
+   "bucket_code": "ATTACK"
+  },
+  {
+   "business_id": 9000020,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 9000020,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "BUILDER_INSTALLER_SHOP"
+  },
+  {
+   "business_id": 9000020,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000020,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000020,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000020,
+   "factor": "ZONE",
+   "bucket_code": "DEFEND"
+  },
+  {
+   "business_id": 9000022,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 9000022,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000022,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000022,
+   "factor": "DIGITAL",
+   "bucket_code": "OWN_WEBSITE"
+  },
+  {
+   "business_id": 9000022,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_MEDIAN"
+  },
+  {
+   "business_id": 9000022,
+   "factor": "ZONE",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000023,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_2"
+  },
+  {
+   "business_id": 9000023,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000023,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000023,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000023,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_P75"
+  },
+  {
+   "business_id": 9000023,
+   "factor": "ZONE",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000025,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_2"
+  },
+  {
+   "business_id": 9000025,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "MAINTENANCE_OR_PREFAB"
+  },
+  {
+   "business_id": 9000025,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000025,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000025,
+   "factor": "REVIEWS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000025,
+   "factor": "ZONE",
+   "bucket_code": "ACTIVATE"
+  },
+  {
+   "business_id": 9000026,
+   "factor": "BRANDS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000026,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000026,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000026,
+   "factor": "DIGITAL",
+   "bucket_code": "OWN_WEBSITE"
+  },
+  {
+   "business_id": 9000026,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000026,
+   "factor": "ZONE",
+   "bucket_code": "DEFEND"
+  },
+  {
+   "business_id": 9000027,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 9000027,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000027,
+   "factor": "CONTACT",
+   "bucket_code": "PERSON_EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000027,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 9000027,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000027,
+   "factor": "ZONE",
+   "bucket_code": "OPTIMIZE"
+  },
+  {
+   "business_id": 9000030,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_2"
+  },
+  {
+   "business_id": 9000030,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000030,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000030,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 9000030,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_MEDIAN"
+  },
+  {
+   "business_id": 9000030,
+   "factor": "ZONE",
+   "bucket_code": "ATTACK"
+  },
+  {
+   "business_id": 9000031,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_3"
+  },
+  {
+   "business_id": 9000031,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000031,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000031,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000031,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_P75"
+  },
+  {
+   "business_id": 9000031,
+   "factor": "ZONE",
+   "bucket_code": "ACTIVATE"
+  },
+  {
+   "business_id": 9000032,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_2"
+  },
+  {
+   "business_id": 9000032,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000032,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000032,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000032,
+   "factor": "REVIEWS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000032,
+   "factor": "ZONE",
+   "bucket_code": "DEFEND"
+  },
+  {
+   "business_id": 9000033,
+   "factor": "BRANDS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000033,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "MAINTENANCE_OR_PREFAB"
+  },
+  {
+   "business_id": 9000033,
+   "factor": "CONTACT",
+   "bucket_code": "PERSON_EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000033,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 9000033,
+   "factor": "REVIEWS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000033,
+   "factor": "ZONE",
+   "bucket_code": "OPTIMIZE"
+  },
+  {
+   "business_id": 9000036,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 9000036,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "BUILDER_INSTALLER_SHOP"
+  },
+  {
+   "business_id": 9000036,
+   "factor": "CONTACT",
+   "bucket_code": "PERSON_EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000036,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 9000036,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000036,
+   "factor": "ZONE",
+   "bucket_code": "ATTACK"
+  },
+  {
+   "business_id": 9000037,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_2"
+  },
+  {
+   "business_id": 9000037,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000037,
+   "factor": "CONTACT",
+   "bucket_code": "EMAIL_PHONE"
+  },
+  {
+   "business_id": 9000037,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000037,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_MEDIAN"
+  },
+  {
+   "business_id": 9000037,
+   "factor": "ZONE",
+   "bucket_code": "ACTIVATE"
+  },
+  {
+   "business_id": 9000038,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_3"
+  },
+  {
+   "business_id": 9000038,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 9000038,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 9000038,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 9000038,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_MEDIAN"
+  },
+  {
+   "business_id": 9000038,
+   "factor": "ZONE",
+   "bucket_code": "DEFEND"
+  },
+  {
+   "business_id": 1915346923464157918,
+   "factor": "BRANDS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 1915346923464157918,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 1915346923464157918,
+   "factor": "CONTACT",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 1915346923464157918,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 1915346923464157918,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 1915346923464157918,
+   "factor": "ZONE",
+   "bucket_code": "ATTACK"
+  },
+  {
+   "business_id": 10833357789472415048,
+   "factor": "BRANDS",
+   "bucket_code": "GROUP_1"
+  },
+  {
+   "business_id": 10833357789472415048,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "BUILDER_INSTALLER_SHOP"
+  },
+  {
+   "business_id": 10833357789472415048,
+   "factor": "CONTACT",
+   "bucket_code": "PERSON_EMAIL_PHONE"
+  },
+  {
+   "business_id": 10833357789472415048,
+   "factor": "DIGITAL",
+   "bucket_code": "ECOMMERCE"
+  },
+  {
+   "business_id": 10833357789472415048,
+   "factor": "REVIEWS",
+   "bucket_code": "ABOVE_P75"
+  },
+  {
+   "business_id": 10833357789472415048,
+   "factor": "ZONE",
+   "bucket_code": "ATTACK"
+  },
+  {
+   "business_id": 17578837211651019840,
+   "factor": "BRANDS",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 17578837211651019840,
+   "factor": "COMPANY_TYPE",
+   "bucket_code": "WEAK_UNVERIFIED"
+  },
+  {
+   "business_id": 17578837211651019840,
+   "factor": "CONTACT",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 17578837211651019840,
+   "factor": "DIGITAL",
+   "bucket_code": "NONE"
+  },
+  {
+   "business_id": 17578837211651019840,
+   "factor": "REVIEWS",
+   "bucket_code": "ANY"
+  },
+  {
+   "business_id": 17578837211651019840,
+   "factor": "ZONE",
+   "bucket_code": "ATTACK"
+  }
+ ]
+}

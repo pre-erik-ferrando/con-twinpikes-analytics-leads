@@ -1,16 +1,14 @@
-"""What the run types share: geography, filter, customer match and scoring of a set of businesses."""
+"""What the run types share: geography, filter and customer match of a set of businesses. The score is
+computed in SQL (dbt view lgn_f2_score) and read with store.lead_scores."""
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 
-from .. import scoring
 from ..config import Config
 from ..filtering import FilterDecision, FilterInput, evaluate
 from ..geo import AdminArea, AreaIndex, polygons_from_geojson
 from ..matching import CustomerIndex, LeadFacts, MatchConfig, MatchResult, match, resolve_priority
-from ..normalize import (email_domain, name_keys, normalize_category, normalize_postal_code, normalize_text,
-                         registrable_domain)
+from ..normalize import email_domain, name_keys, normalize_category, normalize_postal_code, normalize_text
 from ..state import (BusinessView, RunContext, business_views, customer_index, is_suppressed, latest,
                      permanent_exclusions, suppressed)
 
@@ -163,72 +161,6 @@ def deciding_matches(store, country: str, business_ids: set[int] | None = None) 
 
 def is_customer(row: dict | None) -> bool:
     return bool(row) and row["outcome"] == "CUSTOMER"
-
-
-# --------------------------------------------------------------------------- scoring
-@dataclass
-class ScoringContext:
-    points: dict
-    bands: list
-    brand_groups: dict
-    zones: dict
-    ref: scoring.ReviewReference
-
-
-def compute_review_reference(ctx: RunContext, cfg: Config) -> scoring.ReviewReference:
-    """Base: VALID leads of the country not matched with a customer, all runs (DT.7.3)."""
-    store = ctx.store
-    wv = latest([r for r in store.select("web_validation_out", {"country": ctx.country})],
-                ("business_id", "profile"))
-    valid = {k[0] for k, r in wv.items() if r["validation"] == "VALID"}
-    matches = deciding_matches(store, ctx.country, valid)
-    base = {b for b in valid if not is_customer(matches.get(b))}
-    views = business_views(store, ctx.country, base) if base else {}
-    version = f"{ctx.country}-{ctx.run_id}"
-    ref = scoring.review_reference([v.reviews_count for v in views.values()], version,
-                                   int(cfg.param("review_reference_min_n", 30)),
-                                   float(cfg.param("review_p75_provisional", 34.8)),
-                                   float(cfg.param("review_median_provisional", 10.5)))
-    store.insert("review_reference_out", [{"country": ctx.country, "reference_version": ref.version, "p75": ref.p75,
-                                           "median": ref.median, "n": ref.n, "is_provisional": int(ref.is_provisional)}])
-    return ref
-
-
-def scoring_context(ctx: RunContext, cfg: Config) -> ScoringContext:
-    groups = {b["brand"]: b.get("brand_group") for b in cfg.brands("COMPETITOR")}
-    return ScoringContext(cfg.scoring_points(), cfg.rating_bands(), groups, cfg.strategic_zones(),
-                          compute_review_reference(ctx, cfg))
-
-
-def score_businesses(ctx: RunContext, cfg: Config, views: dict[int, BusinessView], web: dict[int, dict],
-                     sc: ScoringContext) -> dict[int, scoring.Score]:
-    """Scores VALID and REVIEW leads (NOT_VALID never). `web` is the current web_validation_out row of
-    each business for the run's profile."""
-    shared = cfg.shared_domains()
-    comps, totals, out = [], [], {}
-    for bid, v in views.items():
-        wv = web.get(bid)
-        if wv is None or wv["validation"] == "NOT_VALID":
-            continue
-        m = v.master
-        own = registrable_domain(m.get("website"), cfg.shared_domains("SITE_BUILDER"))
-        own = None if own in shared else own
-        s = scoring.score(scoring.ScoreInput(
-            bid, m.get("name") or "", wv["validation"], wv.get("company_type"), list(wv.get("detected_brands") or []),
-            m.get("subregion_code"), bool(wv["has_ecommerce"]) if wv.get("has_ecommerce") is not None else None,
-            own, wv.get("crawl_status"), wv.get("contact_name"), wv.get("email"), wv.get("phone_e164"),
-            m.get("phone_e164"), v.reviews_count), sc.points, sc.bands, sc.brand_groups, sc.zones, sc.ref)
-        out[bid] = s
-        for c in s.components:
-            comps.append({"run_id": ctx.run_id, "business_id": bid, "country": ctx.country, "profile": ctx.profile,
-                          "factor": c.factor, "bucket_code": c.bucket, "points": c.points,
-                          "input_value": c.input_value, "review_reference_version": sc.ref.version})
-        totals.append({"run_id": ctx.run_id, "snapshot_id": ctx.snapshot_id, "business_id": bid,
-                       "country": ctx.country, "profile": ctx.profile, "total": s.total, "rating": s.rating,
-                       "breakdown": s.breakdown, "review_reference_version": sc.ref.version})
-    ctx.store.insert("score_component_out", comps)
-    ctx.store.insert("score_out", totals)
-    return out
 
 
 def current_web(store, country: str, profile: str | None, business_ids: set[int] | None = None) -> dict[int, dict]:

@@ -15,7 +15,7 @@
 | 2 | Crawl | `web_crawl`, `web_page` | Website pages, up to 50: Impressum and contact first, then about, brands, products and shop |
 | 2 | Model | `llm_request`, `llm_response`, `web_validation_out` | VALID / NOT_VALID / REVIEW, company type, legal data, contact, brands, e-commerce; each claim checked against its cited page |
 | 2 | Customer match | `customer_match_out` (ENRICH) | Again, with what the website revealed |
-| 2 | Score | `score_component_out`, `score_out` | 6 factors (type, brands, zone, digital, contact, reviews) → COLD / WARM / HOT |
+| 2 | Score | `lgn_f2_score_component`, `lgn_f2_score` (dbt views, on ClickHouse only) | 6 factors (type, brands, zone, digital, contact, reviews) → COLD / WARM / HOT; not in this in-memory demo |
 | 3 | Sales Ops | `biz_lead_validation` | ACCEPTED or EXCLUDED; the latest row wins |
 | 4 | Export | `export_lead_out`, `export_log`, `.xlsx` | Salesforce file; a lead is exported only once |
 
@@ -96,7 +96,7 @@ engine uses are shown)
 |---|---|---|---|---|---|---|
 | VALID | Plans, builds and services pools and supplies chemicals and pool cleaners | BUILDER_INSTALLER_SHOP | BOTH | Max Muster (P1) | office@poolbau-muster.at (P1) | 0 |
 
-**2. Score** (`score_component_out` → `score_out`)
+**2. Score** (`lgn_f2_score_component` → `lgn_f2_score`, computed in SQL: on ClickHouse, not in the in-memory demo)
 
 | factor | bucket_code | points |
 |---|---|---|

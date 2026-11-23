@@ -22,6 +22,12 @@ class Store(Protocol):
     def select(self, table: str, where: dict | None = None, columns: list[str] | None = None) -> list[dict]: ...
     def hash64(self, values: list[str]) -> dict[str, int]: ...
     def now(self) -> datetime: ...
+    def lead_scores(self, country: str, profile: str | None, business_ids: Iterable[int] | None = None) -> dict[int, dict]: ...
+    def missing_views(self, names: Iterable[str]) -> list[str]: ...
+
+
+# The dbt views the engine reads (built with `python leadgen.py dbt`): the score is computed in SQL.
+SCORE_VIEWS = ("lgn_f2_score", "lgn_f2_score_component")
 
 
 def _prepare(table: ddl.Table, rows: Iterable[dict]) -> list[dict]:
@@ -123,6 +129,14 @@ class MemoryStore:
         """A deterministic stand-in for ClickHouse's cityHash64, for tests only."""
         return {v: int.from_bytes(hashlib.blake2b(v.encode(), digest_size=8).digest(), "big") for v in values}
 
+    def lead_scores(self, country, profile, business_ids=None) -> dict[int, dict]:
+        """No SQL engine here, so no score: it is computed by the dbt view lgn_f2_score and tested on
+        ClickHouse (tests_db). The in-memory flow runs without scores."""
+        return {}
+
+    def missing_views(self, names) -> list[str]:
+        return []
+
 
 class ClickHouseStore:
     """Store on ClickHouse through clickhouse-connect. Credentials from the DBT_CH_* variables (.env)."""
@@ -180,6 +194,34 @@ class ClickHouseStore:
             sql += " WHERE " + " AND ".join(conds)
         res = self.client.query(sql, parameters=params)
         return [dict(zip(cols, row)) for row in res.result_rows]
+
+    def lead_scores(self, country, profile, business_ids=None) -> dict[int, dict]:
+        """business_id -> the live score (lgn_f2_score: total, rating, breakdown) and the bucket of each
+        factor (lgn_f2_score_component), computed in SQL with the current configuration."""
+        biz = ddl.DB["biz"]
+        cond, params = "country = %(c)s AND profile = %(p)s", {"c": country, "p": profile}
+        if business_ids is not None:
+            ids = [int(b) for b in business_ids]
+            if not ids:
+                return {}
+            cond += " AND business_id IN %(ids)s"
+            params["ids"] = ids
+        out = {}
+        for b, t, r, bd in self.client.query(f"SELECT business_id, total, rating, breakdown FROM {biz}.lgn_f2_score "
+                                             f"WHERE {cond}", parameters=params).result_rows:
+            out[int(b)] = {"total": float(t), "rating": r, "breakdown": [float(x) for x in bd], "buckets": {}}
+        for b, f, bk in self.client.query(f"SELECT business_id, factor, bucket_code FROM {biz}.lgn_f2_score_component "
+                                          f"WHERE {cond}", parameters=params).result_rows:
+            if int(b) in out:
+                out[int(b)]["buckets"][f] = bk
+        return out
+
+    def missing_views(self, names) -> list[str]:
+        """Which of these dbt views (database fld_bizlgn) do not exist: `python leadgen.py dbt` builds them."""
+        names = list(names)
+        rows = self.client.query("SELECT name FROM system.tables WHERE database = %(d)s AND name IN %(n)s",
+                                 parameters={"d": ddl.DB["biz"], "n": names}).result_rows
+        return sorted(set(names) - {r[0] for r in rows})
 
     def hash64(self, values: list[str]) -> dict[str, int]:
         if not values:

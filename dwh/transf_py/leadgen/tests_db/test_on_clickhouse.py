@@ -43,6 +43,9 @@ def ch():
     st.insert("reference_geo", [{"source": "TEST", "country": "AT", "version": "1", "admin_level": "SUBREGION",
                                  "admin_code": "501", "admin_name": "Salzburg(Stadt)",
                                  "geometry_json": json.dumps(SQUARE)}])
+    for args in (("deps",), ("run",)):          # as in production: the views exist before any run (enrich needs them)
+        r = _dbt(*args)
+        assert r.returncode == 0, f"dbt {' '.join(args)} failed:\n{r.stdout[-6000:]}"
     return st
 
 
@@ -62,34 +65,91 @@ def test_full_flow_then_every_dbt_model_and_test(ch, tmp_path):
     assert xs["exported"] >= 1
     confirm(ch, xs["export_id"], "UPLOADED", "ops")
 
-    for args in (("deps",), ("build",)):                          # every model, then every test, with data
-        r = _dbt(*args)
-        assert r.returncode == 0, f"dbt {' '.join(args)} failed:\n{r.stdout[-6000:]}"
+    r = _dbt("build")                                             # every model, then every test, with data
+    assert r.returncode == 0, f"dbt build failed:\n{r.stdout[-6000:]}"
 
     status = dict(ch.client.query("SELECT des_status, count() FROM fld_bizlgn.lgn_v_lead GROUP BY 1").result_rows)
     assert status.get("Published", 0) == xs["exported"]
     sf = ch.client.query("SELECT count() FROM fld_bizlgn.lgn_v_salesforce_export").result_rows[0][0]
     assert sf >= 0
 
-    # The score computed in SQL (lgn_f2_score) equals the engine's (score_out, via lgn_f_score), lead by lead
-    py = {(b, p): (round(float(t), 2), r, [float(x) for x in bd]) for b, p, t, r, bd in ch.client.query(
-        "SELECT business_id, profile, total, rating, breakdown FROM fld_bizlgn.lgn_f_score").result_rows}
-    sql = {(b, p): (round(float(t), 2), r, [float(x) for x in bd]) for b, p, t, r, bd in ch.client.query(
-        "SELECT business_id, profile, total, rating, breakdown FROM fld_bizlgn.lgn_f2_score").result_rows}
-    assert py, "the flow scored nothing"
-    assert sql == py
+    # The score (computed in SQL) equals the reference of the engine's former Python scoring
+    assert _scores(ch, "AT") == _golden("AT")
+    huber = next(b for (b,) in ch.client.query(
+        "SELECT business_id FROM fld_bizlgn.web_validation_out WHERE domain = 'poolbau-huber.at'").result_rows)
+    # type 10, brands G1 7.5, zone ATTACK 7.5, e-commerce 5, person+email+phone 5, 40 reviews > P75 provisional 2.5
+    assert _scores(ch, "AT")[huber] == (37.5, "HOT", [10.0, 7.5, 7.5, 5.0, 5.0, 2.5])
+    from openpyxl import load_workbook
+    ws = load_workbook(xs["file"]).active
+    rows = [dict(zip([c.value for c in ws[1]], [c.value for c in r])) for r in ws.iter_rows(min_row=2)]
+    assert {r["Rating"] for r in rows if r["Lead code"] == f"AT-{huber}"} == {"Hot"}
+    # frozen at export: one row per exported lead, as the live score was then; lgn_f_score shows it
+    frozen = {b: (round(float(t), 2), r) for b, t, r in ch.client.query(
+        "SELECT business_id, total, rating FROM fld_bizlgn.export_score_out").result_rows}
+    assert frozen[huber] == (37.5, "HOT")
+    src = dict(ch.client.query("SELECT business_id, score_source FROM fld_bizlgn.lgn_f_score").result_rows)
+    assert src[huber] == "EXPORT" and all(src[b] == "LIVE" for b in _golden("AT") if b not in frozen)
 
 
-def test_sql_score_equals_python_on_every_bucket(ch):
+def _scores(ch, country: str) -> dict[int, tuple]:
+    return {int(b): (round(float(t), 2), r, [float(x) for x in bd]) for b, t, r, bd in ch.client.query(
+        "SELECT business_id, total, rating, breakdown FROM fld_bizlgn.lgn_f2_score WHERE country = %(c)s",
+        parameters={"c": country}).result_rows}
+
+
+def _buckets(ch, country: str) -> dict[tuple, str]:
+    return {(int(b), f): bk for b, f, bk in ch.client.query(
+        "SELECT business_id, factor, bucket_code FROM fld_bizlgn.lgn_f2_score_component WHERE country = %(c)s",
+        parameters={"c": country}).result_rows}
+
+
+GOLDEN = json.loads((Path(__file__).parent / "golden_scores.json").read_text())
+
+
+def _golden(country: str) -> dict[int, tuple]:
+    return {s["business_id"]: (s["total"], s["rating"], s["breakdown"]) for s in GOLDEN["scores"] if s["country"] == country}
+
+
+def _load_cfg(ch, rows: dict, version: str) -> None:
+    seed_loader.load(ch, {t: seed_loader.typed_rows(t, [{k: (str(v) if v is not None else None) for k, v in r.items()}
+                                                        for r in rs]) for t, rs in rows.items()}, version, "test", version)
+
+
+def _insert_leads(ch, country: str, leads: list[dict]) -> None:
+    """One business per lead: listing (place_norm_out), link and checked model answer (web_validation_out)."""
+    places, links, webs, matches = [], [], [], []
+    for d in leads:
+        bid, pid = d["bid"], f"{country.lower()}-p{d['bid']}"
+        places.append({"run_id": f"synthetic-{country}", "place_id": pid, "country": country, "name": f"Firm {bid}",
+                       "name_key_ae": f"firm {bid}", "name_key_a": f"firm {bid}", "website": d.get("website"),
+                       "domain": d.get("domain"), "phone_e164": d.get("phone_google"),
+                       "subregion_code": d.get("subregion"), "reviews_count": d.get("reviews"),
+                       "is_closed_permanently": 0, "is_closed_temporarily": 0})
+        links.append({"place_id": pid, "business_id": bid, "country": country, "link_reason": "NEW",
+                      "run_id": f"synthetic-{country}"})
+        webs.append({"run_id": f"synthetic-{country}", "business_id": bid, "country": country, "profile": "POOL_SPECIALIST",
+                     "validation": d.get("validation", "VALID"), "vat_check_status": "NOT_CHECKED",
+                     "company_type": d.get("type"), "detected_brands": d.get("brands", []),
+                     "has_ecommerce": d.get("ecommerce"), "crawl_status": d.get("crawl"),
+                     "contact_name": d.get("person"), "email": d.get("email"), "phone_e164": d.get("phone_web")})
+        if d.get("customer"):
+            matches.append({"run_id": f"synthetic-{country}", "business_id": bid, "country": country,
+                            "match_pass": "CAPTURE", "origin": "AUTO", "outcome": "CUSTOMER", "signal": "PHONE"})
+    ch.insert("place_norm_out", places)
+    ch.insert("business_link_out", links)
+    ch.insert("customer_match_out", matches)
+    ch.insert("web_validation_out", webs)
+
+
+def test_sql_score_equals_the_reference_on_every_bucket(ch):
     """40 synthetic German leads built to reach every bucket of every factor, with German configuration of
-    their own (brand list, zones, a review minimum of 5 so the reference is computed, not provisional).
-    Python scores them; the SQL view must give the same total, Rating and bucket per factor, lead by lead."""
+    their own (brand list, zones, a review minimum of 5 so the reference is computed, not provisional) and 5
+    customers, who are not scored. Their score must equal the reference (golden_scores.json: what the
+    engine's Python scoring gave for them), lead by lead and bucket by bucket."""
     from leadgen.domain import SCORING_BUCKETS
     from leadgen.normalize import registrable_domain
-    from leadgen.state import RunContext, business_views
-    from leadgen.steps.common import current_web, score_businesses, scoring_context
 
-    typed = {
+    _load_cfg(ch, {
         "biz_cfg_brand": [{"country": "DE", "brand": "DEPUMP", "owner": "COMPETITOR", "brand_group": 1},
                           {"country": "DE", "brand": "DECHEM", "owner": "COMPETITOR", "brand_group": 2},
                           {"country": "DE", "brand": "DEROBOT", "owner": "COMPETITOR", "brand_group": 3}],
@@ -98,10 +158,7 @@ def test_sql_score_equals_python_on_every_bucket(ch):
                                    for c, q in [("D1", "ATTACK"), ("D2", "ACTIVATE"), ("D3", "DEFEND"), ("D4", "OPTIMIZE")]],
         "biz_cfg_run_parameter": [{"country": "DE", "parameter": "review_reference_min_n", "value": "5",
                                    "value_type": "INT"}],
-    }
-    seed_loader.load(ch, {t: seed_loader.typed_rows(t, [{k: (str(v) if v is not None else None) for k, v in r.items()}
-                                                        for r in rows]) for t, rows in typed.items()},
-                     "test-de", "test", "synthetic-de")
+    }, "test-de")
     builders = {"wixsite.com", "jimdofree.com", "jimdosite.com"}
     websites = [None, "https://www.firm{i}.de/", "https://firm{i}.wixsite.com/pool", "https://www.facebook.com/firm{i}",
                 "https://shop.firm{i}.de/"]
@@ -110,54 +167,96 @@ def test_sql_score_equals_python_on_every_bucket(ch):
     brands = [[], ["DEPUMP"], ["DECHEM"], ["DEROBOT"], ["DEROBOT", "DECHEM"], ["SPECK"], ["DEPUMP", "SPECK"]]
     types = ["BUILDER_INSTALLER_SHOP", "MAINTENANCE_OR_PREFAB", "WEAK_UNVERIFIED", None]
     crawl = ["OK", "NO_WEBSITE", "SOCIAL_ONLY", "UNREACHABLE", None]
-    places, links, webs, matches = [], [], [], []
+    leads = []
     for i in range(40):
-        bid, pid = 9_000_000 + i, f"de-p{i}"
         site = websites[i % 5]
         site = site.format(i=i) if site else None
-        places.append({"run_id": "synthetic-de", "place_id": pid, "country": "DE", "name": f"Firm {i}",
-                       "name_key_ae": f"firm {i}", "name_key_a": f"firm {i}", "website": site,
-                       "domain": registrable_domain(site, builders) if site else None,
-                       "phone_e164": None if i % 5 == 0 else f"+4930{1000 + i}", "subregion_code": subregions[i % 6],
-                       "reviews_count": reviews[i % 8], "is_closed_permanently": 0, "is_closed_temporarily": 0})
-        links.append({"place_id": pid, "business_id": bid, "country": "DE", "link_reason": "NEW", "run_id": "synthetic-de"})
-        webs.append({"run_id": "synthetic-de", "business_id": bid, "country": "DE", "profile": "POOL_SPECIALIST",
-                     "validation": ["VALID", "VALID", "REVIEW", "VALID", "NOT_VALID"][i % 5],
-                     "vat_check_status": "NOT_CHECKED", "company_type": types[i % 4], "detected_brands": brands[i % 7],
-                     # moduli chosen so the factors do not move in step (every bucket is reached)
-                     "has_ecommerce": [1, 0, None][i % 3], "crawl_status": crawl[(i // 5) % 5],
-                     "contact_name": "Max" if i % 3 == 0 else None, "email": "a@b.de" if i % 4 != 2 else None,
-                     "phone_e164": "+49301234" if i % 6 == 0 else None})
-        if i % 7 == 0:                                   # customers: not part of the review reference
-            matches.append({"run_id": "synthetic-de", "business_id": bid, "country": "DE", "match_pass": "CAPTURE",
-                            "origin": "AUTO", "outcome": "CUSTOMER", "signal": "PHONE"})
-    ch.insert("place_norm_out", places)
-    ch.insert("business_link_out", links)
-    ch.insert("customer_match_out", matches)
-    ch.insert("web_validation_out", webs)
-
-    ids = {9_000_000 + i for i in range(40)}
-    ctx = RunContext(ch, "run_synthetic_de", "ENRICH", "DE", "POOL_SPECIALIST", "test", snapshot_id="snap_synthetic_de")
-    cfg = ctx.config()
-    sc = scoring_context(ctx, cfg)
-    assert not sc.ref.is_provisional                     # the reference is computed from these leads
-    score_businesses(ctx, cfg, business_views(ch, "DE", ids), current_web(ch, "DE", "POOL_SPECIALIST", ids), sc)
-
-    r = _dbt("run", "--select", "+lgn_f2_score", "+lgn_f_score", "+lgn_f3_score_component")
+        # moduli chosen so the factors do not move in step (every bucket is reached)
+        leads.append({"bid": 9_000_000 + i, "website": site, "domain": registrable_domain(site, builders) if site else None,
+                      "phone_google": None if i % 5 == 0 else f"+4930{1000 + i}", "subregion": subregions[i % 6],
+                      "reviews": reviews[i % 8], "validation": ["VALID", "VALID", "REVIEW", "VALID", "NOT_VALID"][i % 5],
+                      "type": types[i % 4], "brands": brands[i % 7], "ecommerce": [1, 0, None][i % 3],
+                      "crawl": crawl[(i // 5) % 5], "person": "Max" if i % 3 == 0 else None,
+                      "email": "a@b.de" if i % 4 != 2 else None, "phone_web": "+49301234" if i % 6 == 0 else None,
+                      "customer": i % 7 == 0})
+    _insert_leads(ch, "DE", leads)
+    r = _dbt("run", "--select", "+lgn_f_score")
     assert r.returncode == 0, r.stdout[-6000:]
-    q = ch.client.query
-    py = {(b, p): (round(float(t), 2), rt, [float(x) for x in bd]) for b, p, t, rt, bd in q(
-        "SELECT business_id, profile, total, rating, breakdown FROM fld_bizlgn.lgn_f_score WHERE country = 'DE'").result_rows}
-    sql = {(b, p): (round(float(t), 2), rt, [float(x) for x in bd]) for b, p, t, rt, bd in q(
-        "SELECT business_id, profile, total, rating, breakdown FROM fld_bizlgn.lgn_f2_score WHERE country = 'DE'").result_rows}
-    assert len(py) == 32 and sql == py                   # 40 leads, 8 NOT_VALID never scored
-    pyb = {(b, f): bk for b, f, bk in q("SELECT business_id, factor, bucket_code FROM fld_bizlgn.lgn_f3_score_component "
-                                       "WHERE country = 'DE'").result_rows}
-    sqlb = {(b, f): bk for b, f, bk in q("SELECT business_id, factor, bucket_code FROM fld_bizlgn.lgn_f2_score_component "
-                                        "WHERE country = 'DE'").result_rows}
-    assert sqlb == pyb
+
+    golden = _golden("DE")
+    assert len(golden) == 27 and _scores(ch, "DE") == golden     # 40 leads: 8 NOT_VALID, 5 customers not scored
+    gb = {(b["business_id"], b["factor"]): b["bucket_code"] for b in GOLDEN["buckets"] if b["business_id"] in golden}
+    sqlb = _buckets(ch, "DE")
+    assert sqlb == gb
     seen = {(f, bk) for (_, f), bk in sqlb.items()}
     missing = [(f, bk) for f, bks in SCORING_BUCKETS.items() for bk in bks if (f, bk) not in seen]
     assert not missing, f"buckets the synthetic leads never reach: {missing}"
-    ratings = {rt for _, rt, _ in sql.values()}
-    assert ratings == {"HOT", "WARM", "COLD"}, ratings
+    assert {r for _, r, _ in golden.values()} == {"HOT", "WARM", "COLD"}
+
+
+def test_definition_examples(ch):
+    """The definition's own examples, on leads made for them (Switzerland, Belgium, the Netherlands)."""
+    _load_cfg(ch, {
+        "biz_cfg_strategic_zone": [{"country": "CH", "admin_level": "SUBREGION", "admin_code": "C1", "admin_name": "C1",
+                                    "quadrant": "ATTACK", "model_version": "test"}],
+        "biz_cfg_run_parameter": [{"country": c, "parameter": "review_reference_min_n", "value": "1", "value_type": "INT"}
+                                  for c in ("NL", "BE")],
+    }, "test-examples")
+    full = {"type": "BUILDER_INSTALLER_SHOP", "brands": ["SPECK"], "subregion": "C1", "ecommerce": 0,
+            "website": "https://x.ch/", "domain": "x.ch", "crawl": "OK", "person": "Max", "email": "a@x.ch",
+            "phone_web": "+41", "reviews": 5}
+    ch_leads = [
+        {"bid": 8_000_001, **full},                                               # the cockpit example
+        {"bid": 8_000_002, **full, "validation": "REVIEW", "reviews": 35},
+        {"bid": 8_000_003, **full, "person": None},
+        {"bid": 8_000_004, **full, "person": None, "email": None, "phone_web": None, "phone_google": "+41"},
+        {"bid": 8_000_005, **full, "crawl": "UNREACHABLE"},
+        {"bid": 8_000_006, **full, "crawl": "SOCIAL_ONLY"},
+        {"bid": 8_000_007, **full, "reviews": None},
+        {"bid": 8_000_008, **full, "ecommerce": 1, "person": None, "email": None, "phone_web": None, "reviews": None},
+        {"bid": 8_000_009, **full, "email": None, "phone_web": None, "person": None, "phone_google": "+41"},
+        {"bid": 8_000_010, "type": "WEAK_UNVERIFIED"},
+    ]
+    nl = [{"bid": 8_100_000 + n, "reviews": n} for n in (10, 20, 30, 40)] + [
+        {"bid": 8_100_133, "reviews": 33, "validation": "REVIEW"}, {"bid": 8_100_131, "reviews": 31, "validation": "REVIEW"}]
+    be = [{"bid": 8_200_000 + i, "reviews": 2} for i in range(4)]
+    _insert_leads(ch, "CH", ch_leads)
+    _insert_leads(ch, "NL", nl)
+    _insert_leads(ch, "BE", be)
+    r = _dbt("run", "--select", "+lgn_f_score")
+    assert r.returncode == 0, r.stdout[-6000:]
+    s, b = _scores(ch, "CH"), _buckets(ch, "CH")
+
+    max_points = ch.client.query("SELECT sum(m) FROM (SELECT factor, max(points) AS m FROM fld_stglgn.lgn_a_scoring_rule "
+                                 "WHERE isNull(country) GROUP BY factor)").result_rows[0][0]
+    assert float(max_points) == 37.5
+    # the cockpit's example: 10 + 7.5 + 7.5 + 2.5 + 5 + 0.5 = 33, HOT (provisional review reference 34.8 / 10.5)
+    assert s[8_000_001] == (33.0, "HOT", [10.0, 7.5, 7.5, 2.5, 5.0, 0.5])
+    # REVIEW forces a weak profile; 35 reviews > P75 34.8 (strictly)
+    assert s[8_000_002][2][0] == 2.5 and s[8_000_002][2][5] == 2.5
+    assert b[(8_000_003, "CONTACT")] == "EMAIL_PHONE" and b[(8_000_004, "CONTACT")] == "ANY"
+    assert b[(8_000_005, "DIGITAL")] == "OWN_WEBSITE"           # a website that does not answer still counts
+    assert b[(8_000_006, "DIGITAL")] == "NONE" and b[(8_000_007, "REVIEWS")] == "NONE"
+    assert s[8_000_008][:2] == (30.0, "HOT")                     # >= 30 is HOT
+    assert s[8_000_009][:2] == (29.0, "WARM")                    # below 30
+    assert s[8_000_010][1] == "COLD"
+    # PERCENTILE.INC of 10, 20, 30, 40: P75 32.5 and median 25 (another method gives 37.5 or 30)
+    nlb = _buckets(ch, "NL")
+    assert nlb[(8_100_133, "REVIEWS")] == "ABOVE_P75" and nlb[(8_100_131, "REVIEWS")] == "ABOVE_MEDIAN"
+    assert nlb[(8_100_040, "REVIEWS")] == "ABOVE_P75" and nlb[(8_100_020, "REVIEWS")] == "ANY"
+    # strictly greater: 2 reviews against a P75 and a median of 2 is just ANY
+    assert {bk for (_, f), bk in _buckets(ch, "BE").items() if f == "REVIEWS"} == {"ANY"}
+
+
+def test_exported_score_stays_frozen_when_the_points_change(ch):
+    """After the flow's export, the points of ATTACK change for Austria: the live score of the exported lead
+    moves, the one lgn_f_score shows (frozen at export) does not."""
+    huber = next(b for (b,) in ch.client.query(
+        "SELECT business_id FROM fld_bizlgn.web_validation_out WHERE domain = 'poolbau-huber.at'").result_rows)
+    _load_cfg(ch, {"biz_cfg_scoring_rule": [{"country": "AT", "profile": "POOL_SPECIALIST", "factor": "ZONE",
+                                             "bucket_code": "ATTACK", "bucket_description": "Attack (test)",
+                                             "points": "1"}]}, "test-freeze")
+    assert _scores(ch, "AT")[huber][0] == 31.0                   # live: 37.5 - 7.5 + 1
+    shown = {int(b): (round(float(t), 2), src) for b, t, src in ch.client.query(
+        "SELECT business_id, total, score_source FROM fld_bizlgn.lgn_f_score WHERE country = 'AT'").result_rows}
+    assert shown[huber] == (37.5, "EXPORT")

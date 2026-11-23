@@ -45,8 +45,11 @@ todos los perfiles a la vez, porque el cruce con clientes es por empresa, no por
 
 ## Cuando cambia la configuración
 
-`reprocess --country AT [--capture-batch cb_…]` vuelve a filtrar, cruzar y puntuar sin captar, rastrear
-ni llamar al modelo. `--score-only` solo repuntúa (cambio de puntos o de umbrales).
+`reprocess --country AT [--capture-batch cb_…]` vuelve a filtrar y cruzar sin captar, rastrear ni llamar
+al modelo. Un cambio de puntos o de umbrales no necesita nada: la puntuación se calcula en vivo en SQL
+(`lgn_f2_score`). Los leads ya exportados conservan la puntuación que tenían al exportarse.
+Tras cambiar un modelo dbt (por ejemplo, la puntuación), `python leadgen.py dbt`: sin sus vistas,
+`precheck`, `enrich` y `export` se detienen y lo piden.
 
 ## Seguimiento
 

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from leadgen import cost, export, normalize as N, runs, scoring
+from leadgen import cost, export, normalize as N, runs
 from leadgen.config import Config, latest_by_key, precheck, scoped
 from leadgen.content import Page, prepare
 from leadgen.filtering import FilterInput, evaluate, title_matches
@@ -243,60 +243,6 @@ class TestMatching:
         rows = [{"origin": "AUTO", "signal": "VAT", "outcome": "CUSTOMER", "inserted_at": 2},
                 {"origin": "HUMAN", "signal": "HUMAN", "outcome": "CUSTOMER", "inserted_at": 1}]
         assert resolve_priority(rows)["origin"] == "HUMAN"
-
-
-# --------------------------------------------------------------------------- scoring (DF.8, DT.7)
-POINTS = {("COMPANY_TYPE", "BUILDER_INSTALLER_SHOP"): 10, ("COMPANY_TYPE", "MAINTENANCE_OR_PREFAB"): 5,
-          ("COMPANY_TYPE", "WEAK_UNVERIFIED"): 2.5, ("BRANDS", "GROUP_1"): 7.5, ("BRANDS", "GROUP_2"): 5,
-          ("BRANDS", "GROUP_3"): 2.5, ("BRANDS", "NONE"): 0, ("ZONE", "ATTACK"): 7.5, ("ZONE", "ACTIVATE"): 5,
-          ("ZONE", "DEFEND"): 2.5, ("ZONE", "OPTIMIZE"): 1, ("ZONE", "NONE"): 0, ("DIGITAL", "ECOMMERCE"): 5,
-          ("DIGITAL", "OWN_WEBSITE"): 2.5, ("DIGITAL", "NONE"): 0, ("CONTACT", "PERSON_EMAIL_PHONE"): 5,
-          ("CONTACT", "EMAIL_PHONE"): 3, ("CONTACT", "ANY"): 1, ("CONTACT", "NONE"): 0,
-          ("REVIEWS", "ABOVE_P75"): 2.5, ("REVIEWS", "ABOVE_MEDIAN"): 1.5, ("REVIEWS", "ANY"): 0.5,
-          ("REVIEWS", "NONE"): 0}
-BANDS = [("HOT", 30), ("WARM", 20), ("COLD", 0)]
-REF = scoring.ReviewReference("AT-x", 34.8, 10.5, 68, False)
-
-
-def _inp(**kw):
-    base = dict(business_id=1, name="x", validation="VALID", company_type="BUILDER_INSTALLER_SHOP",
-                competitor_brands=["SPECK"], subregion_code="501", has_ecommerce=False, own_domain="x.at",
-                crawl_status="OK", contact_name="Max", email="a@x.at", phone_web="+43", phone_google=None,
-                reviews_count=5)
-    base.update(kw)
-    return scoring.ScoreInput(**base)
-
-
-class TestScoring:
-    def test_maximum_is_37_5(self):
-        assert sum(max(v for (f, _), v in POINTS.items() if f == factor) for factor in scoring.SCORING_FACTORS) == 37.5
-
-    def test_cockpit_example_10_7_5_7_5_2_5_5_0_5_is_33(self):
-        s = scoring.score(_inp(), POINTS, BANDS, {"SPECK": 1}, {"501": "ATTACK"}, REF)
-        assert s.breakdown == [10, 7.5, 7.5, 2.5, 5, 0.5] and s.total == 33 and s.rating == "HOT"
-
-    def test_review_forces_weak_and_strict_review_cuts(self):
-        s = scoring.score(_inp(validation="REVIEW", reviews_count=35), POINTS, BANDS, {}, {}, REF)
-        assert s.breakdown[0] == 2.5 and s.breakdown[5] == 2.5
-        assert scoring.bucket_reviews(34.8, REF) == "ABOVE_MEDIAN"                 # strictly greater than P75
-        assert scoring.bucket_reviews(None, REF) == "NONE"
-
-    def test_contact_and_digital(self):
-        assert scoring.bucket_contact(_inp(contact_name=None)) == "EMAIL_PHONE"
-        assert scoring.bucket_contact(_inp(contact_name=None, email=None, phone_web=None, phone_google="+43")) == "ANY"
-        assert scoring.bucket_digital(_inp(crawl_status="UNREACHABLE")) == "OWN_WEBSITE"   # a dead site still counts
-        assert scoring.bucket_digital(_inp(crawl_status="SOCIAL_ONLY")) == "NONE"
-
-    def test_percentile_inc_matches_excel(self):
-        assert scoring.percentile_inc([1, 2, 3, 4], 0.75) == 3.25
-        assert scoring.percentile_inc([1, 2, 3, 4], 0.5) == 2.5
-
-    def test_provisional_reference_below_min_n(self):
-        ref = scoring.review_reference([1, 2, 3], "v", 30, 34.8, 10.5)
-        assert ref.is_provisional and ref.p75 == 34.8
-
-    def test_rating_thresholds(self):
-        assert scoring.rate(30, BANDS) == "HOT" and scoring.rate(29.99, BANDS) == "WARM" and scoring.rate(0, BANDS) == "COLD"
 
 
 # --------------------------------------------------------------------------- content and response (DT.6)

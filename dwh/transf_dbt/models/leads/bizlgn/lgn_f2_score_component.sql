@@ -1,10 +1,12 @@
 {{ config(materialized='view') }}
 -- The profile score computed in SQL (DF.8, DT.7): one row per lead (business x profile), factor and bucket,
--- with its points. Mirror of scoring.py + steps/common.score_businesses, built alongside the engine's
--- score_out (lgn_f3_score_component / lgn_f_score) and checked equal to it in tests_db; nothing reads it yet.
--- It uses the CURRENT configuration (the engine uses each run's snapshot) and the current review reference.
+-- with its points. The only implementation of the score (it replaced the engine's scoring.py, 2026-11-23;
+-- tests_db checks it against that engine's results, golden_scores.json, and against the definition's
+-- examples). It uses the CURRENT configuration and review reference: an exported lead keeps the score
+-- frozen at its export (export_score_out, shown by lgn_f_score).
 WITH leads AS (
-    -- VALID and REVIEW leads (NOT_VALID is never scored), with their business's master listing
+    -- VALID and REVIEW leads (NOT_VALID is never scored) that are not customers (enrich and reprocess
+    -- leave customers out before scoring), with their business's master listing
     SELECT
         e.business_id AS business_id, e.profile AS profile, e.country AS country, e.validation AS validation,
         e.company_type AS company_type, e.detected_brands AS detected_brands, e.has_ecommerce AS has_ecommerce,
@@ -14,6 +16,8 @@ WITH leads AS (
     FROM {{ ref('lgn_d_enrichment') }} AS e
     INNER JOIN {{ ref('lgn_d_business') }} AS b ON b.business_id = e.business_id
     WHERE e.validation IN ('VALID', 'REVIEW')
+      AND e.business_id NOT IN (SELECT m.business_id FROM {{ ref('lgn_f_customer_match') }} AS m
+                                WHERE m.outcome = 'CUSTOMER')
 ),
 lead_countries AS (
     SELECT DISTINCT l.country AS country FROM leads AS l

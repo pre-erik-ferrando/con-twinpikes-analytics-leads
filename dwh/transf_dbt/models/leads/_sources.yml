@@ -453,42 +453,6 @@ sources:
           - name: is_indirect_customer
           - name: final_domain
           - name: inserted_at
-      - name: score_component_out
-        description: "One row per business, run, profile and factor (DT.7.4)"
-        columns:
-          - name: run_id
-          - name: business_id
-          - name: country
-          - name: profile
-          - name: factor
-          - name: bucket_code
-          - name: points
-          - name: input_value
-          - name: review_reference_version
-          - name: inserted_at
-      - name: score_out
-        description: "Total, Rating and breakdown in the cockpit's order"
-        columns:
-          - name: run_id
-          - name: snapshot_id
-          - name: business_id
-          - name: country
-          - name: profile
-          - name: total
-          - name: rating
-          - name: breakdown
-          - name: review_reference_version
-          - name: inserted_at
-      - name: review_reference_out
-        description: "Review cut-offs per country (DT.7.3)"
-        columns:
-          - name: country
-          - name: reference_version
-          - name: p75
-          - name: median
-          - name: n
-          - name: is_provisional
-          - name: inserted_at
       - name: exclusion_out
         description: "Permanent exclusions by business (DT.8.1)"
         columns:
@@ -511,6 +475,18 @@ sources:
           - name: lead_code
           - name: status
           - name: generated_by
+          - name: inserted_at
+      - name: export_score_out
+        description: "The score of a lead frozen when it is exported (the live score, lgn_f2_score, follows the current configuration): total, Rating, breakdown in the cockpit's order and the bucket of each factor"
+        columns:
+          - name: export_id
+          - name: business_id
+          - name: country
+          - name: profile
+          - name: total
+          - name: rating
+          - name: breakdown
+          - name: buckets_json
           - name: inserted_at
       - name: sf_status_out
         description: "A lead's state in Salesforce per month, mapped (DT.8.4); only lead codes known to the tool"

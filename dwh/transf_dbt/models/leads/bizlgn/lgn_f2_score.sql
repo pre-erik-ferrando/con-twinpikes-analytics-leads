@@ -1,7 +1,7 @@
 {{ config(materialized='view') }}
 -- The profile score computed in SQL, per lead: total (max 37.5), Rating and breakdown in the cockpit's order
--- (type, brands, zone, digital, contact, reviews). Mirror of scoring.score + scoring.rate, alongside the
--- engine's lgn_f_score and checked equal to it in tests_db; nothing reads it yet.
+-- (type, brands, zone, digital, contact, reviews). Read by the engine (store.lead_scores) and, through
+-- lgn_f_score (frozen at export, else this one), by every lgn_v_* view.
 WITH totals AS (
     SELECT
         c.business_id AS business_id, c.country AS country, c.profile AS profile,

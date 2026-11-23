@@ -1,9 +1,11 @@
-"""REPROCESS_RULES, SCORE_ONLY, CUSTOMER_REMATCH, Salesforce's status effects and the validation helpers.
+"""REPROCESS_RULES, CUSTOMER_REMATCH, Salesforce's status effects and the validation helpers.
 
 - REPROCESS_RULES: re-applies the filter and the customer match with the current configuration, with no
   new capture, crawl or model call (free). Mandatory after activating a new profile (review DT.4.4).
   New candidates without a verdict count as UNSURE until the next ENRICH (DT.5.3).
-- SCORE_ONLY: rescoring of the already enriched leads (e.g. after a change of points or bands).
+- There is no rescoring run any more (SCORE_ONLY stays in the domain for old runs): the score is computed
+  live in SQL (dbt view lgn_f2_score) with the current configuration, so a change of points or bands shows
+  at once; an exported lead keeps the score frozen at its export (export_score_out).
 - CUSTOMER_REMATCH (review DT.5): after loading a new extract, re-matches the leads in Found, To review
   and Approved. Matching ones become Excluded by engine (customer). Published leads are not touched:
   a match shows in lgn_v_published_customer_conflict.
@@ -19,7 +21,7 @@ from ..state import (RunContext, business_views, current_validations, customer_i
                      sync_human_decisions)
 from .capture import RunFailed
 from .common import (current_web, deciding_matches, facts_from_google, facts_with_web, is_customer, match_row,
-                     run_filter, score_businesses, scoring_context)
+                     run_filter)
 
 
 def _start(store, run_type, country, profile, by, request) -> tuple[RunContext, object]:
@@ -62,10 +64,9 @@ def _rematch(ctx, cfg, ids: set[int], match_pass: str) -> dict[int, object]:
     return out
 
 
-def run_reprocess(store, country: str, profile: str, by: str, capture_batch_id: str | None = None,
-                  score_only: bool = False) -> tuple[RunContext, dict]:
-    ctx, cfg = _start(store, "SCORE_ONLY" if score_only else "REPROCESS_RULES", country, profile, by,
-                      {"capture_batch_id": capture_batch_id})
+def run_reprocess(store, country: str, profile: str, by: str, capture_batch_id: str | None = None
+                  ) -> tuple[RunContext, dict]:
+    ctx, cfg = _start(store, "REPROCESS_RULES", country, profile, by, {"capture_batch_id": capture_batch_id})
     pre = precheck(cfg, needs_scoring=True)
     if pre.blocking:
         ctx.set_state("FAILED", "precheck: " + "; ".join(pre.blocking))
@@ -78,18 +79,17 @@ def run_reprocess(store, country: str, profile: str, by: str, capture_batch_id: 
             ids = {r["business_id"] for r in store.select("capture_batch_lead", {"country": country})
                    if r.get("profile") == profile}
         views = business_views(store, country, ids)
-        n_incl = None
-        if not score_only:
-            decisions = run_filter(ctx, cfg, views)
-            included = {b for b, d in decisions.items() if d.decision == "INCLUDE"}
-            n_incl = len(included)
-            _rematch(ctx, cfg, included, "CAPTURE")
-            ids = included
+        decisions = run_filter(ctx, cfg, views)
+        included = {b for b, d in decisions.items() if d.decision == "INCLUDE"}
+        n_incl = len(included)
+        _rematch(ctx, cfg, included, "CAPTURE")
+        ids = included
         web = current_web(store, country, profile, ids)
         matches = deciding_matches(store, country, ids)
-        to_score = {b: v for b, v in views.items() if b in web and not is_customer(matches.get(b))}
-        scores = score_businesses(ctx, cfg, to_score, web, scoring_context(ctx, cfg))
-        summary = {"businesses": len(views), "included": n_incl, "scored": len(scores)}
+        scored = {b for b in views if web.get(b, {}).get("validation") in ("VALID", "REVIEW")
+                  and not is_customer(matches.get(b))}
+        summary = {"businesses": len(views), "included": n_incl, "scored": len(scored),
+                   "note": "scores are live: lgn_f2_score, with the current configuration"}
     except Exception as e:                    # noqa: BLE001
         ctx.set_state("FAILED", f"{type(e).__name__}: {e}")
         raise
@@ -126,8 +126,8 @@ def to_review(store, capture_batch_id: str) -> list[int]:
     batch = store.select("capture_batch", {"capture_batch_id": capture_batch_id})[0]
     country, profile = batch["country"], batch["profile"]
     ids = {r["business_id"] for r in store.select("capture_batch_lead", {"capture_batch_id": capture_batch_id})}
-    scored = {r["business_id"] for r in store.select("score_out", {"country": country})
-              if r.get("profile") == profile and r["business_id"] in ids}
+    web = current_web(store, country, profile, ids)
+    scored = {b for b in ids if web.get(b, {}).get("validation") in ("VALID", "REVIEW")}   # what lgn_f2_score scores
     vals = current_validations(store, country, profile)
     matches = deciding_matches(store, country, scored)
     return sorted(b for b in scored if vals.get(b, {}).get("decision", "PENDING") == "PENDING"

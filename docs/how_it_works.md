@@ -20,7 +20,7 @@ ClickHouse. El DataApp de Intelek muestra los resultados a través de vistas dbt
 flowchart LR
     GM[Google Maps<br/>vía Apify] --> C
     subgraph Motor["Motor Python (leadgen.py)"]
-        C[captación<br/>normalizar · identidad<br/>filtro · 1.er cruce] --> E[enriquecimiento<br/>leer la web · modelo<br/>comprobación · 2.º cruce · puntuación]
+        C[captación<br/>normalizar · identidad<br/>filtro · 1.er cruce] --> E[enriquecimiento<br/>leer la web · modelo<br/>comprobación · 2.º cruce]
         E --> X[exportación<br/>xlsx de Salesforce]
     end
     E -. espera a .-> V{{Validación de Sales Ops<br/>rechazar con un motivo<br/>o aprobar el resto}}
@@ -128,8 +128,9 @@ Código: [steps/enrich.py](../dwh/transf_py/leadgen/steps/enrich.py). Es el paso
    - una respuesta inválida o cortada se reintenta una vez; si vuelve a fallar, el lead pasa a REVIEW
      con motivo `TECHNICAL`.
 6. **Segundo cruce con clientes**, ya con los datos de la web y los veredictos del modelo.
-7. **Puntuación** ([scoring.py](../dwh/transf_py/leadgen/scoring.py)): ver el
-   [apartado 4](#4-la-puntuación).
+7. **Puntuación**: no la calcula el motor. La calcula en SQL la vista dbt
+   [`lgn_f2_score`](../dwh/transf_dbt/models/leads/bizlgn/lgn_f2_score.sql) a partir de lo que guarda este
+   paso; ver el [apartado 4](#4-la-puntuación).
 
 ### Paso 3: Validación de Sales Ops
 
@@ -165,8 +166,8 @@ después.
   automáticas. Convertido, en curso o en seguimiento: el lead sigue Published.
 - **`load-customers` y después `rematch`** (mensual): un extracto de clientes nuevo se vuelve a
   cruzar con todos los leads, de todos los perfiles.
-- **`reprocess`**: tras cambiar las reglas (términos, categorías, puntos), vuelve a aplicar el filtro,
-  el cruce y la puntuación sobre lo ya guardado. No llama a Apify, no lee webs ni consulta al modelo,
+- **`reprocess`**: tras cambiar las reglas (términos, categorías), vuelve a aplicar el filtro y el cruce
+  sobre lo ya guardado. Los puntos no hace falta: la puntuación se calcula en vivo. No llama a Apify, no lee webs ni consulta al modelo,
   así que no cuesta nada.
 
 ### El estado de un lead, tal como lo muestra Intelek
@@ -202,6 +203,13 @@ todas las filiales de Fluidra:
 
 Seis factores, máximo **37,5**. La puntuación no descarta a nadie, solo ordena la lista. Los puntos
 vienen de `biz_cfg_scoring_rule`; el código solo decide en qué tramo cae cada lead.
+
+Se calcula en SQL, en las vistas dbt `lgn_f2_score_component` (un tramo por factor) y `lgn_f2_score`
+(total, rating y desglose), con la configuración **vigente**: un cambio de puntos o de umbrales se ve al
+momento, sin reprocesar. Al exportar un lead, su puntuación se **congela** en `export_score_out`; a
+partir de ahí, `lgn_f_score` (lo que leen `lgn_v_lead` y las demás vistas) muestra la congelada, y la
+viva solo para los que no se han exportado. Sin las vistas en la base de datos, `precheck`,
+`enrich` y `export` se detienen con «ejecuta `python leadgen.py dbt`».
 
 | Factor | Mejor tramo | Puntos |
 |---|---|---|
@@ -286,14 +294,17 @@ REQUESTED → SNAPSHOT_FROZEN → [AWAITING_COST_APPROVAL] → RUNNING → [AWAI
   falsos, webs falsas y un modelo falso, y recorren todos los tipos de ejecución: captación,
   enriquecimiento (con aprobación de coste, lotes y reanudación), validación, exportación, rematch y
   reprocess.
-- **Tests unitarios.** Cubren la normalización, el orden del filtro, el cruce, la puntuación y la
-  comprobación de respuestas.
+- **Tests unitarios.** Cubren la normalización, el orden del filtro, el cruce y la comprobación de
+  respuestas.
+- **Tests sobre ClickHouse** (`./run_db_tests.sh`, y en CI). Un ClickHouse desechable ejecuta el flujo
+  completo y todos los modelos y tests de dbt con datos. Es donde se prueba la puntuación: contra una
+  referencia guardada de lo que daba el motor en Python antes de pasarla a SQL, contra los ejemplos de
+  la definición, y su congelación al exportar.
 - **Tests de contrato.** El prompt conserva el texto de la definición, los seeds están completos y el DDL coincide
   con los sources de dbt.
 - **Sintaxis SQL.** Cada modelo dbt se analiza como SQL de ClickHouse (sqlglot).
 
-**Lo que los tests no demuestran:** que el SQL funcione en el ClickHouse real (hace falta
-`python leadgen.py dbt -- test` con la VPN) ni el comportamiento de Apify, que solo se ha comprobado
+**Lo que los tests no demuestran:** el comportamiento de Apify, que solo se ha comprobado
 con búsquedas sueltas de pago (un distrito de Austria y uno de Alemania,
 [findings](../exploration/findings.md)). El Excel de inputs de TWP (v3 y v4) y sus listados de clientes
 de AT, CH y DE sí se han cargado con los ficheros reales.
