@@ -17,9 +17,11 @@ from .. import apify, cost, llm, runs
 from ..config import precheck
 from ..geo import outline_geojson
 from ..identity import Business, Listing, assign, resolve_alias
-from ..normalize import (name_keys, normalize_phone, normalize_postal_code, registrable_domain)
+from ..normalize import (name_keys, normalize_category, normalize_phone, normalize_postal_code, normalize_text,
+                         registrable_domain)
 from ..state import (RunContext, business_views, customer_index, extract_age_days, links, aliases,
                      sync_human_decisions)
+from ..store import ENGINE_VIEWS
 from .common import area_index, facts_from_google, run_filter, run_match
 
 
@@ -74,6 +76,9 @@ def start(store, run_type: str, req: CaptureRequest) -> tuple[RunContext, object
         ctx.log.append(f"warning: {w}")
     if pre.blocking:
         _fail(ctx, "precheck: " + "; ".join(pre.blocking))
+    missing = store.missing_views(ENGINE_VIEWS)
+    if missing:
+        _fail(ctx, f"the engine's views {', '.join(missing)} are not in the database: run `python leadgen.py dbt`")
 
     conflicts = runs.area_conflicts(req.area_ids, _running_areas(store, ctx.run_id), cfg.search_areas())
     if conflicts:
@@ -184,9 +189,19 @@ def normalize_items(ctx: RunContext, cfg, items: list[tuple[str, dict]]) -> list
             "reviews_count": int(f["reviews_count"]) if f["reviews_count"] is not None else None,
             "rating": float(f["rating"]) if f["rating"] is not None else None,
             "is_closed_permanently": int(f["is_closed_permanently"]),
-            "is_closed_temporarily": int(f["is_closed_temporarily"]), "scraped_at": f["scraped_at"]}
+            "is_closed_temporarily": int(f["is_closed_temporarily"]), "scraped_at": f["scraped_at"],
+            **filter_texts(f["name"], f["owner_description"], f["categories"])}
     ctx.store.insert("place_norm_out", list(rows.values()))
     return list(rows.values())
+
+
+def filter_texts(name, owner_description, categories) -> dict:
+    """The normalized texts the filter (SQL, lgn_f_rule_evaluation) compares with the rules, which
+    biz_cfg_* stores normalized the same way: title and owner description (normalize_text), categories
+    (normalize_category, without empties or repeats)."""
+    cats = [normalize_category(c) for c in (categories or []) if c]
+    return {"name_norm": normalize_text(name), "owner_description_norm": normalize_text(owner_description),
+            "categories_norm": list(dict.fromkeys(c for c in cats if c))}
 
 
 def link_identities(ctx: RunContext, cfg, places: list[dict]) -> set[int]:
@@ -227,10 +242,7 @@ def evaluate_capture(ctx: RunContext, cfg, business_ids: set[int], source: str, 
     """Filter, first customer match (Google data only), capture batch and enrichment estimate."""
     store = ctx.store
     views = business_views(store, ctx.country, business_ids)
-    decisions = run_filter(ctx, cfg, views)
-    included = [b for b, d in decisions.items() if d.decision == "INCLUDE"]
-    matches = run_match(ctx, cfg, [facts_from_google(views[b]) for b in included], "CAPTURE")
-
+    # the batch first: the filter (SQL) evaluates the businesses of the profile's capture batches
     store.insert("capture_batch", [{"capture_batch_id": ctx.capture_batch_id, "run_id": ctx.run_id,
                                     "country": ctx.country, "profile": ctx.profile, "source": source,
                                     "area_ids": area_ids, "terms": terms, "import_file_id": import_file_id,
@@ -238,6 +250,9 @@ def evaluate_capture(ctx: RunContext, cfg, business_ids: set[int], source: str, 
     store.insert("capture_batch_lead", [{"capture_batch_id": ctx.capture_batch_id, "business_id": b,
                                          "country": ctx.country, "profile": ctx.profile, "run_id": ctx.run_id}
                                         for b in sorted(views)])
+    decisions = run_filter(ctx, set(views))
+    included = sorted(b for b, d in decisions.items() if d["decision"] == "INCLUDE")
+    matches = run_match(ctx, cfg, [facts_from_google(views[b]) for b in included], "CAPTURE")
     to_enrich = [b for b in included if matches[b].outcome != "CUSTOMER"]
     mode = llm.choose_mode(cfg.param("llm_mode_default", "AUTO") or "AUTO", len(to_enrich),
                            int(cfg.param("llm_direct_max_requests", 50)))

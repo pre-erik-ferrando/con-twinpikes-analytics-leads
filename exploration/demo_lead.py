@@ -46,7 +46,8 @@ from leadgen.steps.capture import CaptureRequest, run_capture  # noqa: E402
 from leadgen.steps.enrich import EnrichRequest, run_enrich  # noqa: E402
 from leadgen.steps.export import run_export  # noqa: E402
 from leadgen.steps.maintenance import approve_rest  # noqa: E402
-from leadgen.store import MemoryStore  # noqa: E402
+from leadgen.store import MemoryStore  # noqa: E402,F401
+from leadgen.tests.filter_reference import ReferenceStore  # noqa: E402
 
 OUT = ROOT / "tmp" / "demo"
 AREA = "AT-601-DEMO"
@@ -165,7 +166,7 @@ def _cell(v):
 
 def _store(inputs: Path | None, customers: Path | None = None, customers_date: str | None = None,
            area_code: str = "601", geo_file: Path | None = None) -> MemoryStore:
-    st = MemoryStore()
+    st = ReferenceStore()
     seed_loader.load_csv_seeds(st, BY)
     config = DEMO_CONFIG
     if inputs:  # TWP's areas, zones, terms, rules and brands; only the placeholder owner stays ours
@@ -218,7 +219,8 @@ def trace(store, items) -> None:
     sel = store.select
     norm = {r["place_id"]: r for r in sel("place_norm_out")}
     link = {r["place_id"]: r["business_id"] for r in sel("business_link_out")}
-    ev = _latest(sel("rule_evaluation_out"), "business_id")
+    countries = {r["country"] for r in norm.values()}
+    ev = {b: r for c in countries for (b, _p), r in store.filter_decisions(c, None, any_profile=True).items()}
     web = _latest(sel("web_validation_out"), "business_id")
     score = {}                 # computed in SQL (lgn_f2_score): not available in memory
     val = _latest(sel("biz_lead_validation"), "business_id")      # logical names in the engine

@@ -1,4 +1,4 @@
--- 2026-11-23: 64 -> 52 tables. Hand-run, in three parts, on a database where no run is in progress.
+-- 2026-11-23: 64 -> 51 tables. Hand-run, in three parts, on a database where no run is in progress.
 --   customer_extract_* / sf_status_* / import_list_*  -> landing.upload_file + landing.upload_row (kind)
 --   landing.gmaps_run                                 -> columns of ops.search_query_log
 --   landing.landing_meta                              -> dropped (nothing read it)
@@ -7,10 +7,16 @@
 --   biz.business_alias_out + biz.merge_suspect_out    -> biz.business_identity_out (both empty today)
 --   biz.category_seen_out, exclusion_out, sf_status_out -> dropped: read from their sources (dbt views
 --                                                        lgn_v_category_pending, lgn_f_exclusion, lgn_d_sf_status)
+--   biz.rule_evaluation_out                           -> dropped: the filter is the dbt view lgn_f_rule_evaluation;
+--                                                        place_norm_out gains the normalized texts it reads
 
 -- ============================================================ 1. before `python leadgen.py init`
 RENAME TABLE fld_opslgn.search_query_log TO fld_opslgn.search_query_log_old;
 DROP TABLE IF EXISTS fld_bizlgn.export_lead_out;       -- empty (no export yet); init recreates it with the score
+ALTER TABLE fld_bizlgn.place_norm_out
+    ADD COLUMN IF NOT EXISTS name_norm String DEFAULT '' AFTER scraped_at,
+    ADD COLUMN IF NOT EXISTS owner_description_norm String DEFAULT '' AFTER name_norm,
+    ADD COLUMN IF NOT EXISTS categories_norm Array(String) DEFAULT [] AFTER owner_description_norm;
 
 -- then:  python leadgen.py init   (creates upload_file, upload_row, business_identity_out, the new search_query_log
 --         and export_lead_out)
@@ -63,7 +69,9 @@ UNION ALL
 SELECT 'queries with actor input', (SELECT countIf(isNotNull(input_json)) FROM fld_opslgn.search_query_log),
        (SELECT count() FROM fld_landinglgn.gmaps_run);
 
--- ============================================================ 3. drop the old tables, then `python leadgen.py dbt run`
+-- ============================================================ 3. drop the old tables, then:
+--   python leadgen.py dbt run
+--   python leadgen.py renormalize --country AT      (the filter's texts of the listings already captured)
 DROP TABLE IF EXISTS fld_landinglgn.customer_extract_file;
 DROP TABLE IF EXISTS fld_landinglgn.customer_extract_row;
 DROP TABLE IF EXISTS fld_landinglgn.sf_status_file;
@@ -80,3 +88,4 @@ DROP TABLE IF EXISTS fld_bizlgn.merge_suspect_out;
 DROP TABLE IF EXISTS fld_bizlgn.category_seen_out;
 DROP TABLE IF EXISTS fld_bizlgn.exclusion_out;
 DROP TABLE IF EXISTS fld_bizlgn.sf_status_out;
+DROP TABLE IF EXISTS fld_bizlgn.rule_evaluation_out;

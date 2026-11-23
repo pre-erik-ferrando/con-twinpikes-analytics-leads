@@ -19,6 +19,7 @@ from ..config import precheck
 from ..matching import MatchConfig, apply_verdicts, match
 from ..state import (RunContext, business_views, current_validations, customer_index, latest, published_ids,
                      sync_human_decisions)
+from ..store import ENGINE_VIEWS
 from .capture import RunFailed
 from .common import (current_web, deciding_matches, facts_from_google, facts_with_web, is_customer, match_row,
                      run_filter)
@@ -68,6 +69,10 @@ def run_reprocess(store, country: str, profile: str, by: str, capture_batch_id: 
                   ) -> tuple[RunContext, dict]:
     ctx, cfg = _start(store, "REPROCESS_RULES", country, profile, by, {"capture_batch_id": capture_batch_id})
     pre = precheck(cfg, needs_scoring=True)
+    missing = store.missing_views(ENGINE_VIEWS)
+    if missing:
+        pre.blocking.append(f"the engine's views {', '.join(missing)} are not in the database: run "
+                            "`python leadgen.py dbt`")
     if pre.blocking:
         ctx.set_state("FAILED", "precheck: " + "; ".join(pre.blocking))
         raise RunFailed(ctx.log[-1])
@@ -79,8 +84,8 @@ def run_reprocess(store, country: str, profile: str, by: str, capture_batch_id: 
             ids = {r["business_id"] for r in store.select("capture_batch_lead", {"country": country})
                    if r.get("profile") == profile}
         views = business_views(store, country, ids)
-        decisions = run_filter(ctx, cfg, views)
-        included = {b for b, d in decisions.items() if d.decision == "INCLUDE"}
+        decisions = run_filter(ctx, set(views))
+        included = {b for b, d in decisions.items() if d["decision"] == "INCLUDE"}
         n_incl = len(included)
         _rematch(ctx, cfg, included, "CAPTURE")
         ids = included
@@ -104,8 +109,7 @@ def run_rematch(store, country: str, by: str, profile: str = "POOL_SPECIALIST") 
         # Found, To review and Approved: every lead not excluded, in ANY profile (the customer match is per
         # business, not per profile); published leads are matched too, but only registered (the conflict
         # view shows them), never changed. `profile` only labels the run.
-        included = {r["business_id"] for r in latest(
-            store.select("rule_evaluation_out", {"country": country}), ("business_id", "profile")).values()
+        included = {b for (b, _p), r in store.filter_decisions(country, None, any_profile=True).items()
                     if r["decision"] == "INCLUDE"}
         before = deciding_matches(store, country, included)
         res = _rematch(ctx, cfg, included, "REMATCH")
@@ -217,3 +221,24 @@ def apply_sf_status(store, country: str) -> int:
                         "reason_text": f"Salesforce status {r['status_month']}: discarded, already a customer"})
     store.insert("customer_match_out", matches)
     return len(matches)
+
+
+# --------------------------------------------------------------------------- normalization
+def renormalize_places(store, country: str) -> int:
+    """Rewrites the filter's normalized texts (name_norm, owner_description_norm, categories_norm) of the
+    country's listings whose current row differs from what capture.filter_texts gives today: after a change
+    in normalize.py, or for listings captured before these columns existed. Insert-only: a copy of the
+    current row, 1 ms later. No Apify, no website, no model. Returns the listings rewritten."""
+    from datetime import timedelta
+
+    from ..state import latest_places
+    from .capture import filter_texts
+
+    out = []
+    for r in latest_places(store, country).values():
+        texts = filter_texts(r.get("name"), r.get("owner_description"), r.get("categories"))
+        if any((r.get(k) or ([] if k == "categories_norm" else "")) != v for k, v in texts.items()):
+            row = {k: v for k, v in r.items() if k != "inserted_at"}
+            out.append({**row, **texts, "inserted_at": r["inserted_at"] + timedelta(milliseconds=1)})
+    store.insert("place_norm_out", out)
+    return len(out)

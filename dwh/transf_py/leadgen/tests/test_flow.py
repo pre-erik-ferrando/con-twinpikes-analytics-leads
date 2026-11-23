@@ -50,7 +50,7 @@ def test_full_flow(store, tmp_path):
 
     ctx, summary = _capture(store)
     assert summary["found"] == 6
-    evals = {r["business_id"]: r for r in store.select("rule_evaluation_out", {"run_id": ctx.run_id})}
+    evals = {b: r for (b, _p), r in store.filter_decisions("AT", "POOL_SPECIALIST").items()}
     stages = sorted((r["stage"] or "INCLUDE") for r in evals.values())
     assert stages == ["CATEGORY_RULE", "CLOSED", "INCLUDE", "INCLUDE", "INCLUDE", "TITLE_RULE"]
     assert summary["excluded_as_customer"] == 1           # phone of customer C100 (hard signal)
@@ -95,7 +95,7 @@ def test_full_flow(store, tmp_path):
 
     # the human exclusion is remembered: the next capture discards Mayr Bau before anything is spent
     ctx2, _ = _capture(store)
-    ev2 = {r["business_id"]: r for r in store.select("rule_evaluation_out", {"run_id": ctx2.run_id})}
+    ev2 = {b: r for (b, _p), r in store.filter_decisions("AT", "POOL_SPECIALIST").items()}
     assert ev2[mayr["business_id"]]["stage"] == "PREVIOUSLY_EXCLUDED"
 
     # Salesforce's monthly status file: Huber was discarded in the call, already a customer (DT.8.4)
@@ -329,11 +329,9 @@ def test_rematch_covers_every_profile(store, tmp_path):
     ctx, _ = _capture(store, ITEMS[:1])
     run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
     # the same business is a lead in another profile and is no longer included in POOL_SPECIALIST
-    ev = store.select("rule_evaluation_out", {"run_id": ctx.run_id})[0]
-    base = {k: v for k, v in ev.items() if k != "inserted_at"}
-    store.insert("rule_evaluation_out", [{**base, "profile": "HVAC"}])
-    store.advance(seconds=1)
-    store.insert("rule_evaluation_out", [{**base, "decision": "EXCLUDE"}])
+    (bid, _p), = store.filter_decisions("AT", "POOL_SPECIALIST")
+    store.decide(bid, "HVAC", "INCLUDE")
+    store.decide(bid, "POOL_SPECIALIST", "EXCLUDE")
     f = tmp_path / "c.csv"
     f.write_text("customer_number,customer_name_original,Address,postal_code_normalized,city_normalized,country_code,"
                  "phone_normalized,vat_id_normalized,email_normalized,corporate_email_domain,Latitude,Longitude\n"
@@ -466,3 +464,16 @@ def test_enrich_runs_with_the_openai_provider(store):
     assert s["scored"] >= 1
     resp = store.select("llm_response")
     assert resp and resp[0]["status"] == "SUCCEEDED"
+
+
+def test_renormalize_fills_the_filter_texts(store):
+    from leadgen.steps.maintenance import renormalize_places
+    _capture(store, ITEMS[:2])
+    assert renormalize_places(store, "AT") == 0                       # captured with them: nothing to do
+    old = store.select("place_norm_out")[0]
+    store.insert("place_norm_out", [{**{k: v for k, v in old.items() if k != "inserted_at"},
+                                     "name_norm": "", "categories_norm": []}])       # as before the columns
+    store.advance(seconds=1)
+    assert renormalize_places(store, "AT") == 1 and renormalize_places(store, "AT") == 0
+    from leadgen.state import latest_places
+    assert latest_places(store, "AT")[old["place_id"]]["name_norm"] == old["name_norm"] != ""

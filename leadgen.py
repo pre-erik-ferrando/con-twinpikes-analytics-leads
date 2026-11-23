@@ -22,6 +22,7 @@ upload files, everything is launched from here and the results are read in the l
     python leadgen.py load-sf-status lgn_sf_status_YYYYMM.csv  # Salesforce's monthly status file (DT.8.4)
     python leadgen.py rematch --country AT                      # after a new customer extract
     python leadgen.py reprocess --country AT --profile POOL_SPECIALIST [--capture-batch cb_…]
+    python leadgen.py renormalize --country AT                  # the filter's texts again, after a change in normalize.py
     python leadgen.py status [RUN_ID]
     python leadgen.py dbt [-- <dbt args>]                       # dbt build of the views (src/stg/crp/biz)
 
@@ -144,10 +145,10 @@ def cmd(ns) -> int:
     if c == "precheck":
         cfg = _cfg(st, ns.country, ns.profile)
         res = precheck(cfg, ns.areas.split(",") if ns.areas else None, ns.terms.split(",") if ns.terms else None)
-        from leadgen.store import SCORE_VIEWS
-        missing = st.missing_views(SCORE_VIEWS)
+        from leadgen.store import ENGINE_VIEWS
+        missing = st.missing_views(ENGINE_VIEWS)
         if missing:
-            res.blocking.append(f"the score views {', '.join(missing)} are not in the database: run "
+            res.blocking.append(f"the engine's views {', '.join(missing)} are not in the database: run "
                                 "`python leadgen.py dbt`")
         show({"blocking": res.blocking, "warnings": res.warnings})
         return 1 if res.blocking else 0
@@ -240,6 +241,10 @@ def cmd(ns) -> int:
         ctx, summary = run_rematch(st, ns.country, user(ns))
         show({"run_id": ctx.run_id, **summary})
         return 0
+    if c == "renormalize":
+        from leadgen.steps.maintenance import renormalize_places
+        print(f"{renormalize_places(st, ns.country)} listings renormalized")
+        return 0
     if c == "apply-sf-status":
         from leadgen.steps.maintenance import apply_sf_status
         print(f"{apply_sf_status(st, ns.country)} new Salesforce customer matches")
@@ -308,6 +313,7 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--profile", default="POOL_SPECIALIST"); s.add_argument("--capture-batch")
     s = sub.add_parser("rematch"); s.add_argument("--country", required=True)
     s = sub.add_parser("apply-sf-status"); s.add_argument("--country", required=True)
+    s = sub.add_parser("renormalize"); s.add_argument("--country", required=True)
     s = sub.add_parser("status"); s.add_argument("run_id", nargs="?")
     s = sub.add_parser("dbt"); s.add_argument("rest", nargs=argparse.REMAINDER)
     return p

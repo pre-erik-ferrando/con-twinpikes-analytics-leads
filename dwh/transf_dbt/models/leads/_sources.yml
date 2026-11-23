@@ -262,6 +262,9 @@ sources:
           - name: is_closed_permanently
           - name: is_closed_temporarily
           - name: scraped_at
+          - name: name_norm
+          - name: owner_description_norm
+          - name: categories_norm
           - name: inserted_at
       - name: business_link_out
         description: "Listing -> business (DT.4.2); never relinked"
@@ -307,20 +310,6 @@ sources:
           - name: longitude
           - name: coordinate_precision
           - name: is_test_record
-          - name: inserted_at
-      - name: rule_evaluation_out
-        description: "Relevance filter decision (DT.4.4)"
-        columns:
-          - name: run_id
-          - name: snapshot_id
-          - name: business_id
-          - name: country
-          - name: profile
-          - name: decision
-          - name: stage
-          - name: rule
-          - name: trigger_value
-          - name: is_closed_temporarily
           - name: inserted_at
       - name: customer_match_out
         description: "Customer matching result per pass (DT.5)"

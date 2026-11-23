@@ -13,7 +13,6 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 | `normalize.py` | ✓ | phone E.164, domain, name keys (umlauts both ways, legal forms), postal code, VAT, register |
 | `geo.py` | ✓ | subregion/municipality by point-in-polygon (never from the postal code) |
 | `identity.py` | ✓ | business_id assignment, merge by phone, aliases, master listing |
-| `filtering.py` | ✓ | relevance filter, DT.4.4.1's eight steps in order |
 | `matching.py` | ✓ | customer match: hard signals, candidates, confirmation, verdicts, priority |
 | `content.py` | ✓ | website preparation: signals, text, dedupe, budget, brand mentions |
 | `prompt.py` | ✓ | system message (common + country + profile blocks), user message, JSON schema, versions |
@@ -30,11 +29,11 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 
 | Type | Command | Writes |
 |---|---|---|
-| CAPTURE | `capture` | gmaps_*, place_norm_out, business_link_out, rule_evaluation_out, customer_match_out (CAPTURE), capture_batch(_lead) |
+| CAPTURE | `capture` | gmaps_place, search_query_log, place_norm_out (with the filter's normalized texts), business_link_out, capture_batch(_lead), then reads the filter (lgn_f_rule_evaluation), customer_match_out (CAPTURE) |
 | IMPORT_LIST | `import-list` | as CAPTURE, source IMPORT |
 | ENRICH | `enrich`, `resume` | web_crawl/web_page, llm_request/response, llm_batch, web_validation_out, customer_match_out (ENRICH); the score is the dbt view lgn_f2_score |
 | EXPORT | `export`, `confirm-export` | export_lead_out (with the score frozen), export_log, the xlsx |
-| REPROCESS_RULES | `reprocess` | rule_evaluation_out, customer_match_out (no Apify, crawl or model; scores are live in SQL) |
+| REPROCESS_RULES | `reprocess` | customer_match_out of what the filter includes now (no Apify, crawl or model; the filter and the scores are live in SQL) |
 | CUSTOMER_REMATCH | `rematch` | customer_match_out (REMATCH) |
 
 Every run writes one `ops.pipeline_run` row per state change: REQUESTED → SNAPSHOT_FROZEN →

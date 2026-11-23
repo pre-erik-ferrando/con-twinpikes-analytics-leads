@@ -15,7 +15,7 @@ from .. import export as X
 from .. import runs
 from ..domain import CURRENCY
 from ..state import RunContext, business_views, current_validations, exported, latest, permanent_exclusions
-from ..store import SCORE_VIEWS
+from ..store import ENGINE_VIEWS
 from .common import capture_batch_leads, current_web, deciding_matches, is_customer
 
 
@@ -87,9 +87,9 @@ def run_export(store, capture_batch_id: str, requested_by: str, out_dir: Path) -
     ctx.set_state("SNAPSHOT_FROZEN")
     cfg = ctx.config()
     ctx.set_state("RUNNING")
-    missing = store.missing_views(SCORE_VIEWS)
+    missing = store.missing_views(ENGINE_VIEWS)
     if missing:
-        msg = f"the score views {', '.join(missing)} are not in the database: run `python leadgen.py dbt`"
+        msg = f"the engine's views {', '.join(missing)} are not in the database: run `python leadgen.py dbt`"
         ctx.set_state("FAILED", msg)
         return ctx, {"exported": 0, "error": msg}
     ids = approved_leads(store, country, profile, capture_batch_leads(store, capture_batch_id))

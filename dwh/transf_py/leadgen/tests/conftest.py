@@ -10,7 +10,8 @@ from leadgen import seed_loader
 from leadgen.apify import ActorRun
 from leadgen.crawl import Crawler, CrawlLimits, Response
 from leadgen.llm import LLMResult
-from leadgen.store import MemoryStore
+from leadgen.store import MemoryStore  # noqa: F401
+from leadgen.tests.filter_reference import ReferenceStore
 
 # A square "Bezirk" around Salzburg city: lon 13.0-13.1, lat 47.7-47.9.
 SQUARE = {"type": "Polygon", "coordinates": [[[13.0, 47.7], [13.1, 47.7], [13.1, 47.9], [13.0, 47.9], [13.0, 47.7]]]}
@@ -47,7 +48,7 @@ def _cfg_rows():
 
 @pytest.fixture
 def store():
-    st = MemoryStore()
+    st = ReferenceStore()       # the in-memory store, with the filter's Python reference (the engine's is SQL)
     seed_loader.load_csv_seeds(st, "test")
     typed = {t: seed_loader.typed_rows(t, [{k: (str(v) if v is not None else None) for k, v in r.items()}
                                            for r in rows]) for t, rows in _cfg_rows().items()}

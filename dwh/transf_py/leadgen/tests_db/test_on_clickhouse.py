@@ -319,3 +319,65 @@ def test_sql_exclusions_sf_status_and_categories_equal_the_engine(ch, tmp_path):
     sql_cat = {x for (x,) in ch.client.query(
         "SELECT pk_category_normalized FROM fld_bizlgn.lgn_v_category_pending").result_rows}
     assert sql_cat == py_cat - {""}
+
+
+def test_sql_filter_decides_as_the_reference(ch):
+    """lgn_f_rule_evaluation (the engine's filter, SQL) against tests/filter_reference.py on every business
+    of the earlier tests plus synthetic ones that reach each of the eight steps, with umlauts, symbols,
+    two listings per business and a second profile."""
+    from leadgen.steps.capture import filter_texts
+    from leadgen.tests.filter_reference import reference_decisions
+
+    rules = [r for r in ch.select("biz_cfg_category_rule") if r.get("active", 1)]
+    cat = {c: next(r["category_normalized"] for r in rules if r["classification"] == c)
+           for c in ("INCLUDE", "CONDITIONAL", "EXCLUDE")}
+    titles = [r for r in ch.select("biz_cfg_title_rule") if r.get("active", 1)]
+    hard = next(r["pattern"] for r in titles if r["rule_class"] == "HARD")
+    soft = next(r["pattern"] for r in titles if r["rule_class"] == "SOFT")
+    stem = sorted(r["stem"] for r in ch.select("biz_cfg_pool_signal"))[0]
+    cases = [  # name, categories, owner description, closed permanently, closed temporarily
+        ("Geschlossen Pool", [cat["INCLUDE"]], None, 1, 0),
+        ("Unterdrückt GmbH", [cat["INCLUDE"]], None, 0, 0),
+        ("Früher Ausgeschlossen", [cat["INCLUDE"]], None, 0, 0),
+        (f"{hard} Filiale", [cat["INCLUDE"]], None, 0, 0),
+        ("Müller & Söhne", [cat["EXCLUDE"], cat["INCLUDE"]], None, 0, 1),
+        (f"{stem.capitalize()}technik Weiß", [cat["CONDITIONAL"]], None, 0, 0),
+        ("Bau Huber", [cat["CONDITIONAL"]], f"Wir bauen {stem}s und Teiche", 0, 0),
+        ("Bau Maier", [cat["CONDITIONAL"]], "Häuser", 0, 0),
+        (f"{soft} am See", [cat["CONDITIONAL"]], None, 0, 0),
+        ("Hôtel Café", [cat["EXCLUDE"].upper()], None, 0, 0),
+        ("Nails Studio", ["Nagelstudio", "  "], None, 0, 0),
+        ("e.U. Šimek", [], None, 0, 0),
+    ]
+    places, links, batch = [], [], []
+    for i, (name, cats, owner, closed, temp) in enumerate(cases):
+        bid = 7_700_000 + i
+        for k in range(2 if i == 4 else 1):     # one business with two listings, only one closed temporarily
+            pid = f"syn_{i}_{k}"
+            places.append({"run_id": "syn", "place_id": pid, "country": "AT", "name": name, "name_key_ae": "",
+                           "name_key_a": "", "subregion_code": "501", "categories": cats, "owner_description": owner,
+                           "phone_e164": f"+4366200{i:04d}", "is_closed_permanently": closed,
+                           "is_closed_temporarily": temp if k == 0 else 0, **filter_texts(name, owner, cats)})
+            links.append({"place_id": pid, "business_id": bid, "country": "AT", "link_reason": "NEW", "run_id": "syn"})
+        batch.append({"capture_batch_id": "cb_syn", "business_id": bid, "country": "AT",
+                      "profile": "POOL_SPECIALIST", "run_id": "syn"})
+    batch.append({**batch[7], "profile": "HVAC"})                 # the same business in a second profile
+    ch.insert("place_norm_out", places)
+    ch.insert("business_link_out", links)
+    ch.insert("capture_batch_lead", batch)
+    ch.insert("biz_suppression_request", [{"phone": "+43662000001", "reason": "test", "requested_by": "ops"}])
+    ch.insert("biz_lead_validation", [{"business_id": 7_700_002, "profile": "POOL_SPECIALIST", "country": "AT",
+                                       "run_id": "syn", "capture_batch_id": "cb_syn", "decision": "EXCLUDED",
+                                       "exclusion_reason": "NOT_VALID", "approval_scope": "LEAD", "reviewed_by": "ops"}])
+
+    ref = reference_decisions(ch, "AT", None, any_profile=True)
+    sql = ch.filter_decisions("AT", None, any_profile=True)
+    assert set(sql) == set(ref)
+    diff = [f"{k}: sql {[sql[k][c] for c in ('decision', 'stage', 'rule', 'trigger_value', 'is_closed_temporarily')]}"
+            f" != ref {[ref[k][c] for c in ('decision', 'stage', 'rule', 'trigger_value', 'is_closed_temporarily')]}"
+            for k in sorted(ref, key=str) if sql[k] != ref[k]]
+    assert not diff, "\n".join(diff)
+    steps = {ref[(7_700_000 + i, "POOL_SPECIALIST")]["stage"] or ref[(7_700_000 + i, "POOL_SPECIALIST")]["rule"]
+             for i in range(len(cases))}
+    assert steps >= {"CLOSED", "SUPPRESSED", "PREVIOUSLY_EXCLUDED", "TITLE_RULE", "CATEGORY_INCLUDE",
+                     "CATEGORY_CONDITIONAL_POOL_SIGNAL", "CATEGORY_RULE", "DEFAULT_EXCLUDE"}

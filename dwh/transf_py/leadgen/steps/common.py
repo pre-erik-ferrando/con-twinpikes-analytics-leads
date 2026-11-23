@@ -1,16 +1,15 @@
-"""What the run types share: geography, filter and customer match of a set of businesses. The score is
-computed in SQL (dbt view lgn_f2_score) and read with store.lead_scores."""
+"""What the run types share: geography, filter and customer match of a set of businesses. The filter and
+the score are computed in SQL (dbt views lgn_f_rule_evaluation and lgn_f2_score) and read through the
+store (filter_decisions, lead_scores)."""
 from __future__ import annotations
 
 import re
 
 from ..config import Config
-from ..filtering import FilterDecision, FilterInput, evaluate
 from ..geo import AdminArea, AreaIndex, polygons_from_geojson
 from ..matching import CustomerIndex, LeadFacts, MatchConfig, MatchResult, match, resolve_priority
 from ..normalize import email_domain, name_keys, normalize_postal_code, normalize_text
-from ..state import (BusinessView, RunContext, business_views, customer_index, is_suppressed, latest,
-                     permanent_exclusions, suppressed)
+from ..state import BusinessView, RunContext, customer_index, latest
 
 
 # --------------------------------------------------------------------------- geography
@@ -37,33 +36,16 @@ def subregion_languages(cfg: Config) -> dict[str, str]:
 
 
 # --------------------------------------------------------------------------- filter
-def run_filter(ctx: RunContext, cfg: Config, views: dict[int, BusinessView]) -> dict[int, FilterDecision]:
-    sup = suppressed(ctx.store)
-    excl = permanent_exclusions(ctx.store, ctx.country, ctx.profile)
-    langs = subregion_languages(cfg)
-    rules_by_lang: dict[str | None, dict] = {}
-    titles, stems = cfg.title_rules(), cfg.pool_stems()
-    out, rows = {}, []
-    for bid, v in views.items():
-        lang = langs.get(v.master.get("subregion_code") or "")
-        if lang not in rules_by_lang:
-            rules_by_lang[lang] = cfg.category_rules(lang)
-        d = evaluate(FilterInput(bid, v.master.get("name") or "", v.categories, v.master.get("owner_description"),
-                                 v.is_closed_permanently, v.is_closed_temporarily, is_suppressed(v, sup),
-                                 excl.get(bid)),
-                     rules_by_lang[lang], titles, stems, ctx.profile)
-        out[bid] = d
-        rows.append({"run_id": ctx.run_id, "snapshot_id": ctx.snapshot_id, "business_id": bid, "country": ctx.country,
-                     "profile": ctx.profile, "decision": d.decision, "stage": d.stage, "rule": d.rule,
-                     "trigger_value": d.trigger_value, "is_closed_temporarily": int(d.is_closed_temporarily)})
-    ctx.store.insert("rule_evaluation_out", rows)
-    return out
+def run_filter(ctx: RunContext, business_ids: set[int]) -> dict[int, dict]:
+    """The relevance filter (DT.4.4) of these businesses for the run's profile, computed in SQL by the dbt
+    view lgn_f_rule_evaluation with the current configuration. The businesses must already be in a capture
+    batch of the profile (capture_batch_lead): that is what the view evaluates."""
+    return latest_filter(ctx.store, ctx.country, ctx.profile, business_ids)
 
 
 def latest_filter(store, country: str, profile: str | None, business_ids: set[int] | None = None) -> dict[int, dict]:
-    rows = [r for r in store.select("rule_evaluation_out", {"country": country})
-            if r.get("profile") == profile and (business_ids is None or r["business_id"] in business_ids)]
-    return {k[0]: v for k, v in latest(rows, ("business_id",)).items()}
+    """business_id -> the current filter decision (lgn_f_rule_evaluation) for the profile."""
+    return {b: r for (b, _p), r in store.filter_decisions(country, profile, business_ids).items()}
 
 
 # --------------------------------------------------------------------------- customer match

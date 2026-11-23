@@ -4,7 +4,7 @@ enrichment runs, table by table, plus one section per business. Read-only, free.
     python exploration/run_trace.py cb_66cb495f9b90
 
 Output in tmp/trace/<capture_batch_id>/ (gitignored: it holds leads and customer names):
-    01_capture/<table>.csv   search log (with each Apify call), the items, normalised places, identity, filter, 1st match
+    01_capture/<table>.csv   search log (with each Apify call), the items, normalised places, identity, filter (current), 1st match
     02_enrich/<table>.csv    crawls, pages (text size, no HTML), model requests and answers, 2nd match, and
                              the score (lgn_f_score: frozen at export or live; lgn_f2_score_component)
     trace.md                 one section per business: Google -> filter -> customer match -> website/model -> score
@@ -87,8 +87,11 @@ def main() -> int:
     n["place_norm_out"] = save(s1, "place_norm_out", places)
     links = st.select("business_link_out", {"run_id": cap})
     n["business_link_out"] = save(s1, "business_link_out", links)
-    rules = st.select("rule_evaluation_out", {"run_id": cap})
-    n["rule_evaluation_out"] = save(s1, "rule_evaluation_out", rules)
+    batch = st.select("capture_batch", {"capture_batch_id": cb})[0]
+    bids = {r["business_id"] for r in st.select("capture_batch_lead", {"capture_batch_id": cb})}
+    # the filter is computed in SQL with the current configuration (lgn_f_rule_evaluation)
+    rules = list(st.filter_decisions(batch["country"], batch["profile"], bids).values())
+    n["lgn_f_rule_evaluation"] = save(s1, "lgn_f_rule_evaluation", rules)
     m1 = st.select("customer_match_out", {"run_id": cap})
     n["customer_match_out (capture)"] = save(s1, "customer_match_out", m1)
     n["capture_batch_lead"] = save(s1, "capture_batch_lead", st.select("capture_batch_lead", {"capture_batch_id": cb}))

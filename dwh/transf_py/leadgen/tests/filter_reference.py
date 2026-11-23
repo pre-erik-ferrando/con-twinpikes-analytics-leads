@@ -1,5 +1,10 @@
-"""Relevance filter (DT.4.4): deterministic, on what Google returns, before anything is spent on the
-model. The website content validates what passes later (DT.6): two gates, cheap then expensive.
+"""Python reference of the relevance filter (DT.4.4), for the tests only. The filter the engine uses is
+the dbt view lgn_f_rule_evaluation (SQL); tests_db checks that the view decides exactly as this does,
+and the in-memory store of the no-DB suite (ReferenceStore) decides with this.
+
+Deterministic, on what Google returns, before anything is spent on the model. The website content
+validates what passes later (DT.6): two gates, cheap then expensive. When several categories or title
+rules fire, the first in alphabetical order (normalized) is the one reported, as in the view.
 
 Order of evaluation (DT.4.4.1), first match decides:
  1. permanently closed                                  -> EXCLUDE (CLOSED)
@@ -19,7 +24,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .normalize import normalize_category, normalize_text
+from ..config import Config
+from ..normalize import normalize_category, normalize_text
+from ..store import FILTER_COLUMNS, MemoryStore
 
 PROFILES_WITHOUT_POOL_SIGNAL = ("HVAC",)
 
@@ -72,8 +79,7 @@ def has_pool_signal(texts: list[str | None], stems: list[str]) -> str | None:
 
 def evaluate(inp: FilterInput, category_rules: dict[str, str], title_rules: list[dict], pool_stems: list[str],
              profile: str | None = "POOL_SPECIALIST") -> FilterDecision:
-    cats = [normalize_category(c) for c in inp.categories if c]
-    cats = list(dict.fromkeys(c for c in cats if c))
+    cats = sorted({normalize_category(c) for c in inp.categories if c} - {""})
     unknown = [c for c in cats if c not in category_rules]
     title = normalize_text(inp.name)
 
@@ -87,6 +93,7 @@ def evaluate(inp: FilterInput, category_rules: dict[str, str], title_rules: list
     if inp.previous_exclusion:
         return out("EXCLUDE", "PREVIOUSLY_EXCLUDED", inp.previous_exclusion, None)
 
+    title_rules = sorted(title_rules, key=lambda r: r["pattern_normalized"] or "")
     hard = [r for r in title_rules if r["rule_class"] == "HARD"]
     soft = [r for r in title_rules if r["rule_class"] == "SOFT"]
     for r in hard:
@@ -113,3 +120,66 @@ def evaluate(inp: FilterInput, category_rules: dict[str, str], title_rules: list
     if excluded:
         return out("EXCLUDE", "CATEGORY_RULE", "CATEGORY_EXCLUDE", excluded)
     return out("EXCLUDE", "DEFAULT_EXCLUDE", "NO_RULE_FIRED", None)
+
+
+# --------------------------------------------------------------------------- the store of the no-DB suite
+def reference_decisions(store, country: str, profile: str | None, business_ids=None,
+                        any_profile: bool = False) -> dict[tuple[int, str | None], dict]:
+    """What lgn_f_rule_evaluation returns, computed in Python: the businesses of the capture batches of
+    the profile (aliases resolved), with the current configuration."""
+    from ..identity import resolve_alias
+    from ..state import aliases, business_views, permanent_exclusions, suppressed
+    from ..steps.common import subregion_languages
+
+    al = aliases(store)
+    pairs: dict[str | None, set[int]] = {}
+    for r in store.select("capture_batch_lead", {"country": country}):
+        if any_profile or r.get("profile") == profile:
+            pairs.setdefault(r.get("profile"), set()).add(resolve_alias(r["business_id"], al))
+    raw = {name: store.select(name) for name in _config_tables()}
+    sup = suppressed(store)
+    out = {}
+    for prof, bids in pairs.items():
+        if business_ids is not None:
+            bids &= {int(b) for b in business_ids}
+        cfg = Config.from_rows(raw, country, prof)
+        views = business_views(store, country, bids)
+        excl = permanent_exclusions(store, country, prof)
+        langs = subregion_languages(cfg)
+        titles, stems = cfg.title_rules(), cfg.pool_stems()
+        for bid, v in views.items():
+            from ..state import is_suppressed
+            lang = langs.get(v.master.get("subregion_code") or "")
+            d = evaluate(FilterInput(bid, v.master.get("name") or "", v.categories, v.master.get("owner_description"),
+                                     v.is_closed_permanently, v.is_closed_temporarily, is_suppressed(v, sup),
+                                     excl.get(bid)), cfg.category_rules(lang), titles, stems, prof)
+            out[(bid, prof)] = {"business_id": bid, "profile": prof, "decision": d.decision, "stage": d.stage,
+                                "rule": d.rule, "trigger_value": d.trigger_value,
+                                "is_closed_temporarily": int(d.is_closed_temporarily)}
+    assert all(set(r) == set(FILTER_COLUMNS) for r in out.values())
+    return out
+
+
+def _config_tables():
+    from .. import ddl
+    return ddl.CONFIG_TABLES
+
+
+class ReferenceStore(MemoryStore):
+    """The in-memory store with the filter's Python reference in place of the SQL view. `decide` forces
+    a decision, for tests that need a business included in one profile and not in another."""
+
+    def __init__(self, *a, **kw):
+        super().__init__(*a, **kw)
+        self.forced: dict[tuple[int, str | None], str] = {}
+
+    def decide(self, business_id: int, profile: str | None, decision: str) -> None:
+        self.forced[(business_id, profile)] = decision
+
+    def filter_decisions(self, country, profile, business_ids=None, any_profile=False):
+        out = reference_decisions(self, country, profile, business_ids, any_profile)
+        for (b, p), decision in self.forced.items():
+            if (any_profile or p == profile) and (business_ids is None or b in set(business_ids)):
+                out[(b, p)] = {**out.get((b, p), {c: None for c in FILTER_COLUMNS}), "business_id": b, "profile": p,
+                               "decision": decision, "is_closed_temporarily": 0}
+        return out

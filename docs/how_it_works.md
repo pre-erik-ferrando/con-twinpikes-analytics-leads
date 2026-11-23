@@ -61,8 +61,10 @@ Código: [steps/capture.py](../dwh/transf_py/leadgen/steps/capture.py).
 4. **Identidad** ([identity.py](../dwh/transf_py/leadgen/identity.py)): cada ficha se convierte en un
    `business_id` estable. La misma empresa encontrada dos veces, por ejemplo con el mismo teléfono, se
    une en una sola con alias. Por eso un lead puede volver a aparecer el mes siguiente sin duplicarse.
-5. **Filtro** ([filtering.py](../dwh/transf_py/leadgen/filtering.py)): reglas deterministas sobre lo
-   que dice Google, en un orden fijo. Decide la primera regla que se cumple:
+5. **Filtro** (en SQL: [lgn_f_rule_evaluation.sql](../dwh/transf_dbt/models/leads/bizlgn/lgn_f_rule_evaluation.sql)):
+   reglas deterministas sobre lo que dice Google, en un orden fijo, con la configuración vigente. El motor
+   normaliza los textos (título, descripción, categorías) y lee la decisión de la vista. Decide la primera
+   regla que se cumple:
 
    | # | Regla | Resultado |
    |---|---|---|
@@ -166,8 +168,8 @@ después.
   cuenta como corrección del cruce, que manda sobre las decisiones automáticas. Convertido, en curso o en seguimiento: el lead sigue Published.
 - **`load-customers` y después `rematch`** (mensual): un extracto de clientes nuevo se vuelve a
   cruzar con todos los leads, de todos los perfiles.
-- **`reprocess`**: tras cambiar las reglas (términos, categorías), vuelve a aplicar el filtro y el cruce
-  sobre lo ya guardado. Los puntos no hace falta: la puntuación se calcula en vivo. No llama a Apify, no lee webs ni consulta al modelo,
+- **`reprocess`**: tras cambiar las reglas (términos, categorías), vuelve a hacer el cruce con clientes
+  de lo que ahora pasa el filtro. El filtro y los puntos no hace falta: se calculan en vivo en SQL. No llama a Apify, no lee webs ni consulta al modelo,
   así que no cuesta nada.
 
 ### El estado de un lead, tal como lo muestra Intelek
@@ -318,7 +320,7 @@ leadgen.py                      el único punto de entrada: todos los comandos
 dwh/transf_py/leadgen/
 ├── steps/                      un módulo por tipo de ejecución: capture, enrich, export, maintenance
 ├── normalize, geo, identity    limpiar los datos e ids de empresa estables
-├── filtering, matching         filtro de relevancia; cruce con clientes
+├── matching                    cruce con clientes (el filtro es SQL: lgn_f_rule_evaluation)
 ├── crawl, content              leer y preparar las webs
 ├── prompt, llm, response       consultar al modelo; comprobar su respuesta con las páginas
 ├── scoring, cost, export       puntos y rating; estimación de coste; filas de Salesforce

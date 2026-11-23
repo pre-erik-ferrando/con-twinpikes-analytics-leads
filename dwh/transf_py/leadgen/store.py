@@ -23,11 +23,15 @@ class Store(Protocol):
     def hash64(self, values: list[str]) -> dict[str, int]: ...
     def now(self) -> datetime: ...
     def lead_scores(self, country: str, profile: str | None, business_ids: Iterable[int] | None = None) -> dict[int, dict]: ...
+    def filter_decisions(self, country: str, profile: str | None, business_ids: Iterable[int] | None = None,
+                         any_profile: bool = False) -> dict[tuple[int, str | None], dict]: ...
     def missing_views(self, names: Iterable[str]) -> list[str]: ...
 
 
-# The dbt views the engine reads (built with `python leadgen.py dbt`): the score is computed in SQL.
-SCORE_VIEWS = ("lgn_f2_score", "lgn_f2_score_component")
+# The dbt views the engine reads (built with `python leadgen.py dbt`): the filter and the score are
+# computed in SQL.
+ENGINE_VIEWS = ("lgn_f_rule_evaluation", "lgn_f2_score", "lgn_f2_score_component")
+FILTER_COLUMNS = ("business_id", "profile", "decision", "stage", "rule", "trigger_value", "is_closed_temporarily")
 
 
 def _prepare(table: ddl.Table, rows: Iterable[dict]) -> list[dict]:
@@ -134,6 +138,12 @@ class MemoryStore:
         ClickHouse (tests_db). The in-memory flow runs without scores."""
         return {}
 
+    def filter_decisions(self, country, profile, business_ids=None, any_profile=False):
+        """No SQL engine here: the filter is the dbt view lgn_f_rule_evaluation. The tests use a store
+        with the Python reference of the filter (tests/filter_reference.py), which tests_db checks
+        against the view."""
+        raise NotImplementedError("the relevance filter is computed in SQL (lgn_f_rule_evaluation)")
+
     def missing_views(self, names) -> list[str]:
         return []
 
@@ -215,6 +225,25 @@ class ClickHouseStore:
             if int(b) in out:
                 out[int(b)]["buckets"][f] = bk
         return out
+
+    def filter_decisions(self, country, profile, business_ids=None, any_profile=False):
+        """(business_id, profile) -> the current decision of the relevance filter (lgn_f_rule_evaluation:
+        decision, stage, rule, trigger_value, is_closed_temporarily), computed in SQL with the current
+        configuration for the businesses of the capture batches of that profile (any_profile: of every
+        profile)."""
+        cond, params = "country = %(c)s", {"c": country}
+        if not any_profile:
+            cond += " AND profile IS NULL" if profile is None else " AND profile = %(p)s"
+            params["p"] = profile
+        if business_ids is not None:
+            ids = [int(b) for b in business_ids]
+            if not ids:
+                return {}
+            cond += " AND business_id IN %(ids)s"
+            params["ids"] = ids
+        rows = self.client.query(f"SELECT {', '.join(FILTER_COLUMNS)} FROM {ddl.DB['biz']}.lgn_f_rule_evaluation "
+                                 f"WHERE {cond}", parameters=params).result_rows
+        return {(int(r[0]), r[1]): dict(zip(FILTER_COLUMNS, r), business_id=int(r[0])) for r in rows}
 
     def missing_views(self, names) -> list[str]:
         """Which of these dbt views (database fld_bizlgn) do not exist: `python leadgen.py dbt` builds them."""

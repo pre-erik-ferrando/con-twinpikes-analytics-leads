@@ -21,7 +21,7 @@ from ..normalize import registrable_domain
 from ..response import SchemaError, check_answer, check_schema, technical_review
 from ..state import RunContext, business_views, customer_index, latest, permanent_exclusions, resume_context, \
     suppressed, is_suppressed, sync_human_decisions
-from ..store import SCORE_VIEWS
+from ..store import ENGINE_VIEWS
 from .capture import RunFailed
 from .common import (capture_batch_leads, current_web, deciding_matches, facts_from_google, facts_with_web,
                      is_customer, latest_filter, match_row)
@@ -110,9 +110,9 @@ def run_enrich(store, provider: llm.Provider, crawler: Crawler | None, req: Enri
     ctx.log += [f"warning: {w}" for w in pre.warnings]
     if pre.blocking:
         _fail(ctx, "precheck: " + "; ".join(pre.blocking))
-    missing = store.missing_views(SCORE_VIEWS)
+    missing = store.missing_views(ENGINE_VIEWS)
     if missing:
-        _fail(ctx, f"the score views {', '.join(missing)} are not in the database: run `python leadgen.py dbt`")
+        _fail(ctx, f"the engine's views {', '.join(missing)} are not in the database: run `python leadgen.py dbt`")
     try:
         prompt.system_template(ctx.country, ctx.profile)
     except (prompt.ProfileNotConfigured, ValueError) as e:

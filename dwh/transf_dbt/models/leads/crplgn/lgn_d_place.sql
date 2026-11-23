@@ -5,7 +5,8 @@ SELECT
     q.place_id, q.country, q.name, q.name_key_ae, q.name_key_a, q.address, q.street, q.city, q.postal_code,
     q.phone_e164, q.phone_type, q.website, q.domain, q.latitude, q.longitude, q.subregion_code,
     q.municipality_code, q.main_category, q.categories, q.owner_description, q.reviews_count, q.rating,
-    q.is_closed_permanently, q.is_closed_temporarily, q.n_filled, q.first_seen_at, q.last_seen_at
+    q.is_closed_permanently, q.is_closed_temporarily, q.name_norm, q.owner_description_norm, q.categories_norm,
+    q.n_filled, q.first_seen_at, q.last_seen_at
 FROM (
     SELECT
         p.*,
