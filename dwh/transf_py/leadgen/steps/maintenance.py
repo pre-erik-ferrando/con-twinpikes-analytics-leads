@@ -228,9 +228,9 @@ def renormalize_places(store, country: str) -> int:
     """Rewrites the filter's normalized texts (name_norm, owner_description_norm, categories_norm) of the
     country's listings whose current row differs from what capture.filter_texts gives today: after a change
     in normalize.py, or for listings captured before these columns existed. Insert-only: a copy of the
-    current row, 1 ms later. No Apify, no website, no model. Returns the listings rewritten."""
-    from datetime import timedelta
-
+    current row, stamped by the server now (a timestamp computed here could land before the original when
+    the client's and the server's time zones differ). No Apify, no website, no model. Returns the listings
+    rewritten."""
     from ..state import latest_places
     from .capture import filter_texts
 
@@ -239,6 +239,6 @@ def renormalize_places(store, country: str) -> int:
         texts = filter_texts(r.get("name"), r.get("owner_description"), r.get("categories"))
         if any((r.get(k) or ([] if k == "categories_norm" else "")) != v for k, v in texts.items()):
             row = {k: v for k, v in r.items() if k != "inserted_at"}
-            out.append({**row, **texts, "inserted_at": r["inserted_at"] + timedelta(milliseconds=1)})
+            out.append({**row, **texts})
     store.insert("place_norm_out", out)
     return len(out)
