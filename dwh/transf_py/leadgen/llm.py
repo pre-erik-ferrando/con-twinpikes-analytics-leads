@@ -162,11 +162,17 @@ class AnthropicProvider:
 
 
 class OpenAIProvider:
-    """OpenAI Responses API. Same request as Anthropic's: the system message as `instructions` (identical in
-    every request of a run, so OpenAI's automatic prompt caching applies), the lead as `input`, the output
-    schema in strict mode (every property required, optional ones as null, additionalProperties false:
-    OUTPUT_SCHEMA already is). Token counts are reported as Anthropic's: input without cache, cache reads
-    and cache writes apart."""
+    """OpenAI Responses API. Same request as Anthropic's: the system message (identical in every request of a
+    run: one country, one brand list) and the lead, the output schema in strict mode (every property
+    required, optional ones as null, additionalProperties false: OUTPUT_SCHEMA already is). Token counts are
+    reported as Anthropic's: input without cache, cache reads and cache writes apart.
+
+    Caching: by default OpenAI puts an implicit breakpoint at the end of the request, so every request was
+    written to the cache whole (1.25x input) and never read, since each lead's website is unique (first run,
+    exploration/findings.md, 2026-11-23). Here the system message goes as a `developer` message ending in an
+    explicit breakpoint and `prompt_cache_options.mode` is `explicit`: only the shared prefix is written,
+    and the rest of the run reads it. `prompt_cache_key` (a hash of the system message) routes a run's
+    requests to the same cache."""
     name = "OPENAI"
     TERMINAL = ("completed", "failed", "expired", "cancelled")
 
@@ -177,10 +183,17 @@ class OpenAIProvider:
         self.model, self.effort, self.client = model, effort, client
 
     def _params(self, req: LLMRequest, max_tokens: int) -> dict:
+        import hashlib
+
         return {
             "model": self.model,
-            "instructions": req.system,
-            "input": req.user,
+            "input": [
+                {"role": "developer", "content": [{"type": "input_text", "text": req.system,
+                                                   "prompt_cache_breakpoint": {"mode": "explicit"}}]},
+                {"role": "user", "content": [{"type": "input_text", "text": req.user}]},
+            ],
+            "prompt_cache_options": {"mode": "explicit"},
+            "prompt_cache_key": "leadgen-" + hashlib.sha256(req.system.encode()).hexdigest()[:16],
             "max_output_tokens": max_tokens,
             "reasoning": {"effort": self.effort},
             "text": {"format": {"type": "json_schema", "name": "lead_analysis", "schema": OUTPUT_SCHEMA,
@@ -284,8 +297,8 @@ class OpenAIProvider:
 
     def count_tokens(self, req: LLMRequest) -> int:
         p = self._params(req, 1)
-        res = self.client.responses.input_tokens.count(model=p["model"], instructions=p["instructions"],
-                                                       input=p["input"], text=p["text"], reasoning=p["reasoning"])
+        res = self.client.responses.input_tokens.count(model=p["model"], input=p["input"], text=p["text"],
+                                                       reasoning=p["reasoning"])
         return res.input_tokens
 
 

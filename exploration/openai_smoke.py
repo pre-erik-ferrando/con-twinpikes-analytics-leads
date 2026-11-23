@@ -87,8 +87,8 @@ def main() -> int:
     cost = (r.input_tokens * price_in + r.cache_read_tokens * float(params["llm_price_cache_read_per_mtok"])
             + r.cache_write_tokens * float(params["llm_price_cache_write_per_mtok"])
             + r.output_tokens * price_out) / 1e6
-    print(f"\nstatus {r.status} ({r.stop_reason}); tokens in {r.input_tokens:,} (+{r.cache_read_tokens:,} cached), "
-          f"out {r.output_tokens:,}; cost ${cost:.4f}")
+    print(f"\nstatus {r.status} ({r.stop_reason}); tokens in {r.input_tokens:,} + cache read {r.cache_read_tokens:,} "
+          f"+ cache write {r.cache_write_tokens:,}, out {r.output_tokens:,}; cost ${cost:.4f}")
     if r.status != "SUCCEEDED":
         print("error:", r.error)
         return 1

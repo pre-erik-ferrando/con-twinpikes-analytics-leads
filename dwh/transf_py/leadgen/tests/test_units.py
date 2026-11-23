@@ -592,8 +592,16 @@ class _FakeOpenAI:
 def test_openai_request_is_strict_json_and_not_stored():
     from leadgen.llm import LLMRequest, OpenAIProvider
     from leadgen.prompt import OUTPUT_SCHEMA
-    p = OpenAIProvider("gpt-6.2-sol", "low", client=object())._params(LLMRequest("b1_v1", "SYS", "USER"), 2000)
-    assert p["instructions"] == "SYS" and p["input"] == "USER" and p["max_output_tokens"] == 2000
+    prov = OpenAIProvider("gpt-6.2-sol", "low", client=object())
+    p = prov._params(LLMRequest("b1_v1", "SYS", "USER"), 2000)
+    dev, user = p["input"]
+    assert dev["role"] == "developer" and dev["content"][0]["text"] == "SYS"
+    assert user["role"] == "user" and user["content"][0]["text"] == "USER" and p["max_output_tokens"] == 2000
+    # only the shared system message is cached: an explicit breakpoint after it, no implicit one at the end
+    assert dev["content"][0]["prompt_cache_breakpoint"] == {"mode": "explicit"}
+    assert "prompt_cache_breakpoint" not in user["content"][0]
+    assert p["prompt_cache_options"] == {"mode": "explicit"}
+    assert p["prompt_cache_key"] == prov._params(LLMRequest("b2_v1", "SYS", "OTHER"), 2000)["prompt_cache_key"]
     assert p["reasoning"] == {"effort": "low"} and p["store"] is False
     assert p["text"]["format"] == {"type": "json_schema", "name": "lead_analysis", "schema": OUTPUT_SCHEMA, "strict": True}
 

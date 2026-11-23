@@ -80,8 +80,11 @@ change of the definition's rules).
 normal input tokens, **177,511 cache-write tokens** (1.25x input), **0 cache reads**, 2,410 output: $0.50
 instead of about $0.41 without caching, about 22% more for nothing. OpenAI cached almost every whole request
 (each one's website is unique) and did not reuse even the shared system message, probably because the calls
-run in parallel. Left for later: check OpenAI's caching options (limit it to the shared prefix, a
-`prompt_cache_key` per run, or turn it off); in BATCH mode the price is halved anyway.
+run in parallel. **Fixed the same day:** by default OpenAI puts an implicit breakpoint at the end of the
+request; now the system message goes as a `developer` message with an explicit breakpoint, and
+`prompt_cache_options.mode` is `explicit`, plus a `prompt_cache_key` per system message. Checked with two
+calls of `openai_smoke.py`: the first wrote 2,061 tokens (the system message only), the second read them and
+wrote nothing; $0.0095 then $0.0046, same answer.
 
 **Coverage (`lgn_v_coverage`).** Of the ÖVS members, the Carinthia search found 3, all customers and set aside
 correctly. Two Carinthian members were not found: one makes insulation (expected not to show for
