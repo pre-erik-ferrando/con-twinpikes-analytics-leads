@@ -64,6 +64,24 @@ def latest(rows: list[dict], key: str) -> dict:
     return out
 
 
+def match_text(m: dict) -> str:
+    """One customer-match row in words: who it matched and by what, or why nobody."""
+    cands = json.loads(m.get("candidates_json") or "[]")
+    names = "; ".join(f"{c['customer_code']} {' '.join(str(c['customer_name']).split())} (name {c['similarity']})"
+                      for c in cands)
+    dropped = f", and {m['n_candidates_dropped']} more not sent" if int(m.get("n_candidates_dropped") or 0) else ""
+    if m.get("outcome") == "CUSTOMER":
+        return f"CUSTOMER by {m.get('signal')} — {' '.join(str(m.get('reason_text') or '').split())}"
+    if m.get("outcome") == "CANDIDATES":
+        return f"CANDIDATES, sent to the model: {names}{dropped}"
+    if m.get("outcome") == "NO_MATCH" and cands:
+        return f"NO_MATCH — similar names, ruled out by the model (DIFFERENT): {names}{dropped}"
+    if m.get("outcome") == "NO_MATCH":
+        return ("NO_MATCH — no customer of the country shares VAT, register, phone or domain, and none has a "
+                "similar name")
+    return f"{m.get('outcome')} — {m.get('reason_text') or ''}"
+
+
 def main() -> int:
     a = argparse.ArgumentParser()
     a.add_argument("capture_batch_id")
@@ -167,8 +185,7 @@ def main() -> int:
                      f"{r.get('rule')}, `{r.get('trigger_value') or ''}`)")
         for label, m in (("3. **Match, capture**", match1.get(bid)), ("4. **Match, website**", match2.get(bid))):
             if m:
-                lines.append(f"{label}: {m.get('outcome')} {m.get('signal') or ''} {m.get('customer_code') or ''} "
-                             f"{m.get('customer_name') or ''} — {m.get('reason_text') or ''}")
+                lines.append(f"{label}: {match_text(m)}")
         v = val.get(bid)
         if v:
             lines.append(f"5. **Model**: {v.get('validation')} — {v.get('validation_reason_text') or ''} | type "
