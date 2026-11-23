@@ -27,6 +27,7 @@ incluidos, con el descuento de lote y los precios de lectura y escritura de cach
 | Escritas por Intelek | `biz_lead_validation`, `biz_run_approval`, `biz_suppression_request`, `biz_run_request` |
 | Resultados del motor | `place_norm_out`, `business_link_out`, `business_alias_out`, `merge_suspect_out`, `customer_norm_out`, `rule_evaluation_out`, `category_seen_out`, `customer_match_out`, `web_validation_out`, `score_component_out`, `score_out`, `review_reference_out`, `exclusion_out`, `export_lead_out`, `sf_status_out` |
 | Hechos vigentes (dbt) | `lgn_f_rule_evaluation`, `lgn_f_customer_match`, `lgn_f3_score_component`, `lgn_f_score`, `lgn_f_exclusion`, `lgn_f_export_lead`, `lgn_f_validation` |
+| Puntuación en SQL (dbt, en paralelo) | `lgn_f2_score_component`, `lgn_f2_score`: la misma puntuación que el motor, calculada en SQL con la configuración vigente (`lgn_a_scoring_rule`, `lgn_a_rating_band`, `lgn_a_brand`, `lgn_a_shared_domain`, `lgn_a_run_parameter`). Aún no la lee nadie; `run_db_tests.sh` comprueba que coincide con la del motor |
 | Consumo (dbt) | `lgn_v_lead`, `lgn_v_lead_discarded`, `lgn_v_validation_queue`, `lgn_v_category_pending`, `lgn_v_run_summary`, `lgn_v_salesforce_export`, `lgn_v_kpi_validation`, `lgn_v_map_zones`, `lgn_v_map_zones_month`, `lgn_v_map_leads`, `lgn_v_published_customer_conflict`, `lgn_v_coverage` |
 
 ## Identidad
