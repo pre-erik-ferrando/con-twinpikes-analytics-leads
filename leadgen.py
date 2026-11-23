@@ -321,7 +321,11 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     load_dotenv(ROOT / ".env")
-    return cmd(parser().parse_args(argv))
+    try:
+        return cmd(parser().parse_args(argv))
+    except ValueError as e:        # a wrong argument or input (unknown batch, missing column…): the message is enough
+        print(f"error: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

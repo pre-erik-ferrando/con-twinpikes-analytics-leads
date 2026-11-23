@@ -127,7 +127,10 @@ def run_rematch(store, country: str, by: str, profile: str = "POOL_SPECIALIST") 
 # --------------------------------------------------------------------------- validation (CLI while Intelek cannot write)
 def to_review(store, capture_batch_id: str) -> list[int]:
     """Scored leads of the batch whose current decision is PENDING or none, not excluded nor customer."""
-    batch = store.select("capture_batch", {"capture_batch_id": capture_batch_id})[0]
+    batches = store.select("capture_batch", {"capture_batch_id": capture_batch_id})
+    if not batches:
+        raise ValueError(f"capture batch {capture_batch_id} not found")
+    batch = batches[0]
     country, profile = batch["country"], batch["profile"]
     ids = {r["business_id"] for r in store.select("capture_batch_lead", {"capture_batch_id": capture_batch_id})}
     web = current_web(store, country, profile, ids)

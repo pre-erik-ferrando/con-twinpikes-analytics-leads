@@ -103,7 +103,13 @@ def _links(base: str, html: str) -> list[str]:
 
 
 def _sitemap_urls(xml: str) -> list[str]:
-    soup = BeautifulSoup(xml, "html.parser")
+    import warnings
+
+    from bs4 import XMLParsedAsHTMLWarning
+
+    with warnings.catch_warnings():       # the <loc> tags are found either way; no XML parser needed
+        warnings.simplefilter("ignore", XMLParsedAsHTMLWarning)
+        soup = BeautifulSoup(xml, "html.parser")
     return [loc.get_text(strip=True) for loc in soup.find_all("loc")]
 
 
