@@ -1,26 +1,41 @@
 # Preguntas para TWP y Fluidra
 
-Para la primera entrega: Pool specialist en Alemania, Austria y Suiza.
+Registro de todo lo que les preguntamos, enviado o por enviar, con su estado. Para la primera entrega:
+Pool specialist en Alemania, Austria y Suiza.
 
-## Lo que necesitamos ahora
+## Por enviar
 
-1. Tenemos la v3 del Excel de inputs. ¿Nos enviáis la v4 (261014_New_Leads_DataApp_Inputs v4)?
-   En la pestaña de exportación a Salesforce, indicad también el formato de Province y Country, y si hace
-   falta un correo de relleno.
-2. En la v3, la pestaña Subregion → sales rep está vacía. ¿Podéis rellenarla? Si un distrito no tiene
-   comercial, ¿a quién van sus leads?
-3. ¿Nos enviáis los listados de clientes de Fluidra de Austria, Suiza y Alemania? Incluid también los
-   números de IVA o de registro mercantil de las sociedades de Fluidra.
+1. **Categorías de Google sin clasificar.** En la primera búsqueda real (Carintia) se perdieron negocios de
+   piscinas porque su categoría de Google no está en la pestaña Google categories: «Metallbauunternehmen»
+   (un constructor de piscinas de acero inoxidable) y «Hersteller» (un fabricante de cubiertas de piscina).
+   ¿Las añadís como CONDITIONAL? Así pasan si el nombre lleva una palabra de piscina.
+   Hoy solo pasan estas categorías (Excel v4, pestaña Google categories); cualquier otra queda fuera:
+   - INCLUDE (pasan siempre): `Schwimmbeckenbauer`, `Poolbedarf`, `Schwimmbecken-Reinigungsdienst`,
+     `Schwimmbecken-Reparaturdienst`.
+   - CONDITIONAL (pasan con una palabra de piscina en el nombre o la descripción): `Whirlpool-Fachhandel`,
+     `Bauunternehmen`, `Baufachhandel`, `Gartenbauer`, `Saunageschäft`, `Schwimmbad`, `Erdbauunternehmen`,
+     `Wasseraufbereitungsanlage`, `Baggerunternehmen`, `Bäderstudio`, `Generalunternehmer`, `Möbeltischler`,
+     `Ofengeschäft`, `Sauna`, `Service establishment`, `Straßenbauunternehmen`,
+     `Straßenbefestigungsunternehmen`, `Teichanlagenbauer`, `Teichbedarf`, `Transportdienst`.
+   - EXCLUDE (fuera siempre): `Baumarkt`, `Bed and Breakfast`, `Gartencenter`, `Glaser`.
+2. **Empresas sin categoría.** Una ficha de Google sin categoría queda fuera aunque se llame «…pool…». ¿Os
+   parece que pase a revisión en lugar de excluirse? Cambia la regla 8 de la definición (DT.4.4.1).
 
-## Aviso
+## Enviadas el 19-11-2026
 
-Enviamos a Apify cada zona como su contorno en el mapa, no por su nombre: por nombre no devuelve
-resultados.
+| # | Pregunta | Estado |
+|---|---|---|
+| 1 | Excel de inputs v4 | Respondida: recibida la v4 (261020). Siguen pendientes, en la pestaña de exportación, el formato de Province y Country, el valor de Lead Status y si el correo es obligatorio |
+| 2 | Pestaña Subregion → sales rep, y a quién van los leads de un distrito sin comercial | Pendiente: vacía en la v4 («Pending Fluidra», pedida a Marc). Bloquea la exportación |
+| 3 | Listados de clientes de Austria, Suiza y Alemania, con el IVA o registro de las sociedades de Fluidra | Respondida en parte: recibidos los tres listados (19-11). Faltan los números de las sociedades de Fluidra |
+| — | Aviso: enviamos a Apify cada zona como su contorno | Dado |
 
 ## Más adelante
 
 - Reglas de los otros cuatro perfiles.
-- Datos y listados de clientes de Bélgica y Países Bajos.
-- ¿Cuándo se apaga el cockpit?
+- Listados de clientes de Bélgica y Países Bajos (TWP, 19-11: «está pedido»).
+- Listados de clientes de Austria y Suiza más recientes: los recibidos tienen más de 7 días (AT del 29-09,
+  CH del 06-10).
 - ¿Quién aprueba una ejecución que supera el umbral de coste?
-- ¿Qué motivo de rechazo usa Salesforce?
+- Fichero de estados de Salesforce: cabeceras y valores exactos, y quién lo deja cada mes (definición v3.3,
+  DT.8.4).
