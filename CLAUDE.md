@@ -27,6 +27,7 @@ Intelek writes biz_cfg_* and biz_lead_validation; the engine reads them (config 
 ```bash
 source .venv/bin/activate
 ./run_tests.sh                  # no-DB suite (CI runs the same)
+./run_db_tests.sh               # engine + dbt on a throwaway local ClickHouse (CI job `db`)
 cd dwh/transf_py && python -m leadgen.ddl > ../transf_dbt/models/leads/_sources.yml   # after any ddl.py change
 ```
 

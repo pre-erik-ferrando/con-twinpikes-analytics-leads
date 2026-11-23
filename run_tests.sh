@@ -25,5 +25,5 @@ python -m pytest "${PYTEST_ARGS[@]}"
 
 N_SINGULAR=$(find dwh/transf_dbt/tests -name 'assert_*.sql' | wc -l | tr -d ' ')
 printf '\n\033[1;32m✓ Suite with no DB is green.\033[0m\n'
-printf '\033[0;36mℹ  Not covered: the %s singular dbt guards (assert_*.sql), which need ClickHouse:\n' "$N_SINGULAR"
-printf '   python leadgen.py dbt -- test\033[0m\n'
+printf '\033[0;36mℹ  Not covered: the dbt models on ClickHouse and their %s singular guards (assert_*.sql):\n' "$N_SINGULAR"
+printf '   ./run_db_tests.sh (a throwaway local ClickHouse; CI job db)\033[0m\n'

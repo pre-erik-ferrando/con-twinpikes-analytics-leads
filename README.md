@@ -71,12 +71,16 @@ First start, once: `init` (tables), `seed` (our values), `load-config` (TWP's in
 
 ```bash
 ./run_tests.sh                       # every check that needs no ClickHouse, no network, no credentials
+./run_db_tests.sh                    # engine + every dbt model and test on a throwaway local ClickHouse
 python leadgen.py precheck --country AT --areas AT-501 --terms Poolbau    # the configuration, against the DB
 ```
 
 The test suite runs every run type end to end on an in-memory store with a fake Apify, fake websites
-and a fake model, so a green `./run_tests.sh` means the flow works; it does not prove the ClickHouse SQL,
-which only `python leadgen.py dbt -- test` does.
+and a fake model, so a green `./run_tests.sh` means the flow works; it does not prove the ClickHouse SQL.
+`./run_db_tests.sh` does: it downloads the official ClickHouse binary once (same series as production, into
+the gitignored `.clickhouse/`), starts a throwaway server on localhost with temporary data, runs the same
+flow there and builds and tests every dbt model with that data. It never touches the project's ClickHouse.
+CI runs both (job `db`: a ClickHouse container).
 
 ---
 
@@ -86,9 +90,10 @@ which only `python leadgen.py dbt -- test` does.
 con-twinpikes-analytics-leads/
 ├── leadgen.py               THE ENTRY POINT: every run type, loader and validation helper
 ├── run_tests.sh             every check that needs no ClickHouse
+├── run_db_tests.sh          engine + dbt on a throwaway local ClickHouse
 ├── pytest.ini               makes `pytest` from the root collect every suite
 ├── .env.example             the variables .env must define (.env is gitignored)
-├── .github/                 CI: pre-commit + run_tests.sh on every push and pull request
+├── .github/                 CI: pre-commit + run_tests.sh, and the ClickHouse suite, on every push and PR
 ├── .pre-commit-config.yaml  whitespace / EOF / JSON-YAML-TOML checks + large-file guard
 ├── dwh/                     engine (transf_py/leadgen), dbt views (transf_dbt), governance
 ├── docs/                    the documentation (outline/, Spanish) and the client's spec (spec/)

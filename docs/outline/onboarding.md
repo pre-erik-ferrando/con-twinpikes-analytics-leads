@@ -24,6 +24,7 @@ playwright install chromium     # navegador para las webs que solo se ven con Ja
 python leadgen.py dbt -- deps   # paquetes de dbt (dbt_utils)
 cp .env.example .env
 ./run_tests.sh
+./run_db_tests.sh               # el motor y todos los modelos y tests de dbt en un ClickHouse local desechable
 ```
 
 ## Primer arranque contra la base de datos (una vez)

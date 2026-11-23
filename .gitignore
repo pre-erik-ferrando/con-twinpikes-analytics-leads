@@ -58,3 +58,6 @@ docs/outline/_preview/
 
 # Client source files (inputs Excel, etc.)
 docs/source/
+
+# Throwaway ClickHouse for run_db_tests.sh (downloaded binary)
+/.clickhouse/

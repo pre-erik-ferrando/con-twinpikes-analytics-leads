@@ -33,3 +33,52 @@ jobs:
 
       - name: ./run_tests.sh
         run: ./run_tests.sh
+
+  db:
+    # The engine and every dbt model and test on a throwaway ClickHouse, same series as production. Same
+    # tests as ./run_db_tests.sh locally; they drop and recreate the fld_*lgn databases of this container only.
+    name: engine + dbt on ClickHouse (throwaway container)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Keep equal to CH_VERSION in run_db_tests.sh (production: the 26.10 series).
+        clickhouse_version: ["26.10.2.103"]
+    services:
+      clickhouse:
+        image: clickhouse/clickhouse-server:${{ matrix.clickhouse_version }}
+        ports:
+          - 8123:8123
+        env:
+          CLICKHOUSE_USER: default
+          CLICKHOUSE_PASSWORD: ci-only
+          CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+        options: >-
+          --health-cmd "clickhouse-client --password ci-only --query 'SELECT 1'"
+          --health-interval 5s --health-timeout 5s --health-retries 24
+    env:
+      DBT_CH_HOST: localhost
+      DBT_CH_PORT: "8123"
+      DBT_CH_USER: default
+      DBT_CH_PASSWORD: ci-only
+      DBT_CH_SCHEMA: fld_landinglgn
+      LEADGEN_TEST_CH: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: |
+            dwh/transf_dbt/dev-requirements.txt
+            dwh/transf_dbt/requirements.txt
+            dwh/transf_py/leadgen/requirements.txt
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r dwh/transf_dbt/dev-requirements.txt -r dwh/transf_dbt/requirements.txt \
+                                -r dwh/transf_py/leadgen/requirements.txt
+
+      - name: pytest on ClickHouse
+        run: python -m pytest dwh/transf_py/leadgen/tests_db
