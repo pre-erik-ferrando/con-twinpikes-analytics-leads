@@ -162,8 +162,8 @@ después.
 ### Paso 5: Retroalimentación
 
 - **`load-sf-status`** (mensual): el fichero de estados de Salesforce. Un lead descartado queda excluido
-  para siempre y, si era «ya cliente», cuenta como corrección del cruce, que manda sobre las decisiones
-  automáticas. Convertido, en curso o en seguimiento: el lead sigue Published.
+  para siempre en cuanto se carga (la exclusión se lee del fichero, no se copia) y, si era «ya cliente»,
+  cuenta como corrección del cruce, que manda sobre las decisiones automáticas. Convertido, en curso o en seguimiento: el lead sigue Published.
 - **`load-customers` y después `rematch`** (mensual): un extracto de clientes nuevo se vuelve a
   cruzar con todos los leads, de todos los perfiles.
 - **`reprocess`**: tras cambiar las reglas (términos, categorías), vuelve a aplicar el filtro y el cruce
@@ -206,7 +206,7 @@ vienen de `biz_cfg_scoring_rule`; el código solo decide en qué tramo cae cada 
 
 Se calcula en SQL, en las vistas dbt `lgn_f2_score_component` (un tramo por factor) y `lgn_f2_score`
 (total, rating y desglose), con la configuración **vigente**: un cambio de puntos o de umbrales se ve al
-momento, sin reprocesar. Al exportar un lead, su puntuación se **congela** en `export_score_out`; a
+momento, sin reprocesar. Al exportar un lead, su puntuación se **congela** en `export_lead_out`; a
 partir de ahí, `lgn_f_score` (lo que leen `lgn_v_lead` y las demás vistas) muestra la congelada, y la
 viva solo para los que no se han exportado. Sin las vistas en la base de datos, `precheck`,
 `enrich` y `export` se detienen con «ejecuta `python leadgen.py dbt`».

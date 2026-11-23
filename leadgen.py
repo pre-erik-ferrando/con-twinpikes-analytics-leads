@@ -137,8 +137,8 @@ def cmd(ns) -> int:
         from leadgen.steps.maintenance import apply_sf_status
         cfg = _cfg(st, None)
         res = loaders.load_sf_status(st, cfg, Path(ns.file), user(ns))
-        countries = sorted({r["country"] for r in st.select("sf_status_out", {"status_file_id": res["status_file_id"]})})
-        res["new_exclusions"] = {cc: apply_sf_status(st, cc) for cc in countries}
+        rows = loaders.sf_status_rows(st, cfg, [res["status_file_id"]])[0]
+        res["new_customer_matches"] = {cc: apply_sf_status(st, cc) for cc in sorted({r["country"] for r in rows})}
         show(res)
         return 0
     if c == "precheck":
@@ -242,7 +242,7 @@ def cmd(ns) -> int:
         return 0
     if c == "apply-sf-status":
         from leadgen.steps.maintenance import apply_sf_status
-        print(f"{apply_sf_status(st, ns.country)} new exclusions")
+        print(f"{apply_sf_status(st, ns.country)} new Salesforce customer matches")
         return 0
     if c == "status":
         states = runs.current_states(st.select("pipeline_run", {"run_id": ns.run_id} if ns.run_id else None))

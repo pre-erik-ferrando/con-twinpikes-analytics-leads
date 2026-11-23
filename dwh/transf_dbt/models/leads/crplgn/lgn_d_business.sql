@@ -29,7 +29,8 @@ SELECT
     min(p.first_seen_at)                                                      AS first_seen_at,
     max(p.last_seen_at)                                                       AS last_seen_at,
     toUInt8(bp.business_id IN (
-        SELECT s.business_id FROM {{ source('engine', 'merge_suspect_out') }} AS s))  AS is_merge_suspect
+        SELECT s.business_id FROM {{ source('engine', 'business_identity_out') }} AS s
+        WHERE s.kind = 'MERGE_SUSPECT'))                                     AS is_merge_suspect
 FROM {{ ref('lgn_d_business_place') }} AS bp
 INNER JOIN {{ ref('lgn_d_place') }} AS p ON p.place_id = bp.place_id
 GROUP BY bp.business_id

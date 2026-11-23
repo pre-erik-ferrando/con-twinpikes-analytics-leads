@@ -8,7 +8,7 @@ from ..config import Config
 from ..filtering import FilterDecision, FilterInput, evaluate
 from ..geo import AdminArea, AreaIndex, polygons_from_geojson
 from ..matching import CustomerIndex, LeadFacts, MatchConfig, MatchResult, match, resolve_priority
-from ..normalize import email_domain, name_keys, normalize_category, normalize_postal_code, normalize_text
+from ..normalize import email_domain, name_keys, normalize_postal_code, normalize_text
 from ..state import (BusinessView, RunContext, business_views, customer_index, is_suppressed, latest,
                      permanent_exclusions, suppressed)
 
@@ -43,7 +43,7 @@ def run_filter(ctx: RunContext, cfg: Config, views: dict[int, BusinessView]) -> 
     langs = subregion_languages(cfg)
     rules_by_lang: dict[str | None, dict] = {}
     titles, stems = cfg.title_rules(), cfg.pool_stems()
-    out, rows, seen_cats = {}, [], {}
+    out, rows = {}, []
     for bid, v in views.items():
         lang = langs.get(v.master.get("subregion_code") or "")
         if lang not in rules_by_lang:
@@ -56,16 +56,7 @@ def run_filter(ctx: RunContext, cfg: Config, views: dict[int, BusinessView]) -> 
         rows.append({"run_id": ctx.run_id, "snapshot_id": ctx.snapshot_id, "business_id": bid, "country": ctx.country,
                      "profile": ctx.profile, "decision": d.decision, "stage": d.stage, "rule": d.rule,
                      "trigger_value": d.trigger_value, "is_closed_temporarily": int(d.is_closed_temporarily)})
-        for raw in v.categories:
-            # keyed by the normalized form; the first raw spelling is kept for display
-            seen_cats.setdefault((lang, normalize_category(raw)), [raw, 0])[1] += 1
     ctx.store.insert("rule_evaluation_out", rows)
-    cat_rows = []
-    for (lang, norm), (raw, n) in seen_cats.items():
-        cat_rows.append({"run_id": ctx.run_id, "country": ctx.country, "profile": ctx.profile, "language": lang,
-                         "category": raw, "category_normalized": norm,
-                         "classification": rules_by_lang[lang].get(norm), "n_places": n})
-    ctx.store.insert("category_seen_out", cat_rows)
     return out
 
 

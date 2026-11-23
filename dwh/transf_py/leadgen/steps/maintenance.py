@@ -5,7 +5,7 @@
   New candidates without a verdict count as UNSURE until the next ENRICH (DT.5.3).
 - There is no rescoring run any more (SCORE_ONLY stays in the domain for old runs): the score is computed
   live in SQL (dbt view lgn_f2_score) with the current configuration, so a change of points or bands shows
-  at once; an exported lead keeps the score frozen at its export (export_score_out).
+  at once; an exported lead keeps the score frozen at its export (export_lead_out).
 - CUSTOMER_REMATCH (review DT.5): after loading a new extract, re-matches the leads in Found, To review
   and Approved. Matching ones become Excluded by engine (customer). Published leads are not touched:
   a match shows in lgn_v_published_customer_conflict.
@@ -187,36 +187,33 @@ def reopen(store, capture_batch_id: str, business_id: int, by: str) -> None:
 def current_sf_status(store, country: str) -> dict[str, dict]:
     """lead_code -> its current state in Salesforce: the row of the latest month (the latest import wins
     within a month)."""
+    from ..loaders import sf_status_rows
+
     out: dict[str, dict] = {}
-    for r in store.select("sf_status_out", {"country": country}):
+    for r in sf_status_rows(store)[0]:
+        if r["country"] != country:
+            continue
         cur = out.get(r["lead_code"])
-        if cur is None or (r["status_month"], r["inserted_at"]) >= (cur["status_month"], cur["inserted_at"]):
+        if cur is None or (r["status_month"], str(r["inserted_at"])) >= (cur["status_month"], str(cur["inserted_at"])):
             out[r["lead_code"]] = r
     return out
 
 
 def apply_sf_status(store, country: str) -> int:
-    """v3.3 DT.8.4: a lead currently DISCARDED in Salesforce is excluded for good, with or without a
-    reason; with ALREADY_CUSTOMER it also counts as a failure of the automatic match (a SALESFORCE match
-    without customer code: the file does not bring it). CONVERTED, WORKING and NURTURING change nothing:
-    the lead stays Published. Idempotent per file and lead."""
-    done = {r.get("source_ref") for r in store.select("exclusion_out", {"country": country})
-            if r["origin"] == "SALESFORCE"}
-    excl, matches = [], []
+    """v3.3 DT.8.4: a lead currently DISCARDED with ALREADY_CUSTOMER counts as a failure of the automatic
+    match: a SALESFORCE match without customer code (the file does not bring it). The exclusion itself
+    needs no step: state.exclusions reads it from the file. CONVERTED, WORKING and NURTURING change
+    nothing: the lead stays Published. Idempotent per lead; returns the new matches."""
+    done = {r["business_id"] for r in store.select("customer_match_out", {"country": country})
+            if r.get("origin") == "SALESFORCE"}
+    matches = []
     for code, r in current_sf_status(store, country).items():
-        if r["status"] != "DISCARDED":
+        if r["status"] != "DISCARDED" or r.get("discard_reason") != "ALREADY_CUSTOMER" or r["business_id"] in done:
             continue
-        ref = f"sf:{r['status_file_id']}:{code}"
-        if ref in done:
-            continue
-        reason = r.get("discard_reason") or "DISCARDED"
-        excl.append({"business_id": r["business_id"], "country": country, "scope": "ALL", "profile": None,
-                     "origin": "SALESFORCE", "reason": reason, "source_ref": ref})
-        if reason == "ALREADY_CUSTOMER":
-            matches.append({"run_id": "salesforce", "business_id": r["business_id"], "country": country,
-                            "profile": None, "match_pass": "MANUAL", "origin": "SALESFORCE", "outcome": "CUSTOMER",
-                            "signal": None, "customer_code": None,
-                            "reason_text": f"Salesforce status {r['status_month']}: discarded, already a customer"})
-    store.insert("exclusion_out", excl)
+        done.add(r["business_id"])
+        matches.append({"run_id": "salesforce", "business_id": r["business_id"], "country": country,
+                        "profile": None, "match_pass": "MANUAL", "origin": "SALESFORCE", "outcome": "CUSTOMER",
+                        "signal": None, "customer_code": None,
+                        "reason_text": f"Salesforce status {r['status_month']}: discarded, already a customer"})
     store.insert("customer_match_out", matches)
-    return len(excl)
+    return len(matches)

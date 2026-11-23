@@ -474,7 +474,7 @@ def test_import_list_reads_the_inputs_excel_columns(tmp_path):
     st = MemoryStore()
     _, rows = load_import_list(st, f, "AT", "POOL_SPECIALIST", "t")
     assert rows == [{"name": "Poolbau Muster", "city": "Villach", "phone": None, "website": "poolbau-muster.at"}]
-    assert "Interbad 2026" in st.select("import_list_row")[0]["row_json"]
+    assert "Interbad 2026" in st.select("upload_row")[0]["row_json"]
 
 
 def test_seed_refreshes_and_retires_only_its_own_rows():

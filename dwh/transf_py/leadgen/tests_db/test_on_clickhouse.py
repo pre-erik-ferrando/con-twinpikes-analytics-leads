@@ -85,7 +85,7 @@ def test_full_flow_then_every_dbt_model_and_test(ch, tmp_path):
     assert {r["Rating"] for r in rows if r["Lead code"] == f"AT-{huber}"} == {"Hot"}
     # frozen at export: one row per exported lead, as the live score was then; lgn_f_score shows it
     frozen = {b: (round(float(t), 2), r) for b, t, r in ch.client.query(
-        "SELECT business_id, total, rating FROM fld_bizlgn.export_score_out").result_rows}
+        "SELECT business_id, total, rating FROM fld_bizlgn.export_lead_out WHERE isNotNull(total)").result_rows}
     assert frozen[huber] == (37.5, "HOT")
     src = dict(ch.client.query("SELECT business_id, score_source FROM fld_bizlgn.lgn_f_score").result_rows)
     assert src[huber] == "EXPORT" and all(src[b] == "LIVE" for b in _golden("AT") if b not in frozen)
@@ -260,3 +260,62 @@ def test_exported_score_stays_frozen_when_the_points_change(ch):
     shown = {int(b): (round(float(t), 2), src) for b, t, src in ch.client.query(
         "SELECT business_id, total, score_source FROM fld_bizlgn.lgn_f_score WHERE country = 'AT'").result_rows}
     assert shown[huber] == (37.5, "EXPORT")
+
+
+def test_sql_exclusions_sf_status_and_categories_equal_the_engine(ch, tmp_path):
+    """lgn_d_sf_status, lgn_f_exclusion and lgn_v_category_pending read the same sources as the engine
+    (loaders.sf_status_rows, state.exclusions, normalize_category): same answers on the same data."""
+    from leadgen.loaders import load_sf_status, sf_status_rows
+    from leadgen.normalize import normalize_category
+    from leadgen.state import RunContext, exclusions
+    from leadgen.steps.common import subregion_languages
+
+    codes = sorted({r["lead_code"] for r in ch.select("export_lead_out")})
+    assert len(codes) >= 2
+    cb = ch.select("capture_batch")[0]["capture_batch_id"]
+    other = next(r["business_id"] for r in ch.select("capture_batch_lead")
+                 if f"AT-{r['business_id']}" not in codes)
+    ch.insert("biz_lead_validation", [{"business_id": other, "profile": "POOL_SPECIALIST", "country": "AT",
+                                       "run_id": "t", "capture_batch_id": cb, "decision": "EXCLUDED",
+                                       "exclusion_reason": "NOT_VALID", "approval_scope": "LEAD", "reviewed_by": "ops"}])
+    cfg = RunContext(ch, "t", "LOAD", "AT", "POOL_SPECIALIST", "t").config()
+    head = "Lead code,Salesforce ID,Company,Status,Status month,Subregion code,Discard reason\n"
+    nov, dec = tmp_path / "s_202611.csv", tmp_path / "s_202612.csv"
+    nov.write_text(head + f"{codes[0]},00Q1, Huber ,Discarded,2026-11,501,Already Fluidra client\n"
+                   f"{codes[1]},,X,Working,2026-11, - ,\nAT-NL-002,,Old,Working,2026-11,501,\n", encoding="utf-8")
+    dec.write_text(head + f"{codes[0]},,X,Working,2026-12,,\n{codes[1]},,X,Discarded,2026-12,,\n", encoding="utf-8")
+    load_sf_status(ch, cfg, nov, "ops")
+    load_sf_status(ch, cfg, dec, "ops")
+    r = _dbt("run")
+    assert r.returncode == 0, r.stdout[-4000:]
+
+    month = {}
+    for row in sf_status_rows(ch)[0]:
+        month[(row["lead_code"], row["status_month"])] = row
+    py_sf = {(c, m, r["business_id"], r["status"], r["discard_reason"], r["subregion_code"], r["company_name"])
+             for (c, m), r in month.items()}
+    sql_sf = {tuple(x) for x in ch.client.query(
+        "SELECT lead_code, status_month, business_id, status, discard_reason, subregion_code, company_name "
+        "FROM fld_crplgn.lgn_d_sf_status").result_rows}
+    assert sql_sf == py_sf and len(py_sf) == 4
+
+    py_ex = {(r["business_id"], r["origin"], r["reason"]) for r in exclusions(ch, "AT")}
+    sql_ex = {tuple(x) for x in ch.client.query(
+        "SELECT business_id, origin, reason FROM fld_bizlgn.lgn_f_exclusion").result_rows}
+    assert sql_ex == py_ex
+    assert {o for _, o, _ in py_ex} == {"HUMAN", "SALESFORCE"} and len(py_ex) == 3   # Nov and Dec discards stay
+
+    langs = subregion_languages(cfg)
+    rules = [r for r in ch.select("biz_cfg_category_rule") if r.get("active", 1)]
+    places = {}
+    for p in ch.select("place_norm_out"):
+        places[p["place_id"]] = p
+    py_cat = set()
+    for p in places.values():
+        lang = langs.get(p.get("subregion_code") or "")
+        ruled = {r["category_normalized"] for r in rules if r.get("country") in (None, p["country"])
+                 and (lang is None or r.get("language") in (None, lang))}
+        py_cat |= {normalize_category(c) for c in p["categories"] if normalize_category(c) not in ruled}
+    sql_cat = {x for (x,) in ch.client.query(
+        "SELECT pk_category_normalized FROM fld_bizlgn.lgn_v_category_pending").result_rows}
+    assert sql_cat == py_cat - {""}

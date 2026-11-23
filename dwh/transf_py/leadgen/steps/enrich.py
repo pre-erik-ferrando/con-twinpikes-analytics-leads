@@ -491,15 +491,16 @@ def _merge_suspects_by_domain(ctx) -> None:
     for b, r in web.items():
         if r.get("final_domain"):
             by_dom.setdefault(r["final_domain"], []).append(b)
-    have = {(r["business_id"], r.get("other_business_id")) for r in ctx.store.select("merge_suspect_out")}
+    have = {(r["business_id"], r.get("other_business_id"))
+            for r in ctx.store.select("business_identity_out", {"kind": "MERGE_SUSPECT"})}
     rows = []
     for dom, bs in by_dom.items():
         for b in bs:
             for o in bs:
                 if o != b and (b, o) not in have:
-                    rows.append({"business_id": b, "other_business_id": o, "place_id": None,
+                    rows.append({"kind": "MERGE_SUSPECT", "business_id": b, "other_business_id": o, "place_id": None,
                                  "reason": "SAME_FINAL_DOMAIN", "run_id": ctx.run_id})
-    ctx.store.insert("merge_suspect_out", rows)
+    ctx.store.insert("business_identity_out", rows)
 
 
 def limits(cfg) -> CrawlLimits:

@@ -8,6 +8,7 @@ SELECT
 FROM {{ source('engine', 'customer_norm_out') }} AS c
 WHERE c.is_test_record = 0
   AND c.extract_id IN (
-      SELECT argMax(f.extract_id, f.loaded_at)
-      FROM {{ source('landing', 'customer_extract_file') }} AS f
+      SELECT argMax(f.file_id, f.loaded_at)
+      FROM {{ source('landing', 'upload_file') }} AS f
+      WHERE f.kind = 'CUSTOMER_EXTRACT'
       GROUP BY f.subsidiary_code)

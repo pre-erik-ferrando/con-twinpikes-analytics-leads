@@ -1,15 +1,16 @@
 {{ config(materialized='view') }}
 -- The score of each lead (business x profile) as the rest of the views show it (DF.8, DT.7.4): the score
--- frozen when it was exported (export_score_out, the latest export of the lead) if it has been exported,
+-- frozen when it was exported (export_lead_out, the latest export of the lead) if it has been exported,
 -- else the live score computed in SQL with the current configuration (lgn_f2_score). Total, Rating and
 -- breakdown in the cockpit's order (type, brands, zone, digital, contact, reviews).
 WITH frozen AS (
     SELECT
         f.business_id AS business_id, f.profile AS profile,
-        argMax(f.country, f.inserted_at) AS country, argMax(f.total, f.inserted_at) AS total,
-        argMax(f.rating, f.inserted_at) AS rating, argMax(f.breakdown, f.inserted_at) AS breakdown,
+        argMax(f.country, f.inserted_at) AS country, argMax(assumeNotNull(f.total), f.inserted_at) AS total,
+        argMax(assumeNotNull(f.rating), f.inserted_at) AS rating, argMax(f.breakdown, f.inserted_at) AS breakdown,
         argMax(f.export_id, f.inserted_at) AS export_id, max(f.inserted_at) AS frozen_at
-    FROM {{ source('engine', 'export_score_out') }} AS f
+    FROM {{ source('engine', 'export_lead_out') }} AS f
+    WHERE isNotNull(f.total)
     GROUP BY f.business_id, f.profile
 )
 SELECT

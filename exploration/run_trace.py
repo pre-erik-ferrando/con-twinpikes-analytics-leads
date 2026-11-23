@@ -4,7 +4,7 @@ enrichment runs, table by table, plus one section per business. Read-only, free.
     python exploration/run_trace.py cb_66cb495f9b90
 
 Output in tmp/trace/<capture_batch_id>/ (gitignored: it holds leads and customer names):
-    01_capture/<table>.csv   search log, Apify calls and items, normalised places, identity, filter, 1st match
+    01_capture/<table>.csv   search log (with each Apify call), the items, normalised places, identity, filter, 1st match
     02_enrich/<table>.csv    crawls, pages (text size, no HTML), model requests and answers, 2nd match, and
                              the score (lgn_f_score: frozen at export or live; lgn_f2_score_component)
     trace.md                 one section per business: Google -> filter -> customer match -> website/model -> score
@@ -82,7 +82,6 @@ def main() -> int:
     n = {}
     n["pipeline_run"] = save(out, "pipeline_run", sorted(runs, key=lambda r: str(r["inserted_at"])))
     n["search_query_log"] = save(s1, "search_query_log", st.select("search_query_log", {"capture_batch_id": cb}))
-    n["gmaps_run"] = save(s1, "gmaps_run", st.select("gmaps_run", {"run_id": cap}))
     n["gmaps_place"] = save(s1, "gmaps_place", st.select("gmaps_place", {"run_id": cap}))
     places = st.select("place_norm_out", {"run_id": cap})
     n["place_norm_out"] = save(s1, "place_norm_out", places)
@@ -90,7 +89,6 @@ def main() -> int:
     n["business_link_out"] = save(s1, "business_link_out", links)
     rules = st.select("rule_evaluation_out", {"run_id": cap})
     n["rule_evaluation_out"] = save(s1, "rule_evaluation_out", rules)
-    n["category_seen_out"] = save(s1, "category_seen_out", st.select("category_seen_out", {"run_id": cap}))
     m1 = st.select("customer_match_out", {"run_id": cap})
     n["customer_match_out (capture)"] = save(s1, "customer_match_out", m1)
     n["capture_batch_lead"] = save(s1, "capture_batch_lead", st.select("capture_batch_lead", {"capture_batch_id": cb}))

@@ -11,6 +11,7 @@ governance/
 │   ├── fld_crplgn/         crp views (business, place, customer, enrichment)
 │   ├── fld_bizlgn/         configuration, Intelek writeback, engine outputs, lgn_v_* consumption views
 │   └── fld_opslgn/         run control: runs, snapshots, queries, model batches, cost, exports
+├── migrations/             hand-run changes to tables that already hold data (dated, run once, in order)
 └── users/                  user creation
 ```
 

@@ -33,7 +33,7 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 | CAPTURE | `capture` | gmaps_*, place_norm_out, business_link_out, rule_evaluation_out, customer_match_out (CAPTURE), capture_batch(_lead) |
 | IMPORT_LIST | `import-list` | as CAPTURE, source IMPORT |
 | ENRICH | `enrich`, `resume` | web_crawl/web_page, llm_request/response, llm_batch, web_validation_out, customer_match_out (ENRICH); the score is the dbt view lgn_f2_score |
-| EXPORT | `export`, `confirm-export` | export_lead_out, export_score_out (the score frozen), export_log, the xlsx |
+| EXPORT | `export`, `confirm-export` | export_lead_out (with the score frozen), export_log, the xlsx |
 | REPROCESS_RULES | `reprocess` | rule_evaluation_out, customer_match_out (no Apify, crawl or model; scores are live in SQL) |
 | CUSTOMER_REMATCH | `rematch` | customer_match_out (REMATCH) |
 

@@ -315,8 +315,10 @@ def main() -> int:
         print("  export failed:", xctx.log)
 
     trace(st, items)
-    seen = {r["category"] for r in st.select("category_seen_out")} - {
-        r["category"] for r in st.select("biz_cfg_category_rule")}
+    from leadgen.normalize import normalize_category
+    ruled = {r["category_normalized"] for r in st.select("biz_cfg_category_rule")}
+    seen = {c for p in st.select("place_norm_out") for c in (p.get("categories") or [])
+            if normalize_category(c) not in ruled}
     if seen:
         print(f"\nUnclassified Google categories (filtered out as DEFAULT_EXCLUDE): {sorted(seen)}")
     return 0

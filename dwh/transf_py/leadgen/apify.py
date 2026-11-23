@@ -5,7 +5,7 @@ TWP calls the Store actor directly, not a saved Task, so parameters not sent tak
 defaults. Hence:
 - every parameter is sent explicitly on every call, including those equal to the default;
 - the actor build is pinned (apify_actor_build) and only changed on purpose;
-- the complete input of every call is stored in landing.gmaps_run.
+- the complete input of every call is stored in ops.search_query_log.
 
 Call contract (DT.3.2): area in structured fields (countryCode + state + county/city/postalCode), never
 free text; detail page always on; paid add-ons explicitly off; skipClosedPlaces=false (closed listings

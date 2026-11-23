@@ -111,16 +111,19 @@ def run_export(store, capture_batch_id: str, requested_by: str, out_dir: Path) -
         return ctx, {"exported": 0, "error": str(e)}
     path = X.write_xlsx(header, rows, out_dir, country)
     export_id = runs.new_id("exp")
-    store.insert("export_lead_out", [{"export_id": export_id, "business_id": l["business_id"], "country": country,
-                                      "profile": profile, "capture_batch_id": capture_batch_id,
-                                      "lead_code": l["lead_code"], "status": "GENERATED", "generated_by": requested_by}
-                                     for l in leads])
     # the score as it was when exported: the live one follows the configuration, this one does not move
     scores = store.lead_scores(country, profile, [l["business_id"] for l in leads])
-    store.insert("export_score_out", [{"export_id": export_id, "business_id": b, "country": country, "profile": profile,
-                                       "total": s["total"], "rating": s["rating"], "breakdown": s["breakdown"],
-                                       "buckets_json": json.dumps(s["buckets"], sort_keys=True)}
-                                      for b, s in scores.items()])
+
+    def frozen(b: int) -> dict:
+        s = scores.get(b)
+        return {"total": s["total"], "rating": s["rating"], "breakdown": s["breakdown"],
+                "buckets_json": json.dumps(s["buckets"], sort_keys=True)} if s else {}
+
+    store.insert("export_lead_out", [{"export_id": export_id, "business_id": l["business_id"], "country": country,
+                                      "profile": profile, "capture_batch_id": capture_batch_id,
+                                      "lead_code": l["lead_code"], "status": "GENERATED", "generated_by": requested_by,
+                                      **frozen(l["business_id"])}
+                                     for l in leads])
     store.insert("export_log", [{"export_id": export_id, "run_id": ctx.run_id, "country": country,
                                  "target": "SALESFORCE", "file_name": path.name, "n_leads": len(leads),
                                  "status": "GENERATED", "generated_by": requested_by}])

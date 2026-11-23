@@ -3,7 +3,7 @@
 -- with its points. The only implementation of the score (it replaced the engine's scoring.py, 2026-11-23;
 -- tests_db checks it against that engine's results, golden_scores.json, and against the definition's
 -- examples). It uses the CURRENT configuration and review reference: an exported lead keeps the score
--- frozen at its export (export_score_out, shown by lgn_f_score).
+-- frozen at its export (export_lead_out, shown by lgn_f_score).
 WITH leads AS (
     -- VALID and REVIEW leads (NOT_VALID is never scored) that are not customers (enrich and reprocess
     -- leave customers out before scoring), with their business's master listing

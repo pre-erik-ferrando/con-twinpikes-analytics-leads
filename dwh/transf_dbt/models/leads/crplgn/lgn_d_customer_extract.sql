@@ -2,7 +2,7 @@
 -- One customer extract: subsidiary, date, rows and the share of customers with each field (DT.5.1).
 -- Signals with no data in an extract are not applied: this view says which ones.
 SELECT
-    f.extract_id                                                  AS extract_id,
+    f.file_id                                                     AS extract_id,
     f.country                                                     AS country,
     f.subsidiary_code                                             AS subsidiary_code,
     f.source_system                                               AS source_system,
@@ -17,8 +17,9 @@ SELECT
     round(countIf(isNotNull(c.corporate_email_domain)) / nullIf(count(c.customer_code), 0), 3) AS share_domain,
     round(countIf(isNotNull(c.postal_code)) / nullIf(count(c.customer_code), 0), 3)            AS share_postal_code,
     round(countIf(c.coordinate_precision = 'ADDRESS') / nullIf(count(c.customer_code), 0), 3)  AS share_address_coordinates
-FROM {{ source('landing', 'customer_extract_file') }} AS f
-LEFT JOIN {{ source('engine', 'customer_norm_out') }} AS c ON c.extract_id = f.extract_id
-GROUP BY f.extract_id, f.country, f.subsidiary_code, f.source_system, f.extract_date, f.file_name, f.loaded_by,
+FROM {{ source('landing', 'upload_file') }} AS f
+LEFT JOIN {{ source('engine', 'customer_norm_out') }} AS c ON c.extract_id = f.file_id
+WHERE f.kind = 'CUSTOMER_EXTRACT'
+GROUP BY f.file_id, f.country, f.subsidiary_code, f.source_system, f.extract_date, f.file_name, f.loaded_by,
          f.loaded_at
 SETTINGS join_use_nulls = 1

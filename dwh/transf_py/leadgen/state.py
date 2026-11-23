@@ -90,7 +90,8 @@ def resume_context(store, run_id: str) -> RunContext:
 
 # --------------------------------------------------------------------------- businesses
 def aliases(store) -> dict[int, int]:
-    return {r["old_id"]: r["surviving_id"] for r in store.select("business_alias_out")}
+    """Absorbed business -> the surviving one (one level; resolve_alias follows chains)."""
+    return {r["business_id"]: r["other_business_id"] for r in store.select("business_identity_out", {"kind": "ALIAS"})}
 
 
 def links(store, country: str | None = None) -> dict[str, int]:
@@ -172,13 +173,44 @@ def current_validations(store, country: str, profile: str | None = None) -> dict
     return out
 
 
+def exclusions(store, country: str) -> list[dict]:
+    """Permanent exclusions (DT.8.1), read from their sources; the dbt view lgn_f_exclusion does the same
+    in SQL (keep them equal):
+    - HUMAN: the current Sales Ops decision of the business is EXCLUDED (its reason, else NOT_VALID);
+    - SALESFORCE: the lead was DISCARDED in Salesforce in some month (the latest import of the month), for
+      good (v3.3 DT.8.4), with the reason of its latest such month (else DISCARDED)."""
+    from .loaders import sf_status_rows
+
+    out = []
+    for bid, v in current_validations(store, country).items():
+        if v["decision"] == "EXCLUDED":
+            out.append({"business_id": bid, "country": country, "scope": "ALL", "profile": v.get("profile"),
+                        "origin": "HUMAN", "reason": v.get("exclusion_reason") or "NOT_VALID",
+                        "source_ref": f"validation:{v['inserted_at']}"})
+    month: dict[tuple, dict] = {}
+    for r in sf_status_rows(store)[0]:
+        if r["country"] == country:
+            k = (r["lead_code"], r["status_month"])
+            if k not in month or str(r["inserted_at"]) >= str(month[k]["inserted_at"]):
+                month[k] = r
+    discarded: dict[int, dict] = {}
+    for r in sorted(month.values(), key=lambda r: r["status_month"]):
+        if r["status"] == "DISCARDED":
+            discarded[r["business_id"]] = r
+    for bid, r in discarded.items():
+        out.append({"business_id": bid, "country": country, "scope": "ALL", "profile": None, "origin": "SALESFORCE",
+                    "reason": r.get("discard_reason") or "DISCARDED",
+                    "source_ref": f"sf:{r['status_file_id']}:{r['lead_code']}"})
+    return out
+
+
 def permanent_exclusions(store, country: str, profile: str | None) -> dict[int, str]:
-    al = aliases(store)
-    out = {}
-    for r in store.select("exclusion_out", {"country": country}):
+    """business_id -> 'ORIGIN:REASON' of its exclusion (Sales Ops first, then Salesforce)."""
+    out: dict[int, str] = {}
+    for r in exclusions(store, country):
         if r["scope"] == "PROFILE" and r.get("profile") != profile:
             continue
-        out[resolve_alias(r["business_id"], al)] = f"{r['origin']}:{r['reason']}"
+        out.setdefault(r["business_id"], f"{r['origin']}:{r['reason']}")
     return out
 
 
@@ -193,9 +225,10 @@ def published_ids(store, country: str) -> set[int]:
 
 
 def suppressed(store) -> dict[str, set]:
-    """Resolved suppression list: business ids, place ids, phones and domains."""
+    """The suppression list as Intelek wrote it (biz_suppression_request): business ids, place ids, phones
+    and domains."""
     out = {"business_id": set(), "place_id": set(), "phone": set(), "domain": set()}
-    for r in store.select("suppression_list"):
+    for r in store.select("biz_suppression_request"):
         for k in out:
             if r.get(k):
                 out[k].add(r[k])
@@ -208,53 +241,37 @@ def is_suppressed(view: BusinessView, sup: dict[str, set]) -> bool:
 
 
 def sync_human_decisions(ctx: RunContext) -> int:
-    """Turns what Intelek wrote into engine facts, once (idempotent):
-    - biz_suppression_request -> ops.suppression_list;
-    - EXCLUDED validations -> exclusion_out (HUMAN); ALREADY_CUSTOMER -> customer_match_out (HUMAN);
-      DUPLICATE -> business_alias_out towards the surviving business (DT.8.1)."""
-    store, n = ctx.store, 0
-    have = {(r.get("business_id"), r.get("place_id"), r.get("phone"), r.get("domain"))
-            for r in store.select("suppression_list")}
-    new = []
-    for r in store.select("biz_suppression_request"):
-        k = (r.get("business_id"), r.get("place_id"), r.get("phone"), r.get("domain"))
-        if k not in have:
-            have.add(k)
-            new.append({"business_id": r.get("business_id"), "place_id": r.get("place_id"), "phone": r.get("phone"),
-                        "domain": r.get("domain"), "reason": r.get("reason")})
-    store.insert("suppression_list", new)
-    n += len(new)
-
-    done = {(r["business_id"], r.get("source_ref")) for r in store.select("exclusion_out", {"country": ctx.country})}
-    al_done = {r["old_id"] for r in store.select("business_alias_out")}
-    excl, matches, alias_rows = [], [], []
+    """Turns what Intelek wrote into engine facts, once (idempotent). The exclusion itself is read from
+    the validation (exclusions); what is stored:
+    - ALREADY_CUSTOMER -> customer_match_out (HUMAN);
+      DUPLICATE -> an ALIAS in business_identity_out towards the surviving business (DT.8.1)."""
+    store = ctx.store
+    have = {(r["business_id"], r.get("customer_code")) for r in store.select("customer_match_out", {"country": ctx.country})
+            if r.get("origin") == "HUMAN"}
+    al_done = set(aliases(store))
+    matches, alias_rows = [], []
     for bid, v in current_validations(store, ctx.country).items():
         if v["decision"] != "EXCLUDED":
             continue
-        ref = f"validation:{v['inserted_at']}"
-        if (bid, ref) in done:
-            continue
         reason = v.get("exclusion_reason") or "NOT_VALID"
         if reason == "DUPLICATE" and v.get("duplicate_of") and bid not in al_done:
-            alias_rows.append({"old_id": bid, "surviving_id": v["duplicate_of"], "reason": "HUMAN_DUPLICATE",
-                               "run_id": ctx.run_id})
-        excl.append({"business_id": bid, "country": ctx.country, "scope": "ALL", "profile": v.get("profile"),
-                     "origin": "HUMAN", "reason": reason, "source_ref": ref})
-        if reason == "ALREADY_CUSTOMER":
+            al_done.add(bid)
+            alias_rows.append({"kind": "ALIAS", "business_id": bid, "other_business_id": v["duplicate_of"],
+                               "reason": "HUMAN_DUPLICATE", "run_id": ctx.run_id})
+        if reason == "ALREADY_CUSTOMER" and (bid, v.get("customer_code")) not in have:
+            have.add((bid, v.get("customer_code")))
             matches.append({"run_id": ctx.run_id, "business_id": bid, "country": ctx.country, "profile": v.get("profile"),
                             "match_pass": "MANUAL", "origin": "HUMAN", "outcome": "CUSTOMER", "signal": "HUMAN",
                             "subsidiary_code": v.get("subsidiary_code"), "customer_code": v.get("customer_code"),
                             "reason_text": f"Sales Ops validation: customer {v.get('customer_code')}"})
-    store.insert("exclusion_out", excl)
     store.insert("customer_match_out", matches)
-    store.insert("business_alias_out", alias_rows)
-    return n + len(excl)
-
+    store.insert("business_identity_out", alias_rows)
+    return len(matches) + len(alias_rows)
 
 # --------------------------------------------------------------------------- customers
 def latest_extracts(store, country: str) -> dict[str, dict]:
     """The latest extract of each subsidiary that ships customers with an address in `country`."""
-    files = store.select("customer_extract_file")
+    files = [{**f, "extract_id": f["file_id"]} for f in store.select("upload_file", {"kind": "CUSTOMER_EXTRACT"})]
     out: dict[str, dict] = {}
     for f in files:
         sub = f.get("subsidiary_code") or f.get("country")

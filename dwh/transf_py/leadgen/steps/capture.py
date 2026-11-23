@@ -212,11 +212,11 @@ def link_identities(ctx: RunContext, cfg, places: list[dict]) -> set[int]:
     store.insert("business_link_out", [{"place_id": l["place_id"], "business_id": l["business_id"],
                                         "link_reason": l["link_reason"], "country": ctx.country, "run_id": ctx.run_id}
                                        for l in res.links])
-    store.insert("business_alias_out", [{"old_id": a["old_id"], "surviving_id": a["surviving_id"],
-                                         "reason": a["reason"], "run_id": ctx.run_id} for a in res.aliases])
-    store.insert("merge_suspect_out", [{"business_id": s["business_id"], "other_business_id": None,
-                                        "place_id": s["place_id"], "reason": s["reason"], "run_id": ctx.run_id}
-                                       for s in res.merge_suspects])
+    store.insert("business_identity_out",
+                 [{"kind": "ALIAS", "business_id": a["old_id"], "other_business_id": a["surviving_id"],
+                   "reason": a["reason"], "run_id": ctx.run_id} for a in res.aliases]
+                 + [{"kind": "MERGE_SUSPECT", "business_id": s["business_id"], "other_business_id": None,
+                     "place_id": s["place_id"], "reason": s["reason"], "run_id": ctx.run_id} for s in res.merge_suspects])
     known.update({l["place_id"]: l["business_id"] for l in res.links})
     al.update({a["old_id"]: a["surviving_id"] for a in res.aliases})
     return {resolve_alias(known[p["place_id"]], al) for p in places}
@@ -308,11 +308,6 @@ def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[R
             per_query_cap = max(0.5, (cap_usd - spent) / max(1, len(queue) + 1))
             result = capturer.run(actor_in, per_query_cap)
             spent += result.cost_usd or 0.0
-            store.insert("gmaps_run", [{"apify_run_id": result.apify_run_id, "run_id": ctx.run_id, "query_id": qid,
-                                        "actor_build": capturer.build, "input_json": apify.dumps(actor_in),
-                                        "status": result.status, "cost_usd": result.cost_usd,
-                                        "n_items": len(result.items), "started_at": result.started_at,
-                                        "finished_at": result.finished_at}])
             store.insert("gmaps_place", [{"run_id": ctx.run_id, "apify_run_id": result.apify_run_id, "query_id": qid,
                                           "place_id": it.get("placeId"), "item_json": apify.dumps(it)}
                                          for it in result.items])
@@ -336,10 +331,9 @@ def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[R
                 "profile": ctx.profile, "term": term, "area_id": area["area_id"], "language": lang,
                 "max_places": max_places, "pass_no": pass_no, "n_results": len(result.items), "n_new": n_new,
                 "is_saturated": int(saturated), "is_saturated_at_leaf": int(at_leaf),
-                "apify_run_id": result.apify_run_id}])
+                **actor_call(result, capturer, actor_in)}])
         store.insert("cost_ledger", [{"run_id": ctx.run_id, "provider": "APIFY", "kind": "ACTUAL", "amount_usd": spent,
                                       "detail": f"{len(items)} items"}])
-        store.insert("landing_meta", [{"run_id": ctx.run_id, "entity": "gmaps_place", "n_rows": len(items)}])
         places = normalize_items(ctx, cfg, items)
         bids = link_identities(ctx, cfg, places)
         summary = evaluate_capture(ctx, cfg, bids, "SEARCH", req.area_ids, req.terms)
@@ -350,6 +344,13 @@ def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[R
         raise
     ctx.set_state("CLOSED", json.dumps(summary))
     return ctx, summary
+
+
+def actor_call(result, capturer, actor_in: dict) -> dict:
+    """The actor call's columns of search_query_log: the complete input sent, its cost and status."""
+    return {"apify_run_id": result.apify_run_id, "actor_build": capturer.build, "input_json": apify.dumps(actor_in),
+            "status": result.status, "cost_usd": result.cost_usd, "started_at": result.started_at,
+            "finished_at": result.finished_at}
 
 
 # --------------------------------------------------------------------------- IMPORT_LIST
@@ -389,9 +390,11 @@ def run_import_list(store, capturer: apify.Capturer, req: CaptureRequest) -> tup
             actor_in = apify.actor_input(row["name"], fields, cfg.param("apify_language", "de") or "de", 3)
             res = capturer.run(actor_in, float(cfg.param("apify_max_total_charge_usd", 25)) / max(1, len(req.import_rows)))
             qid = runs.new_id("q")
-            store.insert("gmaps_run", [{"apify_run_id": res.apify_run_id, "run_id": ctx.run_id, "query_id": qid,
-                                        "actor_build": capturer.build, "input_json": apify.dumps(actor_in),
-                                        "status": res.status, "cost_usd": res.cost_usd, "n_items": len(res.items)}])
+            store.insert("search_query_log", [{
+                "run_id": ctx.run_id, "query_id": qid, "capture_batch_id": ctx.capture_batch_id, "country": ctx.country,
+                "profile": ctx.profile, "term": row["name"], "area_id": "", "language": actor_in.get("language") or "",
+                "max_places": 3, "pass_no": 1, "n_results": len(res.items), "n_new": 0, "is_saturated": 0,
+                "is_saturated_at_leaf": 0, **actor_call(res, capturer, actor_in)}])
             store.insert("gmaps_place", [{"run_id": ctx.run_id, "apify_run_id": res.apify_run_id, "query_id": qid,
                                           "place_id": it.get("placeId"), "item_json": apify.dumps(it)} for it in res.items])
             status, item = pick_import_match(row, res.items, min_sim, req.country, legal)
