@@ -62,7 +62,8 @@ def load_dotenv(path: Path) -> None:
         if value and value[0] in "\"'" and value.find(value[0], 1) > 0:
             value = value[1:value.find(value[0], 1)]       # quoted: up to the closing quote
         else:
-            value = value.split(" #", 1)[0].split("\t#", 1)[0].strip()   # unquoted: drop an inline comment
+            # unquoted: drop an inline comment, also when the value is empty ("KEY=   # comment")
+            value = "" if value.startswith("#") else value.split(" #", 1)[0].split("\t#", 1)[0].strip()
         if key and not os.environ.get(key):
             os.environ[key] = value
 
