@@ -31,6 +31,56 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
 - It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
 
+## 2026-11-23 · First real run (Carinthia): the filter loses pool businesses with unlisted categories
+
+**Search unit.** Villach Land (207) and Villach Stadt (202) returned 1 business each. Apify's logs: Google
+shows the same 30-60 "Poolbau" businesses of the whole region from every point of the grid, and Apify keeps
+only those inside the outline (Villach Stadt: 33-37 distinct per term, all but one "out of location"; free
+text "Villach" the same). A control in Graz returned 5 inside Graz, so Apify works: the district is too small
+for a sparse market. Search by state there.
+
+**Carinthia (AT-S-KARNTEN, first whole-state search): 40 places, 38 businesses.**
+
+| Step | Result |
+|---|---|
+| Not pool businesses (filter) | 13 |
+| Customers, from Google's data | 17 |
+| Customers, from the website (3 VAT, 1 phone, 1 model) | 5 |
+| New leads | 3 (2 WARM, 1 COLD) |
+
+Cost about $1.40 Apify + $0.50 OpenAI. 22 of the ~25 pool businesses are already Fluidra customers (88%).
+
+**The filter's 13 exclusions** (`run_trace.py cb_66cb495f9b90`): 9 right (5 OBI stores, a holiday flat, 3
+construction or paving firms with no pool sign). The other 4 all have "pool" in the name (names left out: they are leads or customers):
+- A (pool technology firm): a duplicate listing with no category; its main listing (Schwimmbeckenbauer)
+  passed and is a customer. Not lost.
+- B: no category, website or phone. Cannot be checked.
+- C (Google category Metallbauunternehmen) and D (Hersteller): enriched outside the pipeline
+  (`enrich_probe.py`, $0.11): both VALID. C designs, builds and installs stainless steel pools
+  (BUILDER_INSTALLER_SHOP): a real lead lost. D makes walk-on pool covers (WEAK_UNVERIFIED, a
+  manufacturer): arguable.
+
+Why (definition DT.4.4.1, values from v4's "Google categories" tab): a pool word in the name counts only with
+a CONDITIONAL category (rule 5). Their categories are on no list, so no rule fires and rule 8
+(DEFAULT_EXCLUDE) drops them before the website is read.
+
+| Rule | C (stainless steel pool builder) | D (pool cover maker) |
+|---|---|---|
+| 1-3 closed, excluded before, hard name | no | no |
+| 4 INCLUDE category | Metallbauunternehmen: not listed | Hersteller: not listed |
+| 5 CONDITIONAL category + pool word | pool word yes, category not CONDITIONAL | same |
+| 6-7 soft name, EXCLUDE category | no | no |
+| 8 nothing fired | **excluded** | **excluded** |
+
+To propose to TWP: classify Metallbauunternehmen and Hersteller as CONDITIONAL (both would then pass rule 5),
+and send a business with no category but a pool word in its name to review rather than excluding it (a
+change of the definition's rules).
+
+**Cost note.** The probe's two calls cost $0.03 and $0.07 for about 1,800 uncached input tokens each: OpenAI
+billed about 10,000 tokens more as cache writes (1.25x input). If every request pays a cache write on its
+whole prompt, including the part unique to each lead, a run costs about 25% more than estimated. To check
+before larger runs.
+
 ## 2026-11-23 · OpenAI: first real call (gpt-6.2-sol)
 
 `exploration/openai_smoke.py --run`: one invented lead (a pool builder in Villach) with the exact request
