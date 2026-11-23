@@ -20,6 +20,14 @@ Pool specialist en Alemania, Austria y Suiza.
    - EXCLUDE (fuera siempre): `Baumarkt`, `Bed and Breakfast`, `Gartencenter`, `Glaser`.
 2. **Empresas sin categoría.** Una ficha de Google sin categoría queda fuera aunque se llame «…pool…». ¿Os
    parece que pase a revisión en lugar de excluirse? Cambia la regla 8 de la definición (DT.4.4.1).
+3. **«Therme» en el nombre.** En Estiria (23-11) quedó fuera «… Gesellschaft für Wassertechnik Schwimmbad und
+   Therme GmbH», categoría `Schwimmbeckenbauer`: la regla de nombre «Therme» (PUBLIC_POOL) es HARD y, según la
+   definición, una regla HARD gana a una categoría INCLUDE. ¿La pasamos a SOFT? Entonces los constructores de
+   piscinas con «Therme» en el nombre pasarían, y una terma pública sin categoría de piscina seguiría fuera.
+4. **Tiendas de whirlpools y spas.** `Whirlpool-Fachhandel` es CONDITIONAL y pide una palabra de piscina, que
+   cuenta solo al principio de una palabra: «Whirl & Spa(ss)» (Estiria) quedó fuera, y un nombre como
+   «… Whirlpools» tampoco pasaría. ¿La pasamos a INCLUDE, o añadimos «whirlpool» y «spa» a las palabras de
+   piscina (pestaña Pool words)?
 
 ## Enviadas el 19-11-2026
 

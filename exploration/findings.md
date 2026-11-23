@@ -31,6 +31,29 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
 - It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
 
+## 2026-11-23 · Second real run (Styria): the SQL filter and score on new data
+
+First run with the filter and the score computed only in SQL (`cb_a16b28159957`, AT-S-STEIERMARK, terms
+Poolbau, Poolbauer, Poolshop, Poolservice). Before it, on the shared database, the SQL filter matched the
+old Python filter on every Carinthia business (same decision, stage and rule).
+
+| Step | Result |
+|---|---|
+| Businesses | 69 (71 listings) |
+| Not pool businesses (filter) | 17 |
+| Customers, from Google's data | 35 |
+| Sent to the website and the model | 17 |
+| New leads | 12 (2 HOT, 4 WARM, 6 COLD); 5 of them REVIEW, 1 NOT_VALID |
+
+Cost about $0.51 OpenAI (Apify in cost_ledger). Again most pool businesses are customers (35 of 69 before
+the website).
+
+**The 17 exclusions:** OBI stores (3, KA_CHAIN), construction firms with no pool word (4), and one each of
+unrelated categories (bar, bus stop, surveyor…). Two are doubtful, both TWP's call (preguntas_twp.md 3-4):
+a pool builder (category Schwimmbeckenbauer) whose name has «Therme», a HARD name rule that beats INCLUDE;
+and a whirlpool dealer (Whirlpool-Fachhandel, CONDITIONAL) whose name has no pool word: «whirl» does not
+start with a pool stem.
+
 ## 2026-11-23 · First real run (Carinthia): the filter loses pool businesses with unlisted categories
 
 **Search unit.** Villach Land (207) and Villach Stadt (202) returned 1 business each. Apify's logs: Google
