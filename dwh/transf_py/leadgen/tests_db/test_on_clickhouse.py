@@ -334,7 +334,7 @@ def test_sql_filter_decides_as_the_reference(ch):
     titles = [r for r in ch.select("biz_cfg_title_rule") if r.get("active", 1)]
     hard = next(r["pattern"] for r in titles if r["rule_class"] == "HARD")
     soft = next(r["pattern"] for r in titles if r["rule_class"] == "SOFT")
-    stem = sorted(r["stem"] for r in ch.select("biz_cfg_pool_signal"))[0]
+    stem = sorted(r["value"] for r in ch.select("biz_cfg_word_list", {"list_name": "POOL_SIGNAL"}))[0]
     cases = [  # name, categories, owner description, closed permanently, closed temporarily
         ("Geschlossen Pool", [cat["INCLUDE"]], None, 1, 0),
         ("Unterdrückt GmbH", [cat["INCLUDE"]], None, 0, 0),

@@ -203,7 +203,7 @@ def _store(inputs: Path | None, customers: Path | None = None, customers_date: s
 
 def _crawler(store) -> Crawler:
     cfg = RunContext(store, "demo", "LOAD", "AT", "POOL_SPECIALIST", BY).config()
-    pats = [r["pattern"] for r in sorted(cfg.rows("biz_cfg_page_priority"), key=lambda r: r.get("priority") or 0)]
+    pats = cfg.page_patterns()
     return Crawler(CrawlLimits.from_config(cfg), pats, cfg.shared_domains("SITE_BUILDER"))
 
 

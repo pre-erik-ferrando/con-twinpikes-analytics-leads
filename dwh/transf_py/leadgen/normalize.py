@@ -72,7 +72,7 @@ def url_host(url) -> str | None:
 
 def registrable_domain(url, site_builders: set[str] | frozenset = frozenset()) -> str | None:
     """Registrable domain, lower case, without protocol, www, parameters or fragment. On a site builder
-    (biz_cfg_shared_domain kind SITE_BUILDER) the whole subdomain counts: foo.wixsite.com stays."""
+    (biz_cfg_word_list SHARED_DOMAIN, kind SITE_BUILDER) the whole subdomain counts: foo.wixsite.com stays."""
     host = url_host(url)
     if host is None:
         return None
@@ -149,7 +149,7 @@ def normalize_text(text) -> str:
 
 def name_keys(name, legal_forms=()) -> tuple[str, str]:
     """Both name keys (DT.4.1): umlauts to ae/oe/ue in the first, to a/o/u in the second; ß -> ss in
-    both. Legal forms (biz_cfg_legal_form, already normalized) are removed in any position. Two names
+    both. Legal forms (biz_cfg_word_list LEGAL_FORM, already normalized) are removed in any position. Two names
     match if either key matches."""
     name = none_if_sentinel(name)
     if not name:

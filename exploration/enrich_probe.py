@@ -57,7 +57,7 @@ def main() -> int:
     country = next((r["country"] for r in runs), "AT")
     cfg = Config.from_rows({name: st.select(name) for name in ddl.CONFIG_TABLES}, country, "POOL_SPECIALIST")
     p = cfg.param
-    pats = [r["pattern"] for r in sorted(cfg.rows("biz_cfg_page_priority"), key=lambda r: r.get("priority") or 0)]
+    pats = cfg.page_patterns()
     crawler = Crawler(CrawlLimits.from_config(cfg), pats, cfg.shared_domains("SITE_BUILDER"),
                       renderer=playwright_renderer)
     competitor, fluidra = cfg.brands("COMPETITOR"), cfg.brands("FLUIDRA")

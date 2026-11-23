@@ -227,8 +227,7 @@ def _process(ctx, cfg, provider, crawler, req, to_process, reused, approved_usd)
                 # REVIEW without the model (DT.6.6)
                 direct_reviews.append((bid, crawl, NO_CONTENT.get(crawl.status, "INSUFFICIENT_EVIDENCE")))
                 continue
-            content = prepare(list(crawl.pages), [r["pattern"] for r in sorted(
-                cfg.rows("biz_cfg_page_priority"), key=lambda r: r.get("priority") or 0)], competitor + fluidra,
+            content = prepare(list(crawl.pages), cfg.page_patterns(), competitor + fluidra,
                 p("token_budget_per_page", 4000), p("token_budget_per_domain", 30000), p("char_cap_per_domain", 100000),
                 p("brand_snippet_reserve_ratio", 0.10), p("brand_snippets_per_brand", 3), p("brand_snippet_chars", 200)
             ) if has_content else None

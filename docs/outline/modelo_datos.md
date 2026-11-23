@@ -24,7 +24,7 @@ incluidos, con el descuento de lote y los precios de lectura y escritura de cach
 
 | Grupo | Tablas |
 |---|---|
-| Configuración (Intelek) | 23 `biz_cfg_*` y sus vistas `biz_cfg_*_current` ([Configuración](configuracion.md)) |
+| Configuración (Intelek) | 19 `biz_cfg_*` y sus vistas `biz_cfg_*_current` ([Configuración](configuracion.md)) |
 | Escritas por Intelek | `biz_lead_validation`, `biz_run_approval`, `biz_suppression_request`, `biz_run_request` |
 | Resultados del motor | `place_norm_out`, `business_link_out`, `business_identity_out` (empresas absorbidas y posibles duplicados), `customer_norm_out`, `customer_match_out`, `web_validation_out`, `export_lead_out` (con la puntuación congelada al exportar). Lo que es una regla sobre otras tablas no se guarda: las exclusiones (`lgn_f_exclusion`), los estados de Salesforce (`lgn_d_sf_status`) y las categorías sin clasificar (`lgn_v_category_pending`) son vistas, y el motor calcula lo mismo en Python (`state.exclusions`, `loaders.sf_status_rows`) |
 | Hechos vigentes (dbt) | `lgn_f_rule_evaluation` (el filtro de relevancia: la única implementación, en SQL, con la configuración vigente, sobre los textos que el motor normaliza en `place_norm_out`), `lgn_f_customer_match`, `lgn_f_score` (la congelada al exportar, si no la viva), `lgn_f_exclusion`, `lgn_f_export_lead`, `lgn_f_validation` |

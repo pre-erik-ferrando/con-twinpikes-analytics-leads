@@ -107,7 +107,7 @@ zone_pick AS (
     GROUP BY l.business_id, l.profile
 ),
 shared_pick AS (
-    -- a domain in biz_cfg_shared_domain (site builders, social networks…) is not an own website
+    -- a domain in biz_cfg_word_list SHARED_DOMAIN (site builders, social networks…) is not an own website
     SELECT l.business_id AS business_id, l.profile AS profile, toUInt8(count() > 0) AS is_shared
     FROM leads AS l
     INNER JOIN {{ ref('lgn_a_shared_domain') }} AS s ON s.domain = l.domain

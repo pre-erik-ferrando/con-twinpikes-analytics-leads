@@ -88,7 +88,7 @@ def _cfg(st, country, profile="POOL_SPECIALIST"):
 
 def _crawler(cfg):
     from leadgen.crawl import Crawler, CrawlLimits, playwright_renderer
-    pats = [r["pattern"] for r in sorted(cfg.rows("biz_cfg_page_priority"), key=lambda r: r.get("priority") or 0)]
+    pats = cfg.page_patterns()
     return Crawler(CrawlLimits.from_config(cfg), pats, cfg.shared_domains("SITE_BUILDER"), renderer=playwright_renderer)
 
 

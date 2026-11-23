@@ -109,16 +109,27 @@ class Config:
         return self.rows("biz_cfg_title_rule")
 
     def pool_stems(self) -> list[str]:
-        return sorted({r["stem"] for r in self.rows("biz_cfg_pool_signal")})
+        return sorted(set(self.words("POOL_SIGNAL")))
 
     def legal_forms(self) -> list[str]:
-        return [r["form_normalized"] for r in self.rows("biz_cfg_legal_form")]
+        return self.words("LEGAL_FORM")
 
     def stopwords(self) -> set[str]:
-        return {r["word"] for r in self.rows("biz_cfg_name_stopword")}
+        return set(self.words("NAME_STOPWORD"))
 
     def shared_domains(self, kind: str | None = None) -> set[str]:
-        return {r["domain"] for r in self.rows("biz_cfg_shared_domain") if kind is None or r["kind"] == kind}
+        return {r["value"] for r in self.rows("biz_cfg_word_list")
+                if r["list_name"] == "SHARED_DOMAIN" and (kind is None or r.get("kind") == kind)}
+
+    def words(self, list_name: str) -> list[str]:
+        """The values of one list of biz_cfg_word_list (NAME_STOPWORD, LEGAL_FORM, POOL_SIGNAL…)."""
+        return [r["value"] for r in self.rows("biz_cfg_word_list") if r["list_name"] == list_name]
+
+    def page_patterns(self) -> list[str]:
+        """URL path fragments crawled first (PAGE_PRIORITY), by priority (100 when it has none)."""
+        rows = [r for r in self.rows("biz_cfg_word_list") if r["list_name"] == "PAGE_PRIORITY"]
+        return [r["value"] for r in sorted(rows, key=lambda r: (r.get("priority") if r.get("priority") is not None
+                                                                 else 100, r["value"]))]
 
     def brands(self, owner: str) -> list[dict]:
         """Brands of the run's country if it has its own list, else the common list (country NULL)."""

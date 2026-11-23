@@ -49,10 +49,8 @@ def derive(table: str, row: dict) -> dict:
         row["category_normalized"] = normalize_category(row.get("category"))
     if table == "biz_cfg_title_rule" and not row.get("pattern_normalized"):
         row["pattern_normalized"] = normalize_text(row.get("pattern"))
-    if table == "biz_cfg_pool_signal":
-        row["stem"] = normalize_text(row.get("stem"))
-    if table == "biz_cfg_legal_form":
-        row["form_normalized"] = normalize_text(row.get("form_normalized"))
+    if table == "biz_cfg_word_list" and row.get("list_name") in ("POOL_SIGNAL", "LEGAL_FORM"):
+        row["value"] = normalize_text(row.get("value"))          # compared with normalized texts
     if table == "biz_cfg_brand" and row.get("brand"):
         row["brand"] = row["brand"].strip().upper()
     return row
@@ -313,9 +311,10 @@ def excel_to_rows(path: Path) -> dict[str, list[dict]]:
 
     tab, header, rows = sheet("Pool words")
     c = _cols(header, ["language", "stem"], ["language", "stem"], tab)
-    out["biz_cfg_pool_signal"] = [{"country": None, "language": str(r[c["language"]]).strip().lower(),
-                                   "profile": "POOL_SPECIALIST", "stem": str(r[c["stem"]]).strip()}
-                                  for r in rows if r.get(c["stem"]) and "to define" not in str(r[c["stem"]]).lower()]
+    out["biz_cfg_word_list"] = [{"country": None, "language": str(r[c["language"]]).strip().lower(),
+                                 "profile": "POOL_SPECIALIST", "list_name": "POOL_SIGNAL",
+                                 "value": str(r[c["stem"]]).strip()}
+                                for r in rows if r.get(c["stem"]) and "to define" not in str(r[c["stem"]]).lower()]
 
     tab, header, rows = sheet("Brands")
     c = _cols(header, ["country", "brand", "owner", "group", "aliases", "note"], ["brand"], tab)

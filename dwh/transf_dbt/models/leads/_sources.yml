@@ -456,13 +456,16 @@ sources:
           - name: val_active
           - name: updated_by
           - name: inserted_at
-      - name: biz_cfg_pool_signal
-        description: "Stems that signal a pool business (tab Pool words)"
+      - name: biz_cfg_word_list
+        description: "Plain lists of words: NAME_STOPWORD (generic words of names, B.12), LEGAL_FORM (normalized, removed from names), POOL_SIGNAL (pool words of the filter, normalized), SHARED_DOMAIN (not an own website: kind SOCIAL, SITE_BUILDER…) and PAGE_PRIORITY (pages crawled first, by priority)"
         columns:
           - name: pk_country
-          - name: pk_language
           - name: pk_profile
-          - name: pk_stem
+          - name: pk_language
+          - name: pk_list_name
+          - name: pk_value
+          - name: des_kind
+          - name: val_priority
           - name: val_active
           - name: updated_by
           - name: inserted_at
@@ -476,34 +479,6 @@ sources:
           - name: des_aliases
           - name: des_disambiguation_note
           - name: des_notes
-          - name: val_active
-          - name: updated_by
-          - name: inserted_at
-      - name: biz_cfg_shared_domain
-        description: "Social networks, site builders, directories, marketplaces, email providers"
-        columns:
-          - name: pk_country
-          - name: pk_domain
-          - name: des_kind
-          - name: val_active
-          - name: updated_by
-          - name: inserted_at
-      - name: biz_cfg_name_stopword
-        description: "Generic sector words that do not make a name distinctive"
-        columns:
-          - name: pk_country
-          - name: pk_language
-          - name: pk_word
-          - name: val_active
-          - name: updated_by
-          - name: inserted_at
-      - name: biz_cfg_page_priority
-        description: "URL path fragments crawled first"
-        columns:
-          - name: pk_country
-          - name: pk_language
-          - name: pk_pattern
-          - name: val_priority
           - name: val_active
           - name: updated_by
           - name: inserted_at
@@ -625,14 +600,6 @@ sources:
           - name: pk_map_name
           - name: pk_source_value
           - name: des_target_value
-          - name: val_active
-          - name: updated_by
-          - name: inserted_at
-      - name: biz_cfg_legal_form
-        description: "Legal forms removed from names, longest first"
-        columns:
-          - name: pk_country
-          - name: pk_form_normalized
           - name: val_active
           - name: updated_by
           - name: inserted_at

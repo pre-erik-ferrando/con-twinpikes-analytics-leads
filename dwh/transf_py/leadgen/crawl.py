@@ -3,7 +3,7 @@
 - Starts at the normalized homepage; follows links only inside the same registrable domain (on site
   builders, the same subdomain).
 - Download order: sitemap.xml (and the one robots.txt declares), then URLs matching
-  biz_cfg_page_priority, then breadth-first from the homepage, up to the limits.
+  biz_cfg_word_list PAGE_PRIORITY, then breadth-first from the homepage, up to the limits.
 - HTML only; robots.txt respected; one request per second per domain; per-page timeout, retries with
   growing waits, a time cap per domain, abandon after N consecutive failures; up to 3 redirects (the
   final domain becomes the website's, the original is kept).
