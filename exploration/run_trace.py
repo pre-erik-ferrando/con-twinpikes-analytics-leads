@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "dwh" / "transf_py"))
 
+from leadgen.state import business_views  # noqa: E402
 from leadgen.store import ClickHouseStore  # noqa: E402
 
 MAX_CELL = 20000
@@ -148,15 +149,22 @@ def main() -> int:
             return f"LEAD {score[bid]['rating']} ({score[bid]['total']})"
         return "not scored"
 
+    # the business as the filter and the score see it: master listing, every listing's categories, most reviews
+    views = business_views(st, batch["country"], set(bid_places))
     order = sorted(bid_places, key=lambda b: (not outcome(b).startswith("LEAD"), outcome(b)))
     for bid in order:
-        p = place_of.get(bid_places[bid][0], {})
+        v = views.get(bid)
+        p = v.master if v else place_of.get(bid_places[bid][0], {})
+        n = len(v.place_ids) if v else 1
+        cats = ", ".join(v.categories) if v else p.get("main_category")
+        reviews = (v.reviews_count if v else p.get("reviews_count")) or 0
         lines += [f"## {p.get('name')} — {outcome(bid)}", "",
-                  f"1. **Google**: {p.get('address')} | {p.get('main_category')} | web {p.get('website') or '-'} | "
-                  f"tel {p.get('phone_e164') or '-'} | district {p.get('subregion_code') or '-'} | "
-                  f"{p.get('reviews_count') or 0} reviews"]
+                  f"1. **Google**{f' ({n} listings, master shown)' if n > 1 else ''}: {p.get('address')} | {cats} | "
+                  f"web {p.get('website') or '-'} | tel {p.get('phone_e164') or '-'} | "
+                  f"district {p.get('subregion_code') or '-'} | {reviews} reviews"]
         r = rule.get(bid, {})
-        lines.append(f"2. **Filter**: {r.get('decision')} ({r.get('stage') or '-'}, {r.get('rule')}, `{r.get('trigger_value') or ''}`)")
+        lines.append(f"2. **Filter** (current configuration): {r.get('decision')} ({r.get('stage') or '-'}, "
+                     f"{r.get('rule')}, `{r.get('trigger_value') or ''}`)")
         for label, m in (("3. **Match, capture**", match1.get(bid)), ("4. **Match, website**", match2.get(bid))):
             if m:
                 lines.append(f"{label}: {m.get('outcome')} {m.get('signal') or ''} {m.get('customer_code') or ''} "
