@@ -31,6 +31,14 @@ VvIgdWt0Ing7M9ehW, $0.025).
 - A state sent as many touching districts (Styria: 13) is untested against Apify.
 - It changes how spec DT.3.2 sends the area: TWP told with the questions (19 Nov).
 
+## 2026-11-23 · OpenAI: first real call (gpt-6.2-sol)
+
+`exploration/openai_smoke.py --run`: one invented lead (a pool builder in Villach) with the exact request
+`enrich` builds. Status SUCCEEDED, schema OK, 0 claims dropped by the page check. 2,378 input and 367 output
+tokens, $0.0084 (estimate $0.024 at most). The answer was right: builder and shop, VAT, contact, email and
+phone from the Impressum, Speck and Bayrol as competitor brands and Zodiac as a Fluidra brand; e-commerce
+UNKNOWN (a shop is mentioned, no cart). No cache on a first call, as expected.
+
 ## 2026-11-20 · Control set for Austria: the ÖVS members
 
 DF.12 measures coverage against known pool businesses (v3.3: associations in DE and AT, builders in CH).
