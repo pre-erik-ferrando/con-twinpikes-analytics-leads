@@ -192,24 +192,15 @@ def reopen(store, capture_batch_id: str, business_id: int, by: str) -> None:
 
 # --------------------------------------------------------------------------- Salesforce status (DT.8.4)
 def current_sf_status(store, country: str) -> dict[str, dict]:
-    """lead_code -> its current state in Salesforce: the row of the latest month (the latest import wins
-    within a month)."""
-    from ..loaders import sf_status_rows
-
-    out: dict[str, dict] = {}
-    for r in sf_status_rows(store)[0]:
-        if r["country"] != country:
-            continue
-        cur = out.get(r["lead_code"])
-        if cur is None or (r["status_month"], str(r["inserted_at"])) >= (cur["status_month"], str(cur["inserted_at"])):
-            out[r["lead_code"]] = r
-    return out
+    """lead_code -> its current state in Salesforce (lgn_d_sf_status, is_current: the latest month, the
+    latest import within it)."""
+    return {r["lead_code"]: r for r in store.read_view("lgn_d_sf_status", {"country": country, "is_current": 1})}
 
 
 def apply_sf_status(store, country: str) -> int:
     """v3.3 DT.8.4: a lead currently DISCARDED with ALREADY_CUSTOMER counts as a failure of the automatic
     match: a SALESFORCE match without customer code (the file does not bring it). The exclusion itself
-    needs no step: state.exclusions reads it from the file. CONVERTED, WORKING and NURTURING change
+    needs no step: lgn_f_exclusion reads it from the file. CONVERTED, WORKING and NURTURING change
     nothing: the lead stays Published. Idempotent per lead; returns the new matches."""
     done = {r["business_id"] for r in store.select("customer_match_out", {"country": country})
             if r.get("origin") == "SALESFORCE"}

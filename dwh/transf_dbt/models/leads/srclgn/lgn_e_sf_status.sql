@@ -11,3 +11,4 @@ SELECT
 FROM {{ source('landing', 'upload_row') }} AS r
 INNER JOIN {{ source('landing', 'upload_file') }} AS f ON f.file_id = r.file_id
 WHERE f.kind = 'SF_STATUS'
+SETTINGS join_algorithm = 'hash'

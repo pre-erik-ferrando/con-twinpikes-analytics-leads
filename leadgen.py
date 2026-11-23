@@ -138,8 +138,7 @@ def cmd(ns) -> int:
         from leadgen.steps.maintenance import apply_sf_status
         cfg = _cfg(st, None)
         res = loaders.load_sf_status(st, cfg, Path(ns.file), user(ns))
-        rows = loaders.sf_status_rows(st, cfg, [res["status_file_id"]])[0]
-        res["new_customer_matches"] = {cc: apply_sf_status(st, cc) for cc in sorted({r["country"] for r in rows})}
+        res["new_customer_matches"] = {cc: apply_sf_status(st, cc) for cc in res["countries"]}
         show(res)
         return 0
     if c == "precheck":

@@ -12,3 +12,4 @@ SELECT
 FROM {{ ref('lgn_v_lead') }} AS l
 INNER JOIN {{ ref('lgn_f_customer_match') }} AS m ON m.business_id = l.pk_business_id
 WHERE l.des_status = 'Published' AND m.outcome = 'CUSTOMER' AND m.matched_at > l.dt_published_at
+SETTINGS join_algorithm = 'hash'

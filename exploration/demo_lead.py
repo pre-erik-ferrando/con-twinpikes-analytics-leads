@@ -47,7 +47,7 @@ from leadgen.steps.enrich import EnrichRequest, run_enrich  # noqa: E402
 from leadgen.steps.export import run_export  # noqa: E402
 from leadgen.steps.maintenance import approve_rest  # noqa: E402
 from leadgen.store import MemoryStore  # noqa: E402,F401
-from leadgen.tests.filter_reference import ReferenceStore  # noqa: E402
+from leadgen.tests.sql_reference import ReferenceStore  # noqa: E402
 
 OUT = ROOT / "tmp" / "demo"
 AREA = "AT-601-DEMO"

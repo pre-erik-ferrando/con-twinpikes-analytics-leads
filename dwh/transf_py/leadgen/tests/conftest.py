@@ -11,7 +11,7 @@ from leadgen.apify import ActorRun
 from leadgen.crawl import Crawler, CrawlLimits, Response
 from leadgen.llm import LLMResult
 from leadgen.store import MemoryStore  # noqa: F401
-from leadgen.tests.filter_reference import ReferenceStore
+from leadgen.tests.sql_reference import ReferenceStore
 
 # A square "Bezirk" around Salzburg city: lon 13.0-13.1, lat 47.7-47.9.
 SQUARE = {"type": "Polygon", "coordinates": [[[13.0, 47.7], [13.1, 47.7], [13.1, 47.9], [13.0, 47.9], [13.0, 47.7]]]}

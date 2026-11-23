@@ -40,3 +40,4 @@ SELECT
 FROM {{ ref('lgn_d_business_place') }} AS bp
 INNER JOIN {{ ref('lgn_d_place') }} AS p ON p.place_id = bp.place_id
 GROUP BY bp.business_id
+SETTINGS join_algorithm = 'hash'

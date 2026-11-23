@@ -173,44 +173,15 @@ def current_validations(store, country: str, profile: str | None = None) -> dict
     return out
 
 
-def exclusions(store, country: str) -> list[dict]:
-    """Permanent exclusions (DT.8.1), read from their sources; the dbt view lgn_f_exclusion does the same
-    in SQL (keep them equal):
-    - HUMAN: the current Sales Ops decision of the business is EXCLUDED (its reason, else NOT_VALID);
-    - SALESFORCE: the lead was DISCARDED in Salesforce in some month (the latest import of the month), for
-      good (v3.3 DT.8.4), with the reason of its latest such month (else DISCARDED)."""
-    from .loaders import sf_status_rows
-
-    out = []
-    for bid, v in current_validations(store, country).items():
-        if v["decision"] == "EXCLUDED":
-            out.append({"business_id": bid, "country": country, "scope": "ALL", "profile": v.get("profile"),
-                        "origin": "HUMAN", "reason": v.get("exclusion_reason") or "NOT_VALID",
-                        "source_ref": f"validation:{v['inserted_at']}"})
-    month: dict[tuple, dict] = {}
-    for r in sf_status_rows(store)[0]:
-        if r["country"] == country:
-            k = (r["lead_code"], r["status_month"])
-            if k not in month or str(r["inserted_at"]) >= str(month[k]["inserted_at"]):
-                month[k] = r
-    discarded: dict[int, dict] = {}
-    for r in sorted(month.values(), key=lambda r: r["status_month"]):
-        if r["status"] == "DISCARDED":
-            discarded[r["business_id"]] = r
-    for bid, r in discarded.items():
-        out.append({"business_id": bid, "country": country, "scope": "ALL", "profile": None, "origin": "SALESFORCE",
-                    "reason": r.get("discard_reason") or "DISCARDED",
-                    "source_ref": f"sf:{r['status_file_id']}:{r['lead_code']}"})
-    return out
-
-
 def permanent_exclusions(store, country: str, profile: str | None) -> dict[int, str]:
-    """business_id -> 'ORIGIN:REASON' of its exclusion (Sales Ops first, then Salesforce)."""
+    """business_id -> 'ORIGIN:REASON' of its permanent exclusion (DT.8.1): the dbt view lgn_f_exclusion
+    (Sales Ops' current EXCLUDED decision, a DISCARDED in Salesforce), Sales Ops first."""
     out: dict[int, str] = {}
-    for r in exclusions(store, country):
+    rows = store.read_view("lgn_f_exclusion", {"country": country})
+    for r in sorted(rows, key=lambda r: r["origin"] != "HUMAN"):
         if r["scope"] == "PROFILE" and r.get("profile") != profile:
             continue
-        out.setdefault(r["business_id"], f"{r['origin']}:{r['reason']}")
+        out.setdefault(int(r["business_id"]), f"{r['origin']}:{r['reason']}")
     return out
 
 

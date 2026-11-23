@@ -22,4 +22,4 @@ LEFT JOIN {{ source('engine', 'customer_norm_out') }} AS c ON c.extract_id = f.f
 WHERE f.kind = 'CUSTOMER_EXTRACT'
 GROUP BY f.file_id, f.country, f.subsidiary_code, f.source_system, f.extract_date, f.file_name, f.loaded_by,
          f.loaded_at
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

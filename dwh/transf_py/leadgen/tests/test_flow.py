@@ -433,13 +433,14 @@ def test_salesforce_status_current_month_and_checks(store, tmp_path):
     cur = current_sf_status(store, "AT")
     assert cur[codes[0]]["status"] == "DISCARDED" and cur[codes[0]]["status_month"] == "2026-12"
     assert apply_sf_status(store, "AT") == 0                                       # no reason: no customer match
-    from leadgen.state import exclusions
-    assert [r["reason"] for r in exclusions(store, "AT") if r["origin"] == "SALESFORCE"] == ["DISCARDED"]
+    exclusions = store.read_view("lgn_f_exclusion", {"country": "AT"})
+    assert [r["reason"] for r in exclusions if r["origin"] == "SALESFORCE"] == ["DISCARDED"]
     # for good (DT.8.4): a later month in Working does not bring it back
     jan = tmp_path / "lgn_sf_status_202701.csv"
     jan.write_text(head + f"{codes[0]},,X,Working,2027-01,,\n", encoding="utf-8")
     load_sf_status(store, cfg, jan, "ops")
-    assert [r["business_id"] for r in exclusions(store, "AT") if r["origin"] == "SALESFORCE"] == [
+    assert [r["business_id"] for r in store.read_view("lgn_f_exclusion", {"country": "AT"})
+            if r["origin"] == "SALESFORCE"] == [
         int(codes[0].split("-")[1])]
 
 

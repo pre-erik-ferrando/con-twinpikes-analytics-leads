@@ -1,7 +1,10 @@
-"""Python reference of the relevance filter (DT.4.4), for the tests only. The filter the engine uses is
-the dbt view lgn_f_rule_evaluation (SQL); tests_db checks that the view decides exactly as this does,
-and the in-memory store of the no-DB suite (ReferenceStore) decides with this.
+"""Python references of the dbt views the engine reads, for the tests only: the relevance filter
+(lgn_f_rule_evaluation), the permanent exclusions (lgn_f_exclusion) and Salesforce's status file
+(lgn_d_sf_status_row, lgn_d_sf_status). The engine uses the views (SQL); tests_db checks that each view
+answers exactly as its reference here, and the in-memory store of the no-DB suite (ReferenceStore)
+answers with these.
 
+The filter (DT.4.4):
 Deterministic, on what Google returns, before anything is spent on the model. The website content
 validates what passes later (DT.6): two gates, cheap then expensive. When several categories or title
 rules fire, the first in alphabetical order (normalized) is the one reported, as in the view.
@@ -22,6 +25,7 @@ protection is the cost cap and max_leads.
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from ..config import Config
@@ -165,6 +169,92 @@ def _config_tables():
     return ddl.CONFIG_TABLES
 
 
+# --------------------------------------------------------------------------- Salesforce status file (DT.8.4)
+def ref_sf_status_rows(store) -> list[dict]:
+    """lgn_d_sf_status_row: every row of the status files, mapped with the current configuration."""
+    import json
+
+    from ..identity import resolve_alias
+    from ..loaders import apply_mapping
+    from ..state import aliases, latest
+
+    cfg = Config.from_rows({n: store.select(n) for n in _config_tables()}, None, None)
+    files = {f["file_id"]: f for f in store.select("upload_file", {"kind": "SF_STATUS"})}
+    if not files:
+        return []
+    mapping = cfg.source_columns("SF_STATUS")
+    maps = {r["map_name"]: cfg.value_map(r["map_name"]) for r in cfg.rows("biz_cfg_value_map")}
+    al = aliases(store)
+    exported = {r["lead_code"] for r in store.select("export_lead_out")}
+    link = latest(store.select("business_link_out"), ("place_id",))
+    zones: dict[int, set] = {}
+    sub_of = {r["place_id"]: r.get("subregion_code") for r in store.select("place_norm_out")}
+    for (pid,), r in link.items():
+        zones.setdefault(resolve_alias(r["business_id"], al), set()).add(sub_of.get(pid))
+    out = []
+    for row in store.select("upload_row", {"file_id": list(files)}):
+        c = apply_mapping(json.loads(row["row_json"]), mapping, "", maps)
+        code = c.get("lead_code")
+        m = re.fullmatch(r"([A-Z]{2})-(\d+)", code or "")
+        known = code in exported and m is not None
+        bid = resolve_alias(int(m.group(2)), al) if known else None
+        issue = None if known and c.get("status") else ("UNMAPPED_STATUS" if known else "UNKNOWN_LEAD_CODE")
+        own = zones.get(bid, set()) - {None}
+        out.append({"status_file_id": row["file_id"], "row_no": int(row["source_row_id"]),
+                    "imported_at": files[row["file_id"]].get("loaded_at"), "lead_code": code, "business_id": bid,
+                    "country": m.group(1) if m else None, "sf_lead_id": c.get("sf_lead_id"),
+                    "company_name": c.get("company_name"), "status": c.get("status"),
+                    "status_month": c.get("status_month") or "", "subregion_code": c.get("subregion_code"),
+                    "discard_reason": c.get("discard_reason"), "issue": issue,
+                    "zone_mismatch": int(issue is None and bool(c.get("subregion_code")) and bool(own)
+                                         and c["subregion_code"] not in own)})
+    return out
+
+
+def ref_sf_status(store) -> list[dict]:
+    """lgn_d_sf_status: per lead and month, the latest import's row without issue; is_current = latest month."""
+    best: dict[tuple, dict] = {}
+    for r in ref_sf_status_rows(store):
+        if r["issue"] is None:
+            k = (r["lead_code"], r["status_month"])
+            if k not in best or (str(r["imported_at"]), r["row_no"]) > (str(best[k]["imported_at"]), best[k]["row_no"]):
+                best[k] = r
+    last = {}
+    for (code, month) in best:
+        last[code] = max(last.get(code, ""), month)
+    keep = ("lead_code", "business_id", "country", "status_month", "status", "discard_reason", "subregion_code",
+            "sf_lead_id", "company_name", "status_file_id", "imported_at")
+    return [{**{c: r[c] for c in keep}, "is_current": int(k[1] == last[k[0]])} for k, r in best.items()]
+
+
+# --------------------------------------------------------------------------- permanent exclusions (DT.8.1)
+def ref_exclusions(store) -> list[dict]:
+    """lgn_f_exclusion: HUMAN, the business's current Sales Ops decision is EXCLUDED; SALESFORCE, DISCARDED
+    in some month, for good (DT.8.4), with the reason of its latest such month."""
+    from ..state import current_validations
+
+    out = []
+    for country in sorted({r["country"] for r in store.select("biz_lead_validation")}):
+        for bid, v in current_validations(store, country).items():
+            if v["decision"] == "EXCLUDED":
+                out.append({"business_id": bid, "country": country, "scope": "ALL", "profile": v.get("profile"),
+                            "origin": "HUMAN", "reason": v.get("exclusion_reason") or "NOT_VALID",
+                            "source_ref": f"validation:{v['inserted_at']}", "excluded_at": v["inserted_at"]})
+    discarded: dict[int, dict] = {}
+    for r in sorted(ref_sf_status(store), key=lambda r: r["status_month"]):
+        if r["status"] == "DISCARDED":
+            discarded[r["business_id"]] = r
+    for bid, r in discarded.items():
+        out.append({"business_id": bid, "country": r["country"], "scope": "ALL", "profile": None,
+                    "origin": "SALESFORCE", "reason": r.get("discard_reason") or "DISCARDED",
+                    "source_ref": f"sf:{r['status_file_id']}:{r['lead_code']}", "excluded_at": r["imported_at"]})
+    return out
+
+
+REFERENCES = {"lgn_d_sf_status_row": ref_sf_status_rows, "lgn_d_sf_status": ref_sf_status,
+              "lgn_f_exclusion": ref_exclusions}
+
+
 class ReferenceStore(MemoryStore):
     """The in-memory store with the filter's Python reference in place of the SQL view. `decide` forces
     a decision, for tests that need a business included in one profile and not in another."""
@@ -175,6 +265,12 @@ class ReferenceStore(MemoryStore):
 
     def decide(self, business_id: int, profile: str | None, decision: str) -> None:
         self.forced[(business_id, profile)] = decision
+
+    def read_view(self, name, where=None):
+        rows = REFERENCES[name](self)
+        for k, v in (where or {}).items():
+            rows = [r for r in rows if (r.get(k) in v if isinstance(v, (list, tuple, set)) else r.get(k) == v)]
+        return rows
 
     def filter_decisions(self, country, profile, business_ids=None, any_profile=False):
         out = reference_decisions(self, country, profile, business_ids, any_profile)

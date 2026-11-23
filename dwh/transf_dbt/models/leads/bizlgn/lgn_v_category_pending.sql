@@ -43,4 +43,4 @@ FROM seen AS s
 WHERE notEmpty(s.category_normalized)
   AND (s.place_id, s.category_normalized) NOT IN (SELECT c.place_id, c.category_normalized FROM classified AS c)
 GROUP BY s.country, s.language, s.category_normalized
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

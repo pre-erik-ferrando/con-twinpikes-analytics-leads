@@ -168,13 +168,16 @@ SF_STATUS_REQUIRED = ("lead_code", "company_name", "status", "status_month", "su
 
 
 def load_sf_status(store, cfg, path: Path, loaded_by: str) -> dict:
-    """Salesforce's monthly status file (v3.3 DT.8.4): lands as received (upload_file, upload_row). Its rows
-    are read through biz_cfg_source_column (SF_STATUS) by sf_status_rows, not stored mapped. A lead code
-    the tool never exported is a warning and is left out; a subregion that differs from the lead's is a
-    warning (the lead keeps its own). A DISCARDED lead is excluded from then on (state.exclusions)."""
+    """Salesforce's monthly status file (v3.3 DT.8.4): lands as received (upload_file, upload_row) and is
+    read mapped through the dbt view lgn_d_sf_status_row (biz_cfg_source_column SF_STATUS), which gives the
+    warnings: a lead code the tool never exported, a status that does not map (both left out), a subregion
+    that differs from the lead's (the lead keeps its own). A DISCARDED lead is excluded from then on
+    (lgn_f_exclusion)."""
     mapping = cfg.source_columns("SF_STATUS")
     if not mapping:
         raise ValueError("no biz_cfg_source_column rows for SF_STATUS")
+    if store.missing_views(["lgn_d_sf_status_row"]):
+        raise ValueError("the view lgn_d_sf_status_row is not in the database: run `python leadgen.py dbt`")
     rows = read_table(path)
     have = set(rows[0]) if rows else set()
     missing = sorted(m["source_column"] for m in mapping
@@ -189,57 +192,13 @@ def load_sf_status(store, cfg, path: Path, loaded_by: str) -> dict:
                                   "file_name": path.name, "loaded_by": loaded_by}])
     store.insert("upload_row", [{"file_id": file_id, "source_row_id": str(i), "row_json": json.dumps(r, ensure_ascii=False)}
                                 for i, r in enumerate(rows)])
-    out, warnings = sf_status_rows(store, cfg, [file_id])
-    return {"status_file_id": file_id, "rows": len(rows), "loaded": len(out), **warnings}
-
-
-def sf_status_rows(store, cfg=None, file_ids: list[str] | None = None) -> tuple[list[dict], dict]:
-    """The rows of Salesforce's status files mapped with biz_cfg_source_column (SF_STATUS) and the current
-    configuration: one per file row whose lead code the tool exported and whose status maps. The dbt view
-    lgn_d_sf_status does the same in SQL: keep them equal. Returns the rows and the warnings."""
-    from .config import Config
-    from . import ddl
-    from .state import latest
-
-    if cfg is None:
-        cfg = Config.from_rows({n: store.select(n) for n in ddl.CONFIG_TABLES}, None, None)
-    files = store.select("upload_file", {"kind": "SF_STATUS"})
-    if file_ids is not None:
-        files = [f for f in files if f["file_id"] in file_ids]
-    if not files:
-        return [], {"unknown_lead_codes": [], "unmapped_status": [], "zone_mismatch": []}
-    loaded_at = {f["file_id"]: f.get("loaded_at") for f in files}
-    mapping = cfg.source_columns("SF_STATUS")
-    maps = {r["map_name"]: cfg.value_map(r["map_name"]) for r in cfg.rows("biz_cfg_value_map")}
-    al = aliases(store)
-    exported = {r["lead_code"] for r in store.select("export_lead_out")}
-    link = latest(store.select("business_link_out"), ("place_id",))
-    places_of: dict[int, list[str]] = {}
-    for (pid,), r in link.items():
-        places_of.setdefault(r["business_id"], []).append(pid)
-    sub_of = {r["place_id"]: r.get("subregion_code") for r in store.select("place_norm_out")}
-    out, unknown, bad_status, zone_mismatch = [], [], [], []
-    for row in sorted(store.select("upload_row", {"file_id": list(loaded_at)}),
-                      key=lambda r: (str(loaded_at[r["file_id"]]), int(r["source_row_id"]))):
-        c = apply_mapping(json.loads(row["row_json"]), mapping, "", maps)
-        code = c.get("lead_code")
-        country, bid = parse_lead_code(code)
-        if code not in exported or bid is None:
-            unknown.append(code)
-            continue
-        if c.get("status") is None:
-            bad_status.append(code)
-            continue
-        bid = resolve_alias(bid, al)       # an absorbed business's code becomes the survivor's
-        own = {sub_of.get(p) for p in places_of.get(bid, [])} - {None}
-        if c.get("subregion_code") and own and c["subregion_code"] not in own:
-            zone_mismatch.append(code)
-        out.append({"status_file_id": row["file_id"], "lead_code": code, "business_id": bid, "country": country,
-                    "sf_lead_id": c.get("sf_lead_id"), "company_name": c.get("company_name"),
-                    "status": c["status"], "status_month": c.get("status_month") or "",
-                    "subregion_code": c.get("subregion_code"), "discard_reason": c.get("discard_reason"),
-                    "inserted_at": loaded_at[row["file_id"]]})
-    return out, {"unknown_lead_codes": unknown, "unmapped_status": bad_status, "zone_mismatch": zone_mismatch}
+    read = store.read_view("lgn_d_sf_status_row", {"status_file_id": file_id})
+    ok = [r for r in read if r["issue"] is None]
+    return {"status_file_id": file_id, "rows": len(rows), "loaded": len(ok),
+            "countries": sorted({r["country"] for r in ok}),
+            "unknown_lead_codes": [r["lead_code"] for r in read if r["issue"] == "UNKNOWN_LEAD_CODE"],
+            "unmapped_status": [r["lead_code"] for r in read if r["issue"] == "UNMAPPED_STATUS"],
+            "zone_mismatch": [r["lead_code"] for r in read if r["zone_mismatch"]]}
 
 
 def load_geo(store, path: Path, country: str, level: str, source: str, version: str, code_prop: str,

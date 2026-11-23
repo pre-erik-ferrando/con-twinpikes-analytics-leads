@@ -28,4 +28,4 @@ LEFT JOIN found AS f
                                      OR (isNotNull(c.phone) AND f.phone = c.phone))
 LEFT JOIN {{ ref('lgn_v_lead') }} AS l ON l.pk_business_id = f.business_id
 GROUP BY c.country, c.source, c.name, c.expected, c.expected_reason
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

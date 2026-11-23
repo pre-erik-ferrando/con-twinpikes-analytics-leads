@@ -51,3 +51,19 @@ def test_qualified_source_columns_exist(path):
         cols = srcs[(group, table)]
         for col in set(re.findall(rf"\b{alias}\.(\w+)", sql)):
             assert col in cols, f"{alias}.{col}: {table} has no column {col}"
+
+
+@pytest.mark.parametrize("path", [p for p in sql_files() if "/models/" in p], ids=lambda p: os.path.relpath(p, REPO))
+def test_joins_use_the_plain_hash_join(path):
+    """A view with a JOIN ends with SETTINGS … join_algorithm = 'hash'. ClickHouse's default (parallel_hash)
+    reserves memory per thread for every join: on a 22-core machine lgn_v_lead used 1.9 GB on a few rows,
+    and a few views in parallel exhausted the server; with 'hash', 60 MB. The setting of the outer view
+    reaches the views it reads, so Intelek's queries get it too. LEFT JOIN also needs join_use_nulls = 1."""
+    sql = open(path, encoding="utf-8").read()
+    if not re.search(r"\bJOIN\b", sql):
+        return
+    last = [line for line in sql.strip().splitlines() if line.strip()][-1]
+    assert last.lstrip().startswith("SETTINGS") and "join_algorithm = 'hash'" in last, \
+        f"{os.path.relpath(path, REPO)}: end it with SETTINGS join_algorithm = 'hash'"
+    if re.search(r"\bLEFT\s+JOIN\b", sql):
+        assert "join_use_nulls = 1" in last, f"{os.path.relpath(path, REPO)}: LEFT JOIN needs join_use_nulls = 1"

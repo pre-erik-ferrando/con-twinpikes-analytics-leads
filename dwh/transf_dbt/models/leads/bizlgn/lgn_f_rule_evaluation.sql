@@ -173,4 +173,4 @@ SELECT
                  d.step = 9, d.excluded, NULL) AS Nullable(String)) AS trigger_value,
     toUInt8(d.is_closed_temporarily) AS is_closed_temporarily
 FROM decided AS d
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

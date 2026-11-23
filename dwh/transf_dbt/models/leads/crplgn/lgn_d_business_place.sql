@@ -16,4 +16,4 @@ FROM (
     GROUP BY b.place_id
 ) AS l
 LEFT JOIN {{ ref('lgn_d_business_alias') }} AS al ON al.old_id = l.business_id
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

@@ -1,6 +1,7 @@
 {{ config(materialized='view') }}
 -- Permanent exclusions by business, with origin and reason (DT.8.1), aliases resolved, read from their
--- sources as state.exclusions does in Python (keep them equal):
+-- sources. The only implementation: the engine reads it (state.permanent_exclusions, the filter);
+-- tests_db checks it against tests/sql_reference.py.
 -- - HUMAN: the current Sales Ops decision of the business (latest of any profile) is EXCLUDED;
 -- - SALESFORCE: the lead was DISCARDED in Salesforce in some month (latest import of the month), for good
 --   (v3.3 DT.8.4), with the reason of its latest such month.

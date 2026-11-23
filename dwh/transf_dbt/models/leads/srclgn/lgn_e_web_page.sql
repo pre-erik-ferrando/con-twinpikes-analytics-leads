@@ -11,3 +11,4 @@ SELECT
     p.loaded_at                             AS loaded_at
 FROM {{ source('landing', 'web_page') }} AS p
 INNER JOIN {{ source('landing', 'web_crawl') }} AS c ON c.crawl_id = p.crawl_id
+SETTINGS join_algorithm = 'hash'

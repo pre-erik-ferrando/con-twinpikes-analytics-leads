@@ -262,13 +262,14 @@ def test_exported_score_stays_frozen_when_the_points_change(ch):
     assert shown[huber] == (37.5, "EXPORT")
 
 
-def test_sql_exclusions_sf_status_and_categories_equal_the_engine(ch, tmp_path):
-    """lgn_d_sf_status, lgn_f_exclusion and lgn_v_category_pending read the same sources as the engine
-    (loaders.sf_status_rows, state.exclusions, normalize_category): same answers on the same data."""
-    from leadgen.loaders import load_sf_status, sf_status_rows
+def test_sql_exclusions_sf_status_and_categories_equal_the_reference(ch, tmp_path):
+    """lgn_d_sf_status_row, lgn_d_sf_status, lgn_f_exclusion (read by the engine) and lgn_v_category_pending
+    answer as their Python references (tests/sql_reference.py, normalize_category) on the same data."""
+    from leadgen.loaders import load_sf_status
     from leadgen.normalize import normalize_category
-    from leadgen.state import RunContext, exclusions
+    from leadgen.state import RunContext
     from leadgen.steps.common import subregion_languages
+    from leadgen.tests.sql_reference import REFERENCES
 
     codes = sorted({r["lead_code"] for r in ch.select("export_lead_out")})
     assert len(codes) >= 2
@@ -281,29 +282,27 @@ def test_sql_exclusions_sf_status_and_categories_equal_the_engine(ch, tmp_path):
     cfg = RunContext(ch, "t", "LOAD", "AT", "POOL_SPECIALIST", "t").config()
     head = "Lead code,Salesforce ID,Company,Status,Status month,Subregion code,Discard reason\n"
     nov, dec = tmp_path / "s_202611.csv", tmp_path / "s_202612.csv"
-    nov.write_text(head + f"{codes[0]},00Q1, Huber ,Discarded,2026-11,501,Already Fluidra client\n"
-                   f"{codes[1]},,X,Working,2026-11, - ,\nAT-NL-002,,Old,Working,2026-11,501,\n", encoding="utf-8")
+    nov.write_text(head + f"{codes[0]},00Q1, Huber ,Discarded,2026-11,999,Already Fluidra client\n"
+                   f"{codes[1]},,X,Working,2026-11, - ,\nAT-NL-002,,Old,Working,2026-11,501,\n"
+                   f"{codes[1]},,X,Lost,2026-11,,\n", encoding="utf-8")
     dec.write_text(head + f"{codes[0]},,X,Working,2026-12,,\n{codes[1]},,X,Discarded,2026-12,,\n", encoding="utf-8")
-    load_sf_status(ch, cfg, nov, "ops")
+    res = load_sf_status(ch, cfg, nov, "ops")
+    assert res["unknown_lead_codes"] == ["AT-NL-002"] and res["unmapped_status"] == [codes[1]]
+    assert res["zone_mismatch"] == [codes[0]] and res["loaded"] == 2 and res["countries"] == ["AT"]
     load_sf_status(ch, cfg, dec, "ops")
-    r = _dbt("run")
-    assert r.returncode == 0, r.stdout[-4000:]
 
-    month = {}
-    for row in sf_status_rows(ch)[0]:
-        month[(row["lead_code"], row["status_month"])] = row
-    py_sf = {(c, m, r["business_id"], r["status"], r["discard_reason"], r["subregion_code"], r["company_name"])
-             for (c, m), r in month.items()}
-    sql_sf = {tuple(x) for x in ch.client.query(
-        "SELECT lead_code, status_month, business_id, status, discard_reason, subregion_code, company_name "
-        "FROM fld_crplgn.lgn_d_sf_status").result_rows}
-    assert sql_sf == py_sf and len(py_sf) == 4
-
-    py_ex = {(r["business_id"], r["origin"], r["reason"]) for r in exclusions(ch, "AT")}
-    sql_ex = {tuple(x) for x in ch.client.query(
-        "SELECT business_id, origin, reason FROM fld_bizlgn.lgn_f_exclusion").result_rows}
-    assert sql_ex == py_ex
-    assert {o for _, o, _ in py_ex} == {"HUMAN", "SALESFORCE"} and len(py_ex) == 3   # Nov and Dec discards stay
+    cols = {"lgn_d_sf_status_row": ("status_file_id", "row_no", "lead_code", "business_id", "country", "status",
+                                    "status_month", "subregion_code", "discard_reason", "company_name", "issue",
+                                    "zone_mismatch"),
+            "lgn_d_sf_status": ("lead_code", "status_month", "business_id", "status", "discard_reason",
+                                "subregion_code", "company_name", "is_current"),
+            "lgn_f_exclusion": ("business_id", "country", "origin", "reason", "scope")}
+    for view, cs in cols.items():
+        sql = {tuple(r[c] for c in cs) for r in ch.read_view(view)}
+        ref = {tuple(r[c] for c in cs) for r in REFERENCES[view](ch)}
+        assert sql == ref, f"{view}: only SQL {sql - ref}; only reference {ref - sql}"
+    excl = ch.read_view("lgn_f_exclusion", {"country": "AT"})
+    assert {r["origin"] for r in excl} == {"HUMAN", "SALESFORCE"} and len(excl) == 3   # Nov and Dec discards stay
 
     langs = subregion_languages(cfg)
     rules = [r for r in ch.select("biz_cfg_category_rule") if r.get("active", 1)]
@@ -322,11 +321,11 @@ def test_sql_exclusions_sf_status_and_categories_equal_the_engine(ch, tmp_path):
 
 
 def test_sql_filter_decides_as_the_reference(ch):
-    """lgn_f_rule_evaluation (the engine's filter, SQL) against tests/filter_reference.py on every business
+    """lgn_f_rule_evaluation (the engine's filter, SQL) against tests/sql_reference.py on every business
     of the earlier tests plus synthetic ones that reach each of the eight steps, with umlauts, symbols,
     two listings per business and a second profile."""
     from leadgen.steps.capture import filter_texts
-    from leadgen.tests.filter_reference import reference_decisions
+    from leadgen.tests.sql_reference import reference_decisions
 
     rules = [r for r in ch.select("biz_cfg_category_rule") if r.get("active", 1)]
     cat = {c: next(r["category_normalized"] for r in rules if r["classification"] == c)

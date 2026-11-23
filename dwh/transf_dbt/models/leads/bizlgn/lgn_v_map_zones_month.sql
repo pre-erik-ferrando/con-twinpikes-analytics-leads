@@ -18,3 +18,4 @@ INNER JOIN (
     FROM {{ ref('lgn_v_lead') }}
 ) AS l ON l.pk_business_id = s.business_id
 GROUP BY l.des_country, l.des_subregion_code, s.status_month
+SETTINGS join_algorithm = 'hash'

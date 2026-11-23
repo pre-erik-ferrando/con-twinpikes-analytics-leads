@@ -172,4 +172,4 @@ FROM buckets AS bk
 INNER JOIN {{ ref('lgn_a_scoring_rule') }} AS r ON r.factor = bk.factor AND r.bucket_code = bk.bucket_code
 WHERE (isNull(r.country) OR r.country = bk.country) AND (isNull(r.profile) OR r.profile = bk.profile)
 GROUP BY bk.business_id, bk.country, bk.profile, bk.factor, bk.bucket_code, bk.input_value
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

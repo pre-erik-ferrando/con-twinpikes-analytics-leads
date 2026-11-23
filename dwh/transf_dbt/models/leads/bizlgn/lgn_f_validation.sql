@@ -33,4 +33,4 @@ FROM (
     LEFT JOIN {{ ref('lgn_d_business_alias') }} AS al ON al.old_id = src.pk_business_id
 ) AS v
 GROUP BY v.business_id, v.profile
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

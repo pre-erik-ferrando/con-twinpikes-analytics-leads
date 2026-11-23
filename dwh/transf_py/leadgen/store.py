@@ -26,11 +26,14 @@ class Store(Protocol):
     def filter_decisions(self, country: str, profile: str | None, business_ids: Iterable[int] | None = None,
                          any_profile: bool = False) -> dict[tuple[int, str | None], dict]: ...
     def missing_views(self, names: Iterable[str]) -> list[str]: ...
+    def read_view(self, name: str, where: dict | None = None) -> list[dict]: ...
 
 
-# The dbt views the engine reads (built with `python leadgen.py dbt`): the filter and the score are
-# computed in SQL.
-ENGINE_VIEWS = ("lgn_f_rule_evaluation", "lgn_f2_score", "lgn_f2_score_component")
+# The dbt views the engine reads (built with `python leadgen.py dbt`): every rule that SQL can decide is
+# computed there once (filter, score, exclusions, Salesforce statuses), and the engine reads the result.
+VIEW_LAYER = {"lgn_f_rule_evaluation": "biz", "lgn_f2_score": "biz", "lgn_f2_score_component": "biz",
+              "lgn_f_exclusion": "biz", "lgn_d_sf_status": "crp", "lgn_d_sf_status_row": "crp"}
+ENGINE_VIEWS = tuple(VIEW_LAYER)
 FILTER_COLUMNS = ("business_id", "profile", "decision", "stage", "rule", "trigger_value", "is_closed_temporarily")
 
 
@@ -140,9 +143,13 @@ class MemoryStore:
 
     def filter_decisions(self, country, profile, business_ids=None, any_profile=False):
         """No SQL engine here: the filter is the dbt view lgn_f_rule_evaluation. The tests use a store
-        with the Python reference of the filter (tests/filter_reference.py), which tests_db checks
+        with the Python reference of the filter (tests/sql_reference.py), which tests_db checks
         against the view."""
         raise NotImplementedError("the relevance filter is computed in SQL (lgn_f_rule_evaluation)")
+
+    def read_view(self, name, where=None) -> list[dict]:
+        """No SQL engine here: the tests' ReferenceStore computes these views in Python."""
+        raise NotImplementedError(f"{name} is a dbt view, computed in SQL")
 
     def missing_views(self, names) -> list[str]:
         return []
@@ -245,11 +252,28 @@ class ClickHouseStore:
                                  f"WHERE {cond}", parameters=params).result_rows
         return {(int(r[0]), r[1]): dict(zip(FILTER_COLUMNS, r), business_id=int(r[0])) for r in rows}
 
+    def read_view(self, name, where=None) -> list[dict]:
+        """The rows of one of the engine's dbt views (VIEW_LAYER), with equality filters."""
+        conds, params = [], {}
+        for i, (k, v) in enumerate((where or {}).items()):
+            if v is None:
+                conds.append(f"{k} IS NULL")
+            elif isinstance(v, (list, tuple, set)):
+                params[f"p{i}"] = list(v)
+                conds.append(f"{k} IN %(p{i})s")
+            else:
+                params[f"p{i}"] = v
+                conds.append(f"{k} = %(p{i})s")
+        sql = f"SELECT * FROM {ddl.DB[VIEW_LAYER[name]]}.{name}" + (" WHERE " + " AND ".join(conds) if conds else "")
+        res = self.client.query(sql, parameters=params)
+        return [dict(zip(res.column_names, row)) for row in res.result_rows]
+
     def missing_views(self, names) -> list[str]:
-        """Which of these dbt views (database fld_bizlgn) do not exist: `python leadgen.py dbt` builds them."""
+        """Which of these dbt views do not exist: `python leadgen.py dbt` builds them."""
         names = list(names)
-        rows = self.client.query("SELECT name FROM system.tables WHERE database = %(d)s AND name IN %(n)s",
-                                 parameters={"d": ddl.DB["biz"], "n": names}).result_rows
+        dbs = sorted({ddl.DB[VIEW_LAYER.get(n, "biz")] for n in names})
+        rows = self.client.query("SELECT name FROM system.tables WHERE database IN %(d)s AND name IN %(n)s",
+                                 parameters={"d": dbs, "n": names}).result_rows
         return sorted(set(names) - {r[0] for r in rows})
 
     def hash64(self, values: list[str]) -> dict[str, int]:

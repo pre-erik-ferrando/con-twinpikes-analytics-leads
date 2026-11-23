@@ -38,4 +38,4 @@ LEFT JOIN {{ ref('lgn_a_strategic_zone') }} AS z ON z.country = a.country AND z.
 LEFT JOIN searched AS s ON s.area_id = a.area_id
 LEFT JOIN leads AS ld ON ld.country = a.country AND ld.subregion_code = a.admin_code
 WHERE a.level = 'SUBREGION'
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

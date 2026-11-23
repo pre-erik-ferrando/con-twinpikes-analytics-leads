@@ -32,3 +32,4 @@ SELECT
 FROM totals AS t
 INNER JOIN band_scope AS bs ON bs.country = t.country
 GROUP BY t.business_id, t.country, t.profile, t.total
+SETTINGS join_algorithm = 'hash'

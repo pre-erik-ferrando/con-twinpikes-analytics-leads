@@ -32,4 +32,4 @@ FROM {{ ref('lgn_v_lead') }} AS l
 LEFT JOIN {{ ref('lgn_a_sales_owner') }} AS o ON o.country = l.des_country AND o.subregion_code = l.des_subregion_code
 LEFT JOIN (SELECT * FROM {{ ref('lgn_a_sales_owner') }} WHERE isNull(subregion_code)) AS d ON d.country = l.des_country
 WHERE l.des_status = 'Approved'
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

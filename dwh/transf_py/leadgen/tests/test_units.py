@@ -9,7 +9,7 @@ import pytest
 from leadgen import cost, export, normalize as N, runs
 from leadgen.config import Config, latest_by_key, precheck, scoped
 from leadgen.content import Page, prepare
-from leadgen.tests.filter_reference import FilterInput, evaluate, title_matches
+from leadgen.tests.sql_reference import FilterInput, evaluate, title_matches
 from leadgen.geo import AdminArea, outline_geojson, polygons_from_geojson
 from leadgen.identity import Business, Listing, assign, pick_master, resolve_alias
 from leadgen.matching import (Customer, CustomerIndex, LeadFacts, MatchConfig, apply_verdicts, match,

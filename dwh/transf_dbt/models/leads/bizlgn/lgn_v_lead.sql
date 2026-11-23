@@ -136,4 +136,4 @@ LEFT JOIN {{ ref('lgn_d_sf_status') }} AS sf ON sf.business_id = l.business_id A
 LEFT JOIN {{ ref('lgn_a_search_area') }} AS sa
        ON sa.country = l.country AND sa.admin_code = b.subregion_code AND sa.level = 'SUBREGION'
 LEFT JOIN {{ ref('lgn_a_strategic_zone') }} AS z ON z.country = l.country AND z.admin_code = b.subregion_code
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

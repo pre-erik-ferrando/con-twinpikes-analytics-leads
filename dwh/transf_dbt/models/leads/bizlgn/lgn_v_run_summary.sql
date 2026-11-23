@@ -23,4 +23,4 @@ SELECT
 FROM {{ source('ops', 'pipeline_run') }} AS r
 LEFT JOIN costs AS k ON k.run_id = r.run_id
 GROUP BY r.run_id
-SETTINGS join_use_nulls = 1
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'
