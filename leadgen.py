@@ -217,10 +217,13 @@ def cmd(ns) -> int:
         from leadgen.steps.maintenance import reject
         reject(st, ns.capture_batch, ns.business_id, ns.reason, user(ns), ns.customer_code, ns.subsidiary,
                ns.duplicate_of, ns.comment)
+        print(f"{ns.business_id} rejected ({ns.reason}); undo with: reopen --capture-batch {ns.capture_batch} "
+              f"--business-id {ns.business_id}")
         return 0
     if c == "reopen":
         from leadgen.steps.maintenance import reopen
         reopen(st, ns.capture_batch, ns.business_id, user(ns))
+        print(f"{ns.business_id} back To review")
         return 0
     if c == "export":
         from leadgen.steps.export import run_export
