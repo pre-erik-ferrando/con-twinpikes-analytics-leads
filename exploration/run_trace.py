@@ -7,7 +7,8 @@ Output in tmp/trace/<capture_batch_id>/ (gitignored: it holds leads and customer
     01_capture/<table>.csv   search log (with each Apify call), the items, normalised places, identity, filter (current), 1st match
     02_enrich/<table>.csv    crawls, pages (text size, no HTML), model requests and answers, 2nd match, and
                              the score (lgn_f_score: frozen at export or live; lgn_f2_score_component)
-    trace.md                 one section per business: Google -> filter -> customer match -> website/model -> score
+    trace.md                 one section per business: Google -> filter -> Fluidra client? (Google info)
+                             -> crawling -> Fluidra client? (crawling) -> model -> score
 """
 from __future__ import annotations
 
@@ -154,15 +155,18 @@ def main() -> int:
     rule = latest(rules, "business_id")
     match1, match2 = latest(m1, "business_id"), latest(m2, "business_id")
     val, score = latest(valid, "business_id"), latest(scores, "business_id")
+    crawl_of = {}                     # domain -> its latest crawl in this enrichment
+    for c in sorted(crawls, key=lambda c: str(c.get("loaded_at") or "")):
+        crawl_of[c["domain"]] = c
     lines = [f"# Run trace {cb}", "", f"Capture {', '.join(cap)}; enrichment {', '.join(enr) or 'none'}.", ""]
 
     def outcome(bid):
         if rule.get(bid, {}).get("decision") == "EXCLUDE":
             return "excluded by the filter"
         if match1.get(bid, {}).get("outcome") == "CUSTOMER":
-            return "customer (capture)"
+            return "Fluidra client (Google info)"
         if match2.get(bid, {}).get("outcome") == "CUSTOMER":
-            return "customer (website)"
+            return "Fluidra client (crawling)"
         if bid in score:
             return f"LEAD {score[bid]['rating']} ({score[bid]['total']})"
         return "not scored"
@@ -183,19 +187,37 @@ def main() -> int:
         r = rule.get(bid, {})
         lines.append(f"2. **Filter** (current configuration): {r.get('decision')} ({r.get('stage') or '-'}, "
                      f"{r.get('rule')}, `{r.get('trigger_value') or ''}`)")
-        for label, m in (("3. **Match, capture**", match1.get(bid)), ("4. **Match, website**", match2.get(bid))):
-            if m:
-                lines.append(f"{label}: {match_text(m)}")
-        v = val.get(bid)
-        if v:
-            lines.append(f"5. **Model**: {v.get('validation')} — {v.get('validation_reason_text') or ''} | type "
-                         f"{v.get('company_type')} | legal {v.get('legal_name') or '-'} | VAT {v.get('vat_id') or '-'} | "
-                         f"contact {v.get('contact_name') or '-'} {v.get('email') or ''} | brands "
-                         f"{v.get('detected_brands')} | Fluidra {v.get('fluidra_brands')} | dropped claims "
-                         f"{v.get('n_unsupported_claims')}")
+        m = match1.get(bid)
+        if m:
+            lines.append(f"3. **Fluidra client? from Google info**: {match_text(m)}")
+        w = val.get(bid)
+        if w:
+            c = crawl_of.get(w.get("domain") or "", {})
+            site = w.get("domain") or "-"
+            if w.get("final_domain") and w.get("final_domain") != w.get("domain"):
+                site += f" → {w['final_domain']}"
+            found = [f"legal name {w['legal_name']}" if w.get("legal_name") else None,
+                     f"address {w['legal_address']}" if w.get("legal_address") else None,
+                     f"VAT {w['vat_id']} ({w.get('vat_check_status') or 'not checked'})" if w.get("vat_id") else None,
+                     f"register {w['register_id']}" if w.get("register_id") else None,
+                     f"contact {w['contact_name']}" + (f" ({w['contact_role']})" if w.get("contact_role") else "")
+                     if w.get("contact_name") else None,
+                     f"email {w['email']}" if w.get("email") else None,
+                     f"phone {w['phone_e164']}" if w.get("phone_e164") else None,
+                     "online shop" if w.get("has_ecommerce") else None]
+            pages = f", {c['n_pages']} pages ({c.get('render_method') or '-'})" if c else ""
+            lines.append(f"4. **Crawling**: {site}: {w.get('crawl_status')}{pages} | the website gives: "
+                         f"{'; '.join(x for x in found if x) or 'nothing usable'}")
+        m = match2.get(bid)
+        if m:
+            lines.append(f"5. **Fluidra client? from crawling**: {match_text(m)}")
+        if w:
+            lines.append(f"6. **Model**: {w.get('validation')} — {w.get('validation_reason_text') or ''} | type "
+                         f"{w.get('company_type')} | brands {w.get('detected_brands')} | Fluidra "
+                         f"{w.get('fluidra_brands')} | dropped claims {w.get('n_unsupported_claims')}")
         s = score.get(bid)
         if s:
-            lines.append(f"6. **Score**: {s.get('total')} → {s.get('rating')} (type, brands, zone, digital, contact, "
+            lines.append(f"7. **Score**: {s.get('total')} → {s.get('rating')} (type, brands, zone, digital, contact, "
                          f"reviews = {s.get('breakdown')})")
         lines.append("")
     (out / "trace.md").write_text("\n".join(lines), encoding="utf-8")
