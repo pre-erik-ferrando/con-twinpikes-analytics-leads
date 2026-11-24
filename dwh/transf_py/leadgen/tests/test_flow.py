@@ -11,7 +11,7 @@ from leadgen import ddl, prompt, seed_loader
 from leadgen.loaders import load_customers
 from leadgen.state import RunContext, current_validations, published_ids
 from leadgen.steps import maintenance
-from leadgen.steps.capture import CaptureRequest, RunFailed, run_capture
+from leadgen.steps.capture import CaptureRequest, RunFailed, run_capture, run_import_list
 from leadgen.steps.enrich import EnrichRequest, resume_enrich, run_enrich
 from leadgen.steps.export import confirm, run_export
 from leadgen.steps.maintenance import apply_sf_status, approve_rest, reject, run_rematch, to_review
@@ -365,6 +365,17 @@ def test_capture_sends_the_area_outline_not_its_name(store):
     square = [[list(p) for p in SQUARE["coordinates"][0]]]
     assert district["customGeolocation"] == {"type": "MultiPolygon", "coordinates": [square]}
     assert state["customGeolocation"] == district["customGeolocation"]      # a state is its districts
+
+
+def test_import_list_sends_city_and_country_as_free_text(store):
+    cap = FakeCapturer(ITEMS[:1])
+    rows = [{"name": "Poolbau Huber", "city": "Salzburg"}, {"name": "Poolbau Huber", "city": None}]
+    ctx, summary = run_import_list(store, cap, CaptureRequest("AT", "POOL_SPECIALIST", [], [], "ops",
+                                                              import_rows=rows))
+    assert [c["locationQuery"] for c in cap.calls] == ["Salzburg, Austria", "Austria"]
+    for sent in cap.calls:        # a city by name in the structured fields returns nothing (findings.md)
+        assert (sent["countryCode"], sent["city"], sent["customGeolocation"]) == ("", "", None)
+    assert ctx.state == "CLOSED" and summary["import_matched"] == 2
 
 
 def test_capture_without_boundary_fails_before_spending(store):

@@ -401,8 +401,8 @@ def run_import_list(store, capturer: apify.Capturer, req: CaptureRequest) -> tup
         legal = cfg.legal_forms()
         items, outcomes = [], {"MATCHED": 0, "UNMATCHED": [], "AMBIGUOUS": []}
         for row in req.import_rows:
-            fields = {"countryCode": req.country, "city": row.get("city") or ""}
-            actor_in = apify.actor_input(row["name"], fields, cfg.param("apify_language", "de") or "de", 3)
+            actor_in = apify.actor_input(row["name"], {}, cfg.param("apify_language", "de") or "de", 3,
+                                         location_query=apify.import_location(row.get("city"), req.country))
             res = capturer.run(actor_in, float(cfg.param("apify_max_total_charge_usd", 25)) / max(1, len(req.import_rows)))
             qid = runs.new_id("q")
             store.insert("search_query_log", [{

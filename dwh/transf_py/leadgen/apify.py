@@ -8,7 +8,8 @@ defaults. Hence:
 - the complete input of every call is stored in ops.search_query_log.
 
 Call contract (DT.3.2): area in structured fields (countryCode + state + county/city/postalCode), never
-free text; detail page always on; paid add-ons explicitly off; skipClosedPlaces=false (closed listings
+free text; we send the area's outline instead, and free text only to look up one business in
+IMPORT_LIST. Detail page always on; paid add-ons explicitly off; skipClosedPlaces=false (closed listings
 are captured and filtered later); a per-search cap and an always-present spending cap per run;
 never categoryName nor isAdvertisement.
 ⚠ Input field names follow the actor's public input schema; check them against the pinned build when
@@ -25,19 +26,31 @@ ACTOR_ID = "compass~crawler-google-places"
 API = "https://api.apify.com/v2"
 
 
-def actor_input(term: str, actor_fields: dict, language: str, max_places: int) -> dict:
+# English country names for IMPORT_LIST's free-text location ("Graz, Austria" is what was tested)
+COUNTRY_NAMES = {"AT": "Austria", "DE": "Germany", "CH": "Switzerland", "BE": "Belgium", "NL": "Netherlands"}
+
+
+def import_location(city: str | None, country: str) -> str:
+    """IMPORT_LIST looks up one named business, so its location is free text ("City, Country"): a city
+    by name in the structured fields returns nothing (exploration/findings.md, 2026-11-18), and there is
+    no outline for a city. Capture areas never use this."""
+    return ", ".join(x for x in ((city or "").strip(), COUNTRY_NAMES.get(country.upper(), country)) if x)
+
+
+def actor_input(term: str, actor_fields: dict, language: str, max_places: int, location_query: str = "") -> dict:
     """The complete, explicit input of one query (one term x one area).
 
     The area goes as its outline (customGeolocation) when it has one, and then the name fields go empty:
     with names alone the actor (builds 0.14.792-793) marks every place as out of location and returns
-    nothing (exploration/findings.md, 2026-11-18). Never free text."""
-    outline = actor_fields.get("customGeolocation")
-    loc = {k: "" if outline else (actor_fields.get(k) or "")
+    nothing (exploration/findings.md, 2026-11-18). Free text (location_query) only for IMPORT_LIST
+    (import_location); it also empties the name fields."""
+    outline = None if location_query else actor_fields.get("customGeolocation")
+    loc = {k: "" if (outline or location_query) else (actor_fields.get(k) or "")
            for k in ("countryCode", "state", "county", "city", "postalCode")}
     loc["countryCode"] = loc["countryCode"].lower()
     return {
         "searchStringsArray": [term],
-        "locationQuery": "",
+        "locationQuery": location_query,
         **loc,
         "customGeolocation": outline,
         "language": language,
