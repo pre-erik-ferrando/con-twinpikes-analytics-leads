@@ -127,8 +127,6 @@ def main() -> int:
         actor_in = apify.actor_input(a.term, {"customGeolocation": outline}, a.language, a.max_places)
         if a.no_detail:
             actor_in["scrapePlaceDetailPage"] = False
-    if actor_in.get("customGeolocation") is None:
-        actor_in.pop("customGeolocation")      # not used outside the BE/NL pilot
 
     print(f"1) Field check against {apify.ACTOR_ID}")
     bad = check_fields(actor_in, input_schema(tok, a.build))
