@@ -55,3 +55,8 @@ Tras cambiar un modelo dbt (por ejemplo, la puntuación), `python leadgen.py dbt
 ## Seguimiento
 
 `status [RUN]` en la terminal, o `lgn_v_run_summary` (estado, mensaje, coste estimado y real).
+
+Para ver por qué cada empresa acabó como acabó: `python exploration/run_trace.py cb_…` (solo lee). Deja
+en `traces/<cb>/` las filas de cada paso y un `trace.md` con una sección por empresa: ficha de Google,
+filtro, cliente de Fluidra según Google, rastreo de la web, cliente según la web, modelo y puntuación.
+`traces/` no se versiona porque tiene datos de clientes.

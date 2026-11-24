@@ -4,21 +4,25 @@
 
 ```
  Google Maps (Apify) ─┐
- Webs (crawler)       │                    motor Python                    dbt (vistas)
+ Webs (crawler)       │                    motor Python                     dbt (vistas)
  Modelo (OpenAI)      ├─▶ fld_landinglgn ─▶ dwh/transf_py/leadgen ─▶ *_out ─▶ src → stg → crp → biz ─▶ Intelek
- Extractos clientes   │   (tal cual)        normaliza, identifica,          lgn_e  lgn_a  lgn_d  lgn_f / lgn_v
- Estados Salesforce   │                     filtra, cruza, puntúa              ▲
- Límites oficiales  ──┘                          ▲                            │
-                                                 └── biz_cfg_* y biz_lead_validation (los escribe Intelek)
-                                                      fld_opslgn: ejecuciones, instantáneas, coste
+ Extractos clientes   │   (tal cual)        normaliza, identifica,          filtro, puntuación,
+ Estados Salesforce   │                     cruza, rastrea, modelo          exclusiones (lgn_f_*)
+ Límites oficiales  ──┘                       ▲         ▲                   consumo (lgn_v_*)
+                                              │         └── lee el filtro y la puntuación ──┘
+                                              └── biz_cfg_* y biz_lead_validation (los escribe Intelek)
+                                                   fld_opslgn: ejecuciones, instantáneas, coste
 ```
 
-- **El motor** (`dwh/transf_py/leadgen`, lanzado con `leadgen.py`) hace todo lo que decide: captación,
-  normalización, identidad, filtrado, cruce con clientes, rastreo, modelo, comprobación, puntuación y
-  exportación. Escribe en `fld_landinglgn` lo recibido tal cual, en `fld_opslgn` el control de cada
-  ejecución y en `fld_bizlgn` sus resultados (`<paso>_out`).
-- **dbt** son solo vistas: tipan landing (src), dan la configuración vigente (stg), conforman empresas,
-  fichas, clientes y enriquecimiento (crp) y publican lo que lee Intelek (biz, `lgn_v_*`).
+- **El motor** (`dwh/transf_py/leadgen`, lanzado con `leadgen.py`) capta, normaliza, identifica las
+  empresas, cruza con clientes, rastrea las webs, llama al modelo y exporta. Escribe en `fld_landinglgn`
+  lo recibido tal cual, en `fld_opslgn` el control de cada ejecución y en `fld_bizlgn` sus resultados
+  (`<paso>_out`).
+- **dbt** son solo vistas, pero deciden las reglas que dependen de la configuración: el filtro
+  (`lgn_f_rule_evaluation`), la puntuación (`lgn_f2_score`), las exclusiones (`lgn_f_exclusion`) y los
+  estados de Salesforce (`lgn_d_sf_status`). Cada regla está solo ahí, y el motor lee su resultado durante
+  la ejecución. Además tipan landing (src), dan la configuración vigente (stg), conforman empresas, fichas
+  y clientes (crp) y publican lo que lee Intelek (biz, `lgn_v_*`).
 - **Intelek** lee las vistas y escribe la configuración (`biz_cfg_*`) y las decisiones de validación
   (`biz_lead_validation`), aprobaciones y peticiones de supresión. El motor las lee al arrancar cada
   ejecución.
