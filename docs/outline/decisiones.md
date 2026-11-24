@@ -42,6 +42,10 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 - La estimación del coste del modelo es la misma en la captación y en el enriquecimiento (`cost.enrich_estimate`).
 - Una exportación se confirma una sola vez (UPLOADED o FAILED); cambiarla después podría duplicar leads en
   Salesforce.
+- Comprobación del IVA (DT.5.6) al enriquecer, desde el 24-11-2026: VIES para los números de la UE y el
+  servicio público del registro UID para los suizos (no Zefix), con `vies_max_retries` y
+  `vies_max_requests_per_second`. Los leads enriquecidos antes siguen con `NOT_CHECKED` hasta que se vuelvan
+  a enriquecer.
 - Exportación con `export_id` y estado; Published solo tras UPLOADED.
 - El destino COCKPIT y `lgn_v_cockpit_feed` no se construyen; el cockpit carga el fichero de Salesforce.
 - `max_leads` obligatorio en cualquier perfil distinto de Pool specialist.
@@ -59,7 +63,6 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 | Valores de Salesforce: Lead Status, país, provincia, correo obligatorio | Fluidra | Formato final del fichero | `SF_LEAD_STATUS` NEW → New, `SF_COUNTRY` en inglés |
 | Extractos de clientes de BE y NL; de AT y CH, uno más reciente (los recibidos tienen más de 7 días) | Fluidra | Cruce en BE/NL; captar en AT y CH sin `--approve-stale-extract` | BE/NL: cruce omitido con aviso. AT, CH y DE: listados de TWP (`TWP_SHEET_*`) recibidos el 19-11 |
 | Build del actor de Apify y prueba de idioma | Prenomics | Fijar `apify_actor_build`, `apify_language` | `0.14.793` [PROPUESTA], la build contra la que se comprobaron los campos de entrada; idioma por subregión |
-| Comprobación VIES / UID | Prenomics | `des_vat_id` en `lgn_v_lead` (solo con VALID) | `vat_check_status = NOT_CHECKED` |
 | Identificadores de las sociedades de Fluidra | Fluidra | Señal FLUIDRA_ENTITY | `fluidra_entity_ids` vacío |
 | Capacidad de Intelek: escritura en ClickHouse, botón que lanza procesos, descarga de ficheros, mapas, usuario de conexión (a tratar con Intelek la semana del 23-11-2026) | Intelek | Pantallas | Línea de comandos |
 | Base legal del tratamiento | Asesor legal de Fluidra | Arranque en producción | — |

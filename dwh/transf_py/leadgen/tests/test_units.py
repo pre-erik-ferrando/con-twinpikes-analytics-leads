@@ -583,3 +583,49 @@ def test_make_provider_picks_openai(monkeypatch):
     params = {"llm_provider": "OPENAI", "llm_model": "gpt-6.2-sol", "llm_effort": "low"}
     prov = make_provider(type("Cfg", (), {"param": staticmethod(lambda k, d=None: params.get(k, d))}))
     assert isinstance(prov, OpenAIProvider) and prov.model == "gpt-6.2-sol"
+
+
+class TestVatCheck:
+    """vat.PublicVatChecker against a fake HTTP client: VIES for EU numbers, the UID register for CHE."""
+
+    def checker(self, answers, retries=3):
+        from leadgen.vat import PublicVatChecker
+        calls, sleeps = [], []
+
+        def http(method, url, headers, body):
+            calls.append((method, url, body))
+            a = answers.pop(0)
+            if isinstance(a, Exception):
+                raise a
+            return a
+        return PublicVatChecker(retries, 5, http=http, sleep=sleeps.append, clock=lambda: 0.0), calls, sleeps
+
+    def vies(self, user_error, valid=False):
+        return 200, json.dumps({"isValid": valid, "userError": user_error})
+
+    def test_vies_valid_and_not_found(self):
+        c, calls, _ = self.checker([self.vies("VALID", True), self.vies("INVALID")])
+        assert c.check("ATU12345678") == "VALID"
+        assert calls[0][1].endswith("/ms/AT/vat/U12345678")
+        assert c.check("DE123456789") == "NOT_FOUND"
+
+    def test_no_vat_or_bad_format_makes_no_call(self):
+        c, calls, _ = self.checker([])
+        assert c.check(None) == "NOT_CHECKED" and c.check("ATU123") == "INVALID_FORMAT" and calls == []
+
+    def test_busy_member_state_is_retried_then_unavailable(self):
+        c, calls, sleeps = self.checker([self.vies("MS_UNAVAILABLE"), (503, ""), OSError("down"),
+                                         self.vies("MS_MAX_CONCURRENT_REQ")])
+        assert c.check("DE123456789") == "UNAVAILABLE"
+        assert len(calls) == 4 and [s for s in sleeps if s >= 1] == [1, 2, 4]
+
+    def test_retry_then_valid_and_one_call_per_number(self):
+        c, calls, _ = self.checker([(500, ""), self.vies("VALID", True)])
+        assert c.check("DE123456789") == "VALID" and c.check("DE123456789") == "VALID" and len(calls) == 2
+
+    def test_swiss_uid_register(self):
+        ok = "<ValidateVatNumberResponse><ValidateVatNumberResult>true</ValidateVatNumberResult></ValidateVatNumberResponse>"
+        c, calls, _ = self.checker([(200, ok), (200, ok.replace("true", "false")), (500, "<Fault/>")], retries=0)
+        assert c.check("CHE123456789") == "VALID"
+        assert calls[0][0] == "POST" and "<vatNumber>CHE-123.456.789</vatNumber>" in calls[0][2]
+        assert c.check("CHE111222333") == "NOT_FOUND" and c.check("CHE999888777") == "UNAVAILABLE"

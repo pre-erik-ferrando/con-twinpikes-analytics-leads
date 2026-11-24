@@ -64,6 +64,7 @@ def test_full_flow(store, tmp_path):
     assert len(prov.sent) == 1                      # Mayr Bau has no website and no candidates: REVIEW, no model
     huber = next(r for r in store.select("web_validation_out") if r["domain"] == "poolbau-huber.at")
     assert huber["validation"] == "VALID" and huber["vat_id"] == "ATU12345678" and huber["has_ecommerce"] == 1
+    assert huber["vat_check_status"] == "NOT_CHECKED"     # no VAT checker given
     # the score is computed in SQL (lgn_f2_score), checked on ClickHouse (tests_db): here only who is scored
     assert es["scored"] == 2 and es["by_rating"] == {"HOT": 0, "WARM": 0, "COLD": 0}
     mayr = next(r for r in store.select("web_validation_out") if r["business_id"] != huber["business_id"])
@@ -478,3 +479,20 @@ def test_renormalize_fills_the_filter_texts(store):
     assert renormalize_places(store, "AT") == 1 and renormalize_places(store, "AT") == 0
     from leadgen.state import latest_places
     assert latest_places(store, "AT")[old["place_id"]]["name_norm"] == old["name_norm"] != ""
+
+
+def test_enrich_checks_the_vat_with_the_given_checker(store, tmp_path):
+    class Checker:
+        def __init__(self):
+            self.asked = []
+
+        def check(self, vat):
+            self.asked.append(vat)
+            return "VALID" if vat else "NOT_CHECKED"
+
+    _customers(store, tmp_path)
+    ctx, _ = _capture(store)
+    checker = Checker()
+    run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"), checker)
+    huber = next(r for r in store.select("web_validation_out") if r["domain"] == "poolbau-huber.at")
+    assert huber["vat_check_status"] == "VALID" and "ATU12345678" in checker.asked

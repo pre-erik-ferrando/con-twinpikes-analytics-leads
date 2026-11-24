@@ -128,7 +128,10 @@ Código: [steps/enrich.py](../dwh/transf_py/leadgen/steps/enrich.py). Es el paso
    - cada dato (un email, un número de IVA, una marca…) tiene que aparecer en la página que cita el
      modelo; si no aparece, se descarta;
    - una respuesta inválida o cortada se reintenta una vez; si vuelve a fallar, el lead pasa a REVIEW
-     con motivo `TECHNICAL`.
+     con motivo `TECHNICAL`;
+   - el número de IVA se comprueba en VIES (UE) o en el registro UID (Suiza)
+     ([vat.py](../dwh/transf_py/leadgen/vat.py)): `vat_check_status` VALID, NOT_FOUND, INVALID_FORMAT o
+     UNAVAILABLE. Solo con VALID sale en `lgn_v_lead`; un servicio caído no detiene nada.
 6. **Segundo cruce con clientes**, ya con los datos de la web y los veredictos del modelo.
 7. **Puntuación**: no la calcula el motor. La calcula en SQL la vista dbt
    [`lgn_f2_score`](../dwh/transf_dbt/models/leads/bizlgn/lgn_f2_score.sql) a partir de lo que guarda este

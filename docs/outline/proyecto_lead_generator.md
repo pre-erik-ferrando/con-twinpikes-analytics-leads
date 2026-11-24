@@ -41,7 +41,7 @@ La que propone la revisión técnica ("Qué construiría ahora"):
 
 Queda fuera hasta tener datos de TWP o Fluidra: los otros cuatro perfiles (sin reglas ni bloque de
 prompt, la comprobación previa los bloquea), Bélgica y Países Bajos (sin piloto de Apify, extractos ni
-palabras de piscina), la comprobación VIES/UID del IVA, el aviso por correo y la escritura desde Intelek.
+palabras de piscina), el aviso por correo y la escritura desde Intelek.
 Detalle y motivo de cada desviación: [Decisiones](decisiones.md).
 
 ## Cómo sabremos que funciona (DF.12)

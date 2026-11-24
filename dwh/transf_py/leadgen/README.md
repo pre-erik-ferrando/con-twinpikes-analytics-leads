@@ -21,6 +21,7 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 | `store.py` | I/O | the seam: `ClickHouseStore` and `MemoryStore` (tests), logical ↔ physical names |
 | `state.py` | I/O | current state of the insert-only tables; run context and snapshot; syncs Intelek's decisions |
 | `apify.py`, `crawl.py`, `llm.py` | I/O | Google Maps actor, crawler (+ Playwright), the model: OpenAI or Anthropic, direct and batch |
+| `vat.py` | I/O | VAT check (DT.5.6): VIES for EU numbers, the Swiss UID register for CHE; only fills `vat_check_status` |
 | `loaders.py`, `seed_loader.py` | I/O | customer extracts, Salesforce status file, boundaries, own lists; seeds and TWP's Excel |
 | `geo_convert.py` | I/O | DE/CH boundaries (GeoPackage, UTM 32N / LV95) to GeoJSON in lon/lat, for `load-geo` |
 | `steps/` | I/O | one module per run type: `capture`, `enrich`, `export`, `maintenance` |

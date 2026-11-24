@@ -94,13 +94,14 @@ def _approved_usd(store, run_id: str) -> float | None:
 
 
 # --------------------------------------------------------------------------- entry points
-def run_enrich(store, provider: llm.Provider, crawler: Crawler | None, req: EnrichRequest) -> tuple[RunContext, dict]:
+def run_enrich(store, provider: llm.Provider, crawler: Crawler | None, req: EnrichRequest,
+               vat_checker=None) -> tuple[RunContext, dict]:
     batch = store.select("capture_batch", {"capture_batch_id": req.capture_batch_id})
     if not batch:
         raise ValueError(f"capture batch {req.capture_batch_id} not found")
     b = batch[0]
     ctx = RunContext(store, runs.new_id("run"), "ENRICH", b["country"], b["profile"], req.requested_by,
-                     capture_batch_id=req.capture_batch_id)
+                     capture_batch_id=req.capture_batch_id, vat_checker=vat_checker)
     ctx.set_state("REQUESTED", request=req.__dict__)
     sync_human_decisions(ctx)
     ctx.freeze_snapshot()
@@ -133,8 +134,10 @@ def run_enrich(store, provider: llm.Provider, crawler: Crawler | None, req: Enri
     return _process(ctx, cfg, provider, crawler, req, to_process, reused, est)
 
 
-def resume_enrich(store, provider: llm.Provider, crawler: Crawler | None, run_id: str) -> tuple[RunContext, dict]:
+def resume_enrich(store, provider: llm.Provider, crawler: Crawler | None, run_id: str,
+                  vat_checker=None) -> tuple[RunContext, dict]:
     ctx = resume_context(store, run_id)
+    ctx.vat_checker = vat_checker
     cfg = ctx.config()
     req = EnrichRequest(**ctx.request)                          # type: ignore[attr-defined]
     if ctx.state == "AWAITING_COST_APPROVAL":
@@ -362,7 +365,7 @@ def _write_web(ctx, bid, domain, final_domain, crawl_status, custom_id, ans, ver
         "validation": ans.validation, "review_reason": ans.review_reason,
         "validation_reason_text": ans.validation_reason_text, "offering": ans.offering, "pool_focus": ans.pool_focus,
         "company_type": ans.company_type, "legal_name": ans.legal_name, "legal_address": ans.legal_address,
-        "vat_id": ans.vat_id, "vat_check_status": "NOT_CHECKED",   # VIES/UID check: not wired in this delivery
+        "vat_id": ans.vat_id, "vat_check_status": ctx.vat_checker.check(ans.vat_id) if ctx.vat_checker else "NOT_CHECKED",
         "register_id": ans.register_id, "register_type": ans.register_type, "register_court": ans.register_court,
         "contact_name": ans.contact_name, "contact_role": ans.contact_role, "email": ans.email,
         "phone_e164": ans.phone_e164, "phone_type": ans.phone_type,

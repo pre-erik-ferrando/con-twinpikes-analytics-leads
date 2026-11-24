@@ -39,6 +39,7 @@ class RunContext:
     snapshot_at: datetime | None = None
     state: str | None = None
     log: list[str] = field(default_factory=list)
+    vat_checker: object | None = None        # enrich: vat.VatChecker; None leaves NOT_CHECKED
 
     def set_state(self, state: str, message: str | None = None, request: dict | None = None) -> None:
         runs.check_transition(self.state, state)

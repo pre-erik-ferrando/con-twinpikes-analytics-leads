@@ -171,6 +171,7 @@ def cmd(ns) -> int:
     if c in ("enrich", "resume"):
         from leadgen.llm import make_provider
         from leadgen.steps.enrich import EnrichRequest, resume_enrich, run_enrich
+        from leadgen.vat import PublicVatChecker
         if c == "enrich":
             b = st.select("capture_batch", {"capture_batch_id": ns.capture_batch})
             if not b:
@@ -178,14 +179,15 @@ def cmd(ns) -> int:
                 return 2
             cfg = _cfg(st, b[0]["country"], b[0]["profile"])
             ctx, summary = run_enrich(st, make_provider(cfg), _crawler(cfg),
-                                      EnrichRequest(ns.capture_batch, user(ns), ns.mode, ns.max_leads, ns.reread))
+                                      EnrichRequest(ns.capture_batch, user(ns), ns.mode, ns.max_leads, ns.reread),
+                                      PublicVatChecker.from_config(cfg))
         else:
             rows = st.select("pipeline_run", {"run_id": ns.run_id})
             if not rows:
                 print(f"run {ns.run_id} not found", file=sys.stderr)
                 return 2
             cfg = _cfg(st, rows[0]["country"], rows[0]["profile"])
-            ctx, summary = resume_enrich(st, make_provider(cfg), _crawler(cfg), ns.run_id)
+            ctx, summary = resume_enrich(st, make_provider(cfg), _crawler(cfg), ns.run_id, PublicVatChecker.from_config(cfg))
         show({**summary, "log": ctx.log})
         return 0
     if c == "approve-cost":
