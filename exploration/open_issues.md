@@ -6,7 +6,9 @@ what the most recent definition (v3.3, 20 October 2026) leaves open, plus what t
 Received: the inputs Excel **v3** (261013) and **v4** (261020), in `docs/source/` (gitignored). Both load.
 v4 is v3 with one sentence changed (the export tab now cites the Spain upload format 260610, v2.2 DT.8.5).
 
-## Before the first demo (Pool specialist DE/AT/CH)
+## After the first demo (Pool specialist DE/AT/CH)
+
+The demo was sent to TwinPikes; waiting for their feedback.
 
 ### TWP / Fluidra
 
@@ -34,7 +36,7 @@ v4 is v3 with one sentence changed (the export tab now cites the Spain upload fo
 
 - Benelux: BE and NL customer lists (TWP, 19 Nov: "De Benelux aún no lo tengo, está pedido"), their
   district outlines (Statbel, CBS) and the search pilot the technical review proposes.
-- Intelek, about their DataApp on the `lgn_v_*` views (to send):
+- Intelek, about their DataApp on the `lgn_v_*` views (to discuss with Intelek in the week of 23 Nov):
   1. Can it write rows to ClickHouse (insert only)? Needed to validate leads, approve costs and edit
      the configuration.
   2. Can a button launch our processes (capture, enrich, export), and how: API call, queue, other?
