@@ -33,7 +33,14 @@ v4 is v3 with one sentence changed (the export tab now cites the Spain upload fo
 
 - Benelux: BE and NL customer lists (TWP, 19 Nov: "De Benelux aún no lo tengo, está pedido"), their
   district outlines (Statbel, CBS) and the search pilot the technical review proposes.
-- Find out with Intelek whether their app can launch runs and accept file uploads.
+- Intelek, about their DataApp on the `lgn_v_*` views (to send):
+  1. Can it write rows to ClickHouse (insert only)? Needed to validate leads, approve costs and edit
+     the configuration.
+  2. Can a button launch our processes (capture, enrich, export), and how: API call, queue, other?
+  3. Can the user download a file the process generates (the Salesforce Excel)?
+  4. Can it show maps with zone polygons and lead points?
+  5. Which ClickHouse user does it connect with, and can it read views across databases
+     (`fld_bizlgn`, `fld_opslgn`)?
 - A whole state sent to Apify at once (Bayern would be an 851 KB request). Single districts tested in
   AT (Graz) and DE (Landkreis München) ([findings.md](findings.md)).
 - Moutier (2604) moved from Bern to Jura in 2026 and is not in TWP's district list.

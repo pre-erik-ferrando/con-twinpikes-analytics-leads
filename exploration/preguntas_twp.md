@@ -3,7 +3,7 @@
 Registro de todo lo que les preguntamos, enviado o por enviar, con su estado. Para la primera entrega:
 Pool specialist en Alemania, Austria y Suiza.
 
-## Por enviar
+## Enviadas el 24-11-2026 (pendientes de respuesta)
 
 1. **Categorías de Google sin clasificar.** En la primera búsqueda real (Carintia) se perdieron negocios de
    piscinas porque su categoría de Google no está en la pestaña Google categories: «Metallbauunternehmen»
