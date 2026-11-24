@@ -374,7 +374,7 @@ def test_import_list_sends_city_and_country_as_free_text(store):
                                                               import_rows=rows))
     assert [c["locationQuery"] for c in cap.calls] == ["Salzburg, Austria", "Austria"]
     for sent in cap.calls:        # a city by name in the structured fields returns nothing (findings.md)
-        assert (sent["countryCode"], sent["city"], sent["customGeolocation"]) == ("", "", None)
+        assert (sent["countryCode"], sent["city"]) == ("", "") and "customGeolocation" not in sent
     assert ctx.state == "CLOSED" and summary["import_matched"] == 2
 
 

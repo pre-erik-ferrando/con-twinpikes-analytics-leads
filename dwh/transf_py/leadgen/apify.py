@@ -52,7 +52,7 @@ def actor_input(term: str, actor_fields: dict, language: str, max_places: int, l
         "searchStringsArray": [term],
         "locationQuery": location_query,
         **loc,
-        "customGeolocation": outline,
+        **({"customGeolocation": outline} if outline else {}),   # left out, not null, when there is none
         "language": language,
         "maxCrawledPlacesPerSearch": int(max_places),
         "searchMatching": "all",
