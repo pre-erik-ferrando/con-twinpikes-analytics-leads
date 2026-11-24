@@ -1,33 +1,27 @@
 # What sync.py publishes to Outline, and where. Only the files listed here are uploaded.
 #
 # The Lead Generator shares the client's collection with the Insight Generator (con-twinpikes-analytics),
-# which owns the collection's template pages (General, Onboarding, Proyectos y desarrollo…). This repo
-# owns only the "Proyecto Lead Generator" page, created under "Proyectos y desarrollo" (parent_id), and
-# the pages below it. Their ids are saved in outline_ids.json by the first real run (commit it).
-# Titles say "Lead Generator" so they don't clash in search with the Insight Generator's pages.
+# which owns the template pages (General, Casos de uso → Comercial, Proyectos y desarrollo…). As the
+# company template says (¡Bienvenido! → Clientes - Colección Privada), this repo publishes two branches:
+#   - the tool: Casos de uso → Comercial → Lead Generator, with its technical pages below it;
+#   - the project: Proyectos y desarrollo → Proyecto Lead Generator, with Decisiones below it.
+# The client's environment (Arquitectura técnica del entorno) is shared and not published from here.
+# Ids of created pages are saved in outline_ids.json by the first real run (commit it). Titles say
+# "Lead Generator" so they don't clash in search with the Insight Generator's pages.
 
 url = "https://outline.prenomics.com"
 collection = "eZ3Xv5Fqej"   # CLI - TwinPikes, shared with con-twinpikes-analytics
 github = "https://github.com/Prenomics/con-twinpikes-analytics-leads"
 branch = "develop"
 
+# --- Casos de uso → Comercial → Lead Generator -------------------------------------------------------
 [[page]]
-file = "proyecto_lead_generator.md"
-parent_id = "a787878e-c79d-4864-bc26-470a8c7b2ae2"   # Proyectos y desarrollo (owned by con-twinpikes-analytics)
-
-[[page]]
-file = "onboarding.md"
-parent = "proyecto_lead_generator.md"
-title = "Onboarding del Lead Generator"
-
-[[page]]
-file = "decisiones.md"
-parent = "proyecto_lead_generator.md"
-title = "Decisiones del Lead Generator"
+file = "lead_generator.md"
+parent_id = "1d099e37-d026-41a7-b019-d51ae410df04"   # Comercial (owned by con-twinpikes-analytics)
 
 [[page]]
 file = "arquitectura.md"
-parent = "proyecto_lead_generator.md"
+parent = "lead_generator.md"
 title = "Arquitectura del Lead Generator"
 
 [[page]]
@@ -42,5 +36,20 @@ title = "Configuración del Lead Generator"
 
 [[page]]
 file = "operacion.md"
-parent = "proyecto_lead_generator.md"
+parent = "lead_generator.md"
 title = "Operación del Lead Generator"
+
+[[page]]
+file = "onboarding.md"
+parent = "lead_generator.md"
+title = "Onboarding del Lead Generator"
+
+# --- Proyectos y desarrollo → Proyecto Lead Generator ------------------------------------------------
+[[page]]
+file = "proyecto_lead_generator.md"
+parent_id = "a787878e-c79d-4864-bc26-470a8c7b2ae2"   # Proyectos y desarrollo (owned by con-twinpikes-analytics)
+
+[[page]]
+file = "decisiones.md"
+parent = "proyecto_lead_generator.md"
+title = "Decisiones del Lead Generator"

@@ -2,8 +2,9 @@
 
 - **`how_it_works.md`**: a Spanish explainer of the whole system, end to end: [how_it_works.md](how_it_works.md).
 - **`outline/`**: the documentation, in Spanish, published to Outline one way: edit it here, never in
-  Outline. Start at `outline/proyecto_lead_generator.md`. The pages go under «Proyecto Lead Generator», in
-  «Proyectos y desarrollo» of the client's collection, shared with the Insight Generator;
+  Outline. Start at `outline/lead_generator.md`. They go to the client's collection, shared with the Insight
+  Generator, as its template says: the tool under «Casos de uso → Comercial», the project under
+  «Proyectos y desarrollo»;
   `outline/outline.toml` says which file goes under which page. `python docs/outline/sync.py --dry-run`
   previews them, and with `OUTLINE_API_TOKEN` set it publishes.
 - **`spec/`**: the client's specification: definition v3.3 (functional + technical, 20 Oct 2026) and the

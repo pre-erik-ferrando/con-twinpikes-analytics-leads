@@ -4,15 +4,8 @@ El **Lead Generator DACH**, proyecto conjunto de Prenomics y **TWP** para Fluidr
 encontrar empresas de piscinas en Alemania, Austria y Suiza (y, más adelante, Bélgica y Países Bajos)
 que todavía no son clientes de Fluidra y entregarlas a Salesforce, puntuadas, para que Inside Sales las
 llame por orden de interés. Es un proyecto distinto del Insight Generator, con su propio repositorio y
-sus propias bases de datos (`fld_*lgn`).
-
-## Qué hace (DF.1)
-
-Busca en Google Maps por perfil, término y zona; aparta lo que no es negocio de piscina y lo que ya es
-cliente; lee la web de cada empresa, la puntúa con el modelo de perfil de TWP y deja que Sales Ops
-rechace lo que no vale. Los aprobados se exportan a Salesforce antes de la llamada. Todo lo encontrado
-se guarda: si cambian las reglas, se vuelve a filtrar y puntuar sin pagar otra vez la búsqueda ni la
-lectura de las webs.
+sus propias bases de datos (`fld_*lgn`). Qué hace la herramienta y cómo está construida:
+[Lead Generator](lead_generator.md).
 
 ## Quién hace qué
 
@@ -23,28 +16,13 @@ lectura de las webs.
 | **Prenomics** | Construye y opera el motor y la base de datos, y la configuración avanzada |
 | **Intelek** | La DataApp: pantallas de captación, enriquecimiento, validación, exportación y configuración |
 
-## Dónde está cada cosa
+## Docs relevantes
 
 - **Código**: el repositorio `con-twinpikes-analytics-leads`, con el mismo stack y las mismas
   convenciones que el Insight Generator (`con-twinpikes-analytics`).
-- **Base de datos**: ClickHouse, bases `fld_*lgn` ([Arquitectura](arquitectura.md)).
 - **Definición**: el Word v3.3 y la revisión técnica de la v3.2, en [`docs/spec/`](../spec); el Excel de
   inputs, en el SharePoint de TWP (fuera del repositorio).
-- **Para empezar**: [Onboarding](onboarding.md). **Qué se aparta de la definición**: [Decisiones](decisiones.md).
-
-## El recorrido de un lead
-
-| Paso | Comando | Resultado |
-|---|---|---|
-| Captación | `leadgen.py capture` | Una tanda de captación (`capture_batch`): encontrados, excluidos por el filtro y por ser cliente, estimación de coste del enriquecimiento |
-| Enriquecimiento | `leadgen.py enrich` | Webs leídas, análisis del modelo comprobado, segundo cruce con clientes, puntuación y Rating |
-| Validación | Intelek (o `review`, `reject`, `approve-rest`) | Rechazos con motivo; el resto aprobado con alcance explícito |
-| Exportación | `leadgen.py export` + `confirm-export` | Fichero de Salesforce; Published al confirmar la subida |
-| Estado en Salesforce (mensual) | `leadgen.py load-sf-status` | Los descartados no vuelven a salir; mapa 3 por zona y mes |
-| Actualización mensual | `load-customers` + `rematch` | Los leads que ya son clientes se descualifican |
-
-Estados del lead (DF.4), calculados en `lgn_v_lead.des_status`: Found, Excluded by engine, To review,
-Rejected, Approved, Published.
+- **Qué se aparta de la definición y qué está pendiente**: [Decisiones](decisiones.md).
 
 ## Alcance de esta entrega
 
