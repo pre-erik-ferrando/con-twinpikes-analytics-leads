@@ -44,6 +44,10 @@ The demo was sent to TwinPikes; waiting for their feedback.
   4. Can it show maps with zone polygons and lead points?
   5. Which ClickHouse user does it connect with, and can it read views across databases
      (`fld_bizlgn`, `fld_opslgn`)?
+- After the demos, with TWP and Intelek: should the configuration screen also edit
+  `biz_cfg_run_parameter`? DF.14 leaves it out ("the rest of the parameters don't change"), but we want
+  to change the Apify input (`searchMatching`, `website`, `skipClosedPlaces`, `placeMinimumStars`,
+  results per IMPORT_LIST row, ...) without touching code. Today: seed CSV + `seed --overwrite`, or SQL.
 - Actor language, to check on the next capture: TWP's category rules are German names only, and capture
   asks the actor for the area's language, so in French or Italian Switzerland Google's categories would
   come back in that language and fail the filter (they'd show in `lgn_v_category_pending`). Fix if so:
