@@ -2,6 +2,27 @@
 
 Things learned while testing that matter for later decisions. Newest first.
 
+## 2026-11-24 · Control sets for Germany and Switzerland
+
+Same rules as Austria (below): only entries with a website or phone, phones to E.164 and domains with the
+engine's own functions, `MUST_EXCLUDE` when TWP's v4 name exclusions (HARD) catch the name or the
+company is a competitor's branch. In `seeds/biz_cfg_control_set.csv`; `python leadgen.py seed` adds them
+(it inserts only keys that don't exist yet).
+
+- **Germany, source BSW (179):** bsw-web.de, "Übersicht Schwimmbadbaufachunternehmen", one static list of
+  certified pool builders (maybe a subset of all members). One competitor: Desjoyaux Pools Freising (the
+  name rule catches it). Branches kept as separate rows. Ortlieb (Umkirch) has no website: its e-mail domain.
+- **Switzerland, source AQUASUISSE (60):** aqua suisse (Swiss association for water and pool technology,
+  about 150 members); its member map, category "Becken Beschaffung" (62), read through the page's own
+  search endpoint. Dropped: Piscines et Spas Arnold (no contact) and Fehlmann's French duplicate.
+  `MUST_EXCLUDE MANUFACTURER`: CF Pool & Chemie (Chemoform, in TWP's manufacturers; the name rule does not
+  catch it, so coverage shows whether the model does). Chemicals and water-treatment firms (Chemia,
+  Bioexam, Fehlmann) stay MUST_INCLUDE, as the Austrian manufacturers did.
+- **Switzerland, source DESJOYAUX (7):** the exclusive dealers on desjoyaux.ch (Händlersuche) and their
+  sites, all `MUST_EXCLUDE COMPETITOR` (Desjoyaux is a HARD competitor rule in v4). Their company names
+  don't say Desjoyaux; their Google names may, and coverage will show it. desjoyauxfribourg.ch did not resolve.
+- The coverage figure needs a capture in DE or CH: no run there yet.
+
 ## 2026-11-18 · Apify: give the search area as a map outline, not by name
 
 **Problem.** With the area given by name, as spec DT.3.2 asks (`countryCode` + `state`/`county`/`city`),
@@ -137,7 +158,7 @@ their trade name.
   ProMinent…): if the model sets them aside, coverage shows it, and TWP can add them to the exclusions.
 - 30 of the 47 are already Fluidra customers in Austria (by phone or email domain): the list mostly tests
   the customer match. `lgn_v_coverage` now counts "excluded as a customer" as correct for MUST_INCLUDE.
-- Germany (BSW) and Switzerland: not done.
+- Germany (BSW) and Switzerland: done on 24 Nov (see above).
 
 ## 2026-11-20 · Definition v3.3: Salesforce status file instead of the cockpit's call results
 

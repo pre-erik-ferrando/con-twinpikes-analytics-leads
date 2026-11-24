@@ -14,7 +14,7 @@ Intelek. Reglas comunes (DT.2.1):
 |---|---|---|
 | Excel de inputs de TWP (DF.14) | `search_area`, `strategic_zone` (Admin divisions), `search_term` (Profiles & keywords), `category_rule` (Google categories), `title_rule` (Name exclusions), `word_list` lista POOL_SIGNAL (Pool words), `brand` (Brands), `sales_owner` (Subregion → sales rep) | `leadgen.py load-config FICHERO.xlsx --version <v>` |
 | Semillas del repositorio (valores del Word y [PROPUESTA]) | `profile`, `scoring_rule`, `rating_band`, `validation_reason`, `word_list` (listas SHARED_DOMAIN, NAME_STOPWORD, PAGE_PRIORITY y LEGAL_FORM), `matching_rule`, `source_column`, `value_map`, `category_of_interest`, `export_column`, `run_parameter`, y unas pocas filas de `title_rule`, `word_list` (POOL_SIGNAL), `brand` y `search_term` que cita el Word | `leadgen.py seed` ([`seeds/`](../../dwh/transf_py/leadgen/seeds)) |
-| Conjunto de control (DF.12) | `control_set` | Semilla [PROPUESTA]: Austria, socios del ÖVS (directorio de la WKO, 20-11-2026). Alemania (BSW) y Suiza, pendientes |
+| Conjunto de control (DF.12) | `control_set` | Semilla [PROPUESTA]: Austria, socios del ÖVS (directorio de la WKO, 20-11-2026); Alemania, la lista de constructores de piscinas del BSW (179); Suiza, los socios de aqua suisse en construcción de piscinas (60) y los distribuidores de Desjoyaux como competidor (7) (24-11-2026). «Debe excluir»: lo que excluyen las reglas de nombre de TWP y las delegaciones de competidores |
 
 Cada carga es una versión (`seed_version`) y queda en `ops.seed_load`. Solo inserta las claves que no
 existen: nunca pisa lo que se ha cambiado en Intelek salvo con `--overwrite`.
