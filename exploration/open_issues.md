@@ -44,10 +44,6 @@ The demo was sent to TwinPikes; waiting for their feedback.
   4. Can it show maps with zone polygons and lead points?
   5. Which ClickHouse user does it connect with, and can it read views across databases
      (`fld_bizlgn`, `fld_opslgn`)?
-- IMPORT_LIST name match too strict for Google's SEO titles: "Pool Partner Graz" vs the listing
-  "Pool Partner Graz - Pools & Poolzubehör" scores 60 (< `import_match_min_similarity` 85), so it came back
-  UNMATCHED (run_ed808c406157, 24 Nov). Fix: compare against the title cut at " - " / " | ", or a
-  token-set ratio when the list name has at least two words.
 - After the demos, with TWP and Intelek: should the configuration screen also edit
   `biz_cfg_run_parameter`? DF.14 leaves it out ("the rest of the parameters don't change"), but we want
   to change the Apify input (`searchMatching`, `website`, `skipClosedPlaces`, `placeMinimumStars`,

@@ -9,6 +9,7 @@ Matched listings enter a capture batch with source IMPORT and follow the normal 
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 
 from rapidfuzz.fuzz import token_sort_ratio
@@ -369,6 +370,14 @@ def actor_call(result, capturer, actor_in: dict) -> dict:
 
 
 # --------------------------------------------------------------------------- IMPORT_LIST
+def title_variants(title: str | None) -> list[str]:
+    """The Google title and, if it has one, the part before a " - " or " | " slogan: listings like
+    "Pool Partner Graz - Pools & Poolzubehör" are "Pool Partner Graz" in a list."""
+    t = title or ""
+    head = re.split(r"\s+[-|–]\s+", t, maxsplit=1)[0].strip()
+    return [t, head] if head and head != t else [t]
+
+
 def pick_import_match(row: dict, items: list[dict], min_similarity: float, country: str,
                       legal_forms=()) -> tuple[str, dict | None]:
     """('MATCHED', item) | ('UNMATCHED', None) | ('AMBIGUOUS', None)."""
@@ -378,8 +387,7 @@ def pick_import_match(row: dict, items: list[dict], min_similarity: float, count
     scored = []
     for it in items:
         f = apify.item_fields(it)
-        ae, _ = name_keys(f["name"], legal_forms)
-        sim = token_sort_ratio(want_ae, ae)
+        sim = max(token_sort_ratio(want_ae, name_keys(n, legal_forms)[0]) for n in title_variants(f["name"]))
         hard = (want_phone and normalize_phone(f["phone_raw"], country)[0] == want_phone) or (
             want_dom and registrable_domain(f["website"]) == want_dom)
         if hard or sim >= min_similarity:

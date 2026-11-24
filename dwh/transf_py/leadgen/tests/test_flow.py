@@ -378,6 +378,14 @@ def test_import_list_sends_city_and_country_as_free_text(store):
     assert ctx.state == "CLOSED" and summary["import_matched"] == 2
 
 
+def test_import_match_ignores_the_title_slogan():
+    from leadgen.steps.capture import pick_import_match
+    listing = item("p_pp", "Pool Partner Graz - Pools & Poolzubehör", ["Schwimmbadbauer"])
+    assert pick_import_match({"name": "Pool Partner Graz"}, [listing], 85, "AT")[0] == "MATCHED"
+    other = item("p_x", "Poolbau Huber - Pools & Poolzubehör", ["Schwimmbadbauer"])
+    assert pick_import_match({"name": "Pool Partner Graz"}, [other], 85, "AT")[0] == "UNMATCHED"
+
+
 def test_capture_without_boundary_fails_before_spending(store):
     rows = _cfg_rows()["biz_cfg_search_area"] + [
         {"country": "AT", "area_id": "AT-502", "parent_area_id": "AT-S-SALZBURG", "level": "SUBREGION",
