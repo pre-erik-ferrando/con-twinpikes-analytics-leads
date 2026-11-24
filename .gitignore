@@ -51,6 +51,8 @@ logs/
 # shared folder, not here.
 exports/
 tmp/
+# run_trace.py: every step of a run, business by business (leads, customer names, phones)
+traces/
 
 # --- docs/outline/ ----------------------------------------------------------
 # The local preview of docs/outline/sync.py --dry-run.

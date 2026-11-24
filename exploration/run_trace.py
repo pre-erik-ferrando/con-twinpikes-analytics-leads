@@ -3,7 +3,7 @@ enrichment runs, table by table, plus one section per business. Read-only, free.
 
     python exploration/run_trace.py cb_66cb495f9b90
 
-Output in tmp/trace/<capture_batch_id>/ (gitignored: it holds leads and customer names):
+Output in traces/<capture_batch_id>/ (gitignored: it holds leads and customer names):
     01_capture/<table>.csv   search log (with each Apify call), the items, normalised places, identity, filter (current), 1st match
     02_enrich/<table>.csv    crawls, pages (text size, no HTML), model requests and answers, 2nd match, and
                              the score (lgn_f_score: frozen at export or live; lgn_f2_score_component)
@@ -90,7 +90,7 @@ def main() -> int:
     load_env()
     st = ClickHouseStore()
     cb = ns.capture_batch_id
-    out = ROOT / "tmp" / "trace" / cb
+    out = ROOT / "traces" / cb
 
     runs = st.select("pipeline_run", {"capture_batch_id": cb})
     cap = sorted({r["run_id"] for r in runs if r["run_type"] == "CAPTURE"})
