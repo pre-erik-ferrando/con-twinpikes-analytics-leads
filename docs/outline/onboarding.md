@@ -2,7 +2,7 @@
 
 ## Qué leer, en orden
 
-1. [General](general.md) y [Proyecto Lead Generator](proyecto_lead_generator.md).
+1. [Proyecto Lead Generator](proyecto_lead_generator.md).
 2. La definición v3.3, parte I (funcional), en [`docs/spec/`](../spec); la parte II y la revisión técnica
    cuando se vaya a tocar código.
 3. [Arquitectura](arquitectura.md), [Modelo de datos](modelo_datos.md) y [Decisiones](decisiones.md).

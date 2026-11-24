@@ -1,43 +1,46 @@
 # What sync.py publishes to Outline, and where. Only the files listed here are uploaded.
 #
-# [PENDIENTE] the collection of this project in Outline. As in con-twinpikes-analytics, the top-level
-# pages take over the collection's template pages by id (outline_id); replace each PENDING-… with the
-# id of that page once the collection exists. Until then, use --dry-run only. Pages with a parent are
-# created by the first real run, which saves their ids in outline_ids.json (commit it).
+# The Lead Generator shares the client's collection with the Insight Generator (con-twinpikes-analytics),
+# which owns the collection's template pages (General, Onboarding, Proyectos y desarrollo…). This repo
+# owns only the "Proyecto Lead Generator" page, created under "Proyectos y desarrollo" (parent_id), and
+# the pages below it. Their ids are saved in outline_ids.json by the first real run (commit it).
+# Titles say "Lead Generator" so they don't clash in search with the Insight Generator's pages.
 
 url = "https://outline.prenomics.com"
-collection = ""
+collection = "eZ3Xv5Fqej"   # CLI - TwinPikes, shared with con-twinpikes-analytics
 github = "https://github.com/Prenomics/con-twinpikes-analytics-leads"
 branch = "develop"
 
 [[page]]
-file = "general.md"
-outline_id = "PENDING-general"
+file = "proyecto_lead_generator.md"
+parent_id = "a787878e-c79d-4864-bc26-470a8c7b2ae2"   # Proyectos y desarrollo (owned by con-twinpikes-analytics)
 
 [[page]]
 file = "onboarding.md"
-parent = "general.md"
-
-[[page]]
-file = "proyecto_lead_generator.md"
-outline_id = "PENDING-proyecto_lead_generator"
+parent = "proyecto_lead_generator.md"
+title = "Onboarding del Lead Generator"
 
 [[page]]
 file = "decisiones.md"
 parent = "proyecto_lead_generator.md"
+title = "Decisiones del Lead Generator"
 
 [[page]]
 file = "arquitectura.md"
-outline_id = "PENDING-arquitectura"
+parent = "proyecto_lead_generator.md"
+title = "Arquitectura del Lead Generator"
 
 [[page]]
 file = "modelo_datos.md"
 parent = "arquitectura.md"
+title = "Modelo de datos del Lead Generator"
 
 [[page]]
 file = "configuracion.md"
 parent = "arquitectura.md"
+title = "Configuración del Lead Generator"
 
 [[page]]
 file = "operacion.md"
-outline_id = "PENDING-operacion"
+parent = "proyecto_lead_generator.md"
+title = "Operación del Lead Generator"

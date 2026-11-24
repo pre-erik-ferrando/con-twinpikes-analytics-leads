@@ -5,8 +5,9 @@
     OUTLINE_API_TOKEN=... python docs/outline/sync.py --no-create   # CI: updates only, never creates
 
 What goes where: outline.toml. A page with `outline_id` takes over that existing Outline page (the
-collection's template pages) and stays where it is; any other page is created the first time (its id is
-saved in outline_ids.json, which is committed). Every run overwrites each page in full, so an edit made
+collection's template pages) and stays where it is. Any other page is created the first time, under its
+`parent` (a page listed here) or its `parent_id` (an Outline page this repo does not publish), and its id
+is saved in outline_ids.json, which is committed. Every run overwrites each page in full, so an edit made
 in Outline is lost.
 Links to another listed page become its Outline link; links to anything else in the repo become a
 GitHub link. A page removed from outline.toml is NOT deleted in Outline: the run lists it.
@@ -65,13 +66,19 @@ def load_pages(cfg):
     for p in pages:
         if not (HERE / p["file"]).is_file():
             sys.exit(f"[outline] {p['file']} is listed in outline.toml but does not exist")
-        if p.get("outline_id") and p.get("parent"):
-            sys.exit(f"[outline] {p['file']}: a page taken over with outline_id keeps its place, no parent")
-        if not p.get("outline_id") and p.get("parent") not in files:
-            sys.exit(f"[outline] {p['file']}: a new page needs a parent listed in outline.toml")
-        if files.index(p.get("parent", p["file"])) > files.index(p["file"]):
+        placements = [k for k in ("outline_id", "parent", "parent_id") if p.get(k)]
+        if len(placements) != 1:
+            sys.exit(f"[outline] {p['file']}: give exactly one of outline_id, parent or parent_id")
+        if p.get("parent") and p["parent"] not in files:
+            sys.exit(f"[outline] {p['file']}: its parent {p['parent']} is not listed in outline.toml")
+        if p.get("parent") and files.index(p["parent"]) > files.index(p["file"]):
             sys.exit(f"[outline] {p['file']}: list its parent {p['parent']} before it")
     return pages
+
+
+def parent_id(page, docs):
+    """The Outline id of a new page's parent: a page listed here, or one owned elsewhere (parent_id)."""
+    return page.get("parent_id") or docs[page["parent"]]["id"]
 
 
 def split_title(page):
@@ -127,7 +134,8 @@ def dry_run(cfg, pages):
     for p in pages:
         title, text = render(p, cfg, urls)
         (PREVIEW / p["file"]).write_text(f"# {title}\n\n{text}", encoding="utf-8")
-        where = "takes over its page" if p.get("outline_id") else f"new, under {p['parent']}"
+        where = ("takes over its page" if p.get("outline_id")
+                 else f"new, under {p.get('parent') or 'page ' + p['parent_id']}")
         print(f"  {p['file']:<26} → {title!r} ({where})")
     print(f"[outline] dry run: {len(pages)} pages rendered to {PREVIEW.relative_to(REPO)}/, nothing sent")
 
@@ -153,7 +161,7 @@ def sync(cfg, pages, client, no_create=False):
                     sys.exit(f"[outline] {p['file']} has no Outline page yet: run sync.py locally once "
                              "and commit outline_ids.json")
                 doc = client.must("documents.create", title=split_title(p)[0], text="", publish=True,
-                                  collectionId=collection["id"], parentDocumentId=docs[p["parent"]]["id"])
+                                  collectionId=collection["id"], parentDocumentId=parent_id(p, docs))
                 print(f"  created  {p['file']}")
             if ids.get(p["file"]) != doc["id"]:
                 ids[p["file"]] = doc["id"]
@@ -169,8 +177,13 @@ def sync(cfg, pages, client, no_create=False):
         title, text = render(p, cfg, urls)
         doc = docs[p["file"]]
         client.must("documents.update", id=doc["id"], title=title, text=text, publish=True)
-        if not p.get("outline_id"):
-            parent = docs[p["parent"]]["id"]
+        if p.get("parent_id"):
+            # Under a page another repo owns, beside its pages: keep the place it has, never reorder them.
+            if doc.get("parentDocumentId") != p["parent_id"]:
+                client.must("documents.move", id=doc["id"], collectionId=collection["id"],
+                            parentDocumentId=p["parent_id"])
+        elif not p.get("outline_id"):
+            parent = parent_id(p, docs)
             index = siblings.setdefault(parent, 0)
             client.must("documents.move", id=doc["id"], collectionId=collection["id"],
                         parentDocumentId=parent, index=index)
