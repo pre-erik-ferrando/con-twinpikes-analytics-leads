@@ -164,7 +164,7 @@ def cmd(ns) -> int:
         else:
             file_id, rows = loaders.load_import_list(st, Path(ns.file), ns.country, ns.profile, user(ns))
             req = CaptureRequest(ns.country, ns.profile, [], [], user(ns), import_rows=rows, import_file_id=file_id,
-                                 approve_cost_usd=ns.approve_cost)
+                                 approve_stale_extract=ns.approve_stale_extract, approve_cost_usd=ns.approve_cost)
             ctx, summary = run_import_list(st, cap, req)
         show({"run_id": ctx.run_id, **summary, "log": ctx.log})
         return 0
@@ -294,6 +294,8 @@ def parser() -> argparse.ArgumentParser:
                    help="approve an Apify estimate above cost_approval_threshold_usd (at least the estimate)")
     s = sub.add_parser("import-list"); s.add_argument("file"); s.add_argument("--country", required=True)
     s.add_argument("--profile", default="POOL_SPECIALIST")
+    s.add_argument("--approve-stale-extract", action="store_true",
+                   help="run although the customer extract is older than customer_extract_max_age_days")
     s.add_argument("--approve-cost", type=float, metavar="USD", help="approve an Apify estimate above the threshold")
     s = sub.add_parser("enrich"); s.add_argument("--capture-batch", required=True)
     s.add_argument("--mode", default="AUTO", choices=["AUTO", "BATCH", "DIRECT"])

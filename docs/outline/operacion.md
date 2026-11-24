@@ -13,7 +13,7 @@ lista). Necesita la VPN y el `.env`.
    `--approve-stale-extract` (queda registrado como aprobación `STALE_CUSTOMER_EXTRACT` de quien la lanza).
    Antes de llamar a Apify se estima su coste (consultas × tope × precio por ficha). Si supera
    `cost_approval_threshold_usd`, la captación no empieza: hay que repetirla con `--approve-cost USD`
-   (al menos la estimación) o con menos zonas, términos o `--max-places`. Igual en `import-list`.
+   (al menos la estimación) o con menos zonas, términos o `--max-places`. Las dos aprobaciones valen igual en `import-list`.
 2. **Categorías nuevas**: revisar `lgn_v_category_pending` y clasificarlas en `biz_cfg_category_rule`;
    cuentan desde la siguiente ejecución (o `reprocess`, gratis).
 3. **Enriquecimiento**: `enrich --capture-batch cb_… [--mode AUTO|BATCH|DIRECT] [--max-leads N]`.

@@ -354,6 +354,17 @@ def test_dotenv_drops_inline_comments(tmp_path, monkeypatch):
         ("fld_landinglgn", "a #b", "p#ss", "")
     assert "E_X" not in os.environ
 
+def test_import_list_takes_the_same_approvals_as_capture():
+    import importlib.util
+    from pathlib import Path
+    spec = importlib.util.spec_from_file_location("leadgen_cli", Path(__file__).resolve().parents[4] / "leadgen.py")
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    ns = cli.parser().parse_args(["import-list", "f.xlsx", "--country", "AT", "--approve-stale-extract",
+                                  "--approve-cost", "1"])
+    assert ns.approve_stale_extract and ns.approve_cost == 1.0
+
+
 def test_export_rows_from_config():
     cols = [{"column_name": "Lead Source", "source_kind": "CONSTANT", "source_value": "Web Scraping", "format": "TEXT"},
             {"column_name": "Rating", "source_kind": "VALUE_MAP", "source_value": "SF_RATING", "source_field": "rating",
