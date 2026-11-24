@@ -44,6 +44,11 @@ The demo was sent to TwinPikes; waiting for their feedback.
   4. Can it show maps with zone polygons and lead points?
   5. Which ClickHouse user does it connect with, and can it read views across databases
      (`fld_bizlgn`, `fld_opslgn`)?
+- Actor language, to check on the next capture: TWP's category rules are German names only, and capture
+  asks the actor for the area's language, so in French or Italian Switzerland Google's categories would
+  come back in that language and fail the filter (they'd show in `lgn_v_category_pending`). Fix if so:
+  one actor language for all searches (`apify_language`, definition DT.3), terms still in the area's.
+  Actor build `0.14.793` worked on 23 Nov; `exploration/apify_smoke.py` checks the current one (free).
 - A whole state sent to Apify at once (Bayern would be an 851 KB request). Single districts tested in
   AT (Graz) and DE (Landkreis München) ([findings.md](findings.md)).
 - Moutier (2604) moved from Bern to Jura in 2026 and is not in TWP's district list.
