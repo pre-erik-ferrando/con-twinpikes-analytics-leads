@@ -62,7 +62,7 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 | Comprobación VIES / UID | Prenomics | `des_vat_id` en `lgn_v_lead` (solo con VALID) | `vat_check_status = NOT_CHECKED` |
 | Identificadores de las sociedades de Fluidra | Fluidra | Señal FLUIDRA_ENTITY | `fluidra_entity_ids` vacío |
 | Conjunto de control (`control_set.csv`) de Alemania (BSW) y Suiza | Prenomics | Medir DF.12 en DE y CH | Austria cargada: 47 socios del ÖVS con web o teléfono; «debe excluir» los que excluyen las reglas de nombre de TWP |
-| Capacidad de Intelek: escritura, ficheros, botón | Intelek | Pantallas | Línea de comandos |
+| Capacidad de Intelek: escritura en ClickHouse, botón que lanza procesos, descarga de ficheros, mapas, usuario de conexión (preguntas redactadas, por enviar) | Intelek | Pantallas | Línea de comandos |
 | Base legal del tratamiento | Asesor legal de Fluidra | Arranque en producción | — |
 
 ## Diferencias con la definición, por decidir más adelante

@@ -135,10 +135,10 @@ in the demo.
 `--inputs`), and replays several saved Apify runs, one per term, as one capture (each item is replayed
 under its own `searchString`).
 
-**Next demo (waits for the Anthropic key):** Villach Land (207), the 4 pre-selected terms of v4
-(Poolbau, Poolbauer, Poolshop, Poolservice), up to 50 places each (about $1 in Apify). Then the demo
-needs the real model (`llm.make_provider`) instead of answers typed by hand: about 50 businesses would
-pass the filter, too many to answer by hand. Why 207: [findings.md](findings.md).
+**Superseded by the real runs (23 Nov):** the Villach Land (207) plan was dropped: Villach's districts
+returned 1 business each, so the market is searched by state. Carinthia and Styria ran through
+`leadgen.py` with the real model (OpenAI), on ClickHouse ([findings.md](findings.md)). This in-memory
+demo stays for trying changes without the DB or paid calls.
 
 **Not in the demo:** the dbt views (`lgn_v_lead` and the others, which need ClickHouse) and the sales
 owner (TWP's tab is empty; a placeholder is used).
