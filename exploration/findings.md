@@ -2,6 +2,17 @@
 
 Things learned while testing that matter for later decisions. Newest first.
 
+## 2026-11-24 · Import list: one business by name, location as free text
+
+IMPORT_LIST used to send the row's city by name in the structured fields, which returns nothing (see
+18 Nov). It now sends `locationQuery` "City, Country" with the structured fields empty and no outline.
+Tested with the engine's own input (`apify_smoke.py --run --build 0.14.793 --term "Cranpool Center Graz"
+--location "Graz, Austria" --max-places 3`, run THhIJPNf6WUcTiuHW, $0.005): 1 item, Cranpool Center Graz
+(8053, Schwimmbeckenbauer), every field the engine reads filled except the owner's description.
+
+The smoke script's field check fails with a build number (`--build 0.14.793`: HTTP 404, the endpoint wants
+the build id); the run itself does use that build. Without `--build` it checks the default build.
+
 ## 2026-11-24 · Control sets for Germany and Switzerland
 
 Same rules as Austria (below): only entries with a website or phone, phones to E.164 and domains with the
