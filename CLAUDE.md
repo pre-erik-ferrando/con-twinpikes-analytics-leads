@@ -43,5 +43,6 @@ Runs that call Apify or the model cost money and write to the shared DB: the use
   when ours. A new table or column starts in `ddl.py`, then regenerate `_sources.yml`.
 - Logical names in code; style A physical names (pk_/des_/imp_/val_) only in tables Intelek reads or writes,
   translated by `store.py`.
-- The DACH Pool-specialist prompt is the definition's text (unchanged from v3.2 to v3.3): changing it changes `prompt_version` (cache, custom_id).
+- The DACH Pool-specialist prompt is the definition's text (unchanged from v3.2 to v3.3) except where decisiones.md says
+  (repairers and cover sellers are not valid): changing it changes `prompt_version` (cache, custom_id).
 - When code or a decision changes, update the matching `docs/outline/` page in the same change.

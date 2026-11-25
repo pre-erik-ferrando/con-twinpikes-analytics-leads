@@ -6,8 +6,9 @@
 | Country | countries/languages, valid identifiers, register formats             | country_code |
 | Profile | what a valid lead is, what is not, and the company types             | profile_code |
 
-For Pool specialist in DE, AT and CH the assembled text is the definition's prompt word for word (unchanged from v3.2 to v3.3) (the only base
-accepted in this phase; tests/test_prompt.py pins it). Other profiles have no block until TWP delivers
+For Pool specialist in DE, AT and CH the assembled text is the definition's prompt (unchanged from v3.2 to v3.3),
+except that businesses that only repair (pools, equipment, robots) or only deal in pool covers or enclosures
+are not valid leads (decisiones.md, 25-11-2026). Other profiles have no block until TWP delivers
 their rules: building one raises ProfileNotConfigured.
 
 prompt_version = <release>-<hash of the three blocks + user template + schema>: any text change gives a
@@ -70,7 +71,7 @@ PROFILE_BLOCKS = {
     "POOL_SPECIALIST": """TASK 1. VALIDATION
 A valid lead is a business that:
 - Builds or installs swimming pools, including natural pools and swimming ponds (Schwimmteich, Naturpool, piscine naturelle).
-- Maintains, cleans or repairs swimming pools.
+- Maintains or cleans swimming pools.
 - Sells swimming pool products, equipment, chemicals or spare parts.
 - Provides professional services to swimming pool owners or operators.
 Not a valid lead: businesses that are only
@@ -79,9 +80,11 @@ Not a valid lead: businesses that are only
 - Public swimming pools, thermal baths or water parks.
 - Private residences.
 - Sellers or servicers of hot tubs, whirlpools or saunas, with no swimming pool products or services.
+- Repairers of swimming pools, pool equipment or pool robots, even if they also sell spare parts, used, refurbished or upgraded units of what they repair, or publish care tips or advice. Servicing, maintaining or cleaning pool robots is robot repair, not pool cleaning.
+- Sellers, manufacturers or installers of pool covers, enclosures or roofs.
 - Businesses with no clear swimming pool products or services.
 Rules:
-1. The business name, the Google Maps categories and the owner description are clues, not sufficient evidence. Confirm with the website content.
+1. The business name, the Google Maps categories and the owner description are clues, not sufficient evidence. Confirm with the website content. Tips, guides or advice published on the website are not a service.
 2. Return VALID when there is clear evidence of relevant swimming pool products or services.
 3. Return NOT_VALID when there is clear evidence the business does not qualify.
 4. Return REVIEW when the evidence is insufficient or contradictory, including when no website content is provided.
@@ -92,7 +95,7 @@ TASK 2. COMPANY TYPE
 Set company_type to one of:
 - BUILDER_INSTALLER_SHOP: builds pools (including construction companies and landscapers that deliver the complete pool), installs pool equipment, or runs a shop that buys pool equipment, chemicals or spare parts.
 - MAINTENANCE_OR_PREFAB: only maintains pools, or manufactures or installs prefabricated pools (fibreglass or GFK, stainless steel, steel-wall or above-ground kits).
-- WEAK_UNVERIFIED: pools are a weak or unverified part of the business, for example natural pools only, pool enclosures or covers, robot repair, leak detection, pool cleaning as a secondary line, earthworks, paving or whirlpools. Use it for every REVIEW.
+- WEAK_UNVERIFIED: pools are a weak or unverified part of the business, for example natural pools only, leak detection, pool cleaning as a secondary line, earthworks, paving or whirlpools. Use it for every REVIEW.
 - NOT_APPLICABLE: only when validation is NOT_VALID.""",
 }
 
