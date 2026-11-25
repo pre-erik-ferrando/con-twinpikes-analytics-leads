@@ -4,6 +4,74 @@ Dónde y por qué el código se aparta de la definición v3.3 y de la revisión 
 pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuestro que TWP valida,
 [PENDIENTE TWP] dato que TWP enviará, [PENDIENTE] decisión abierta.
 
+## Cambios sobre la idea de TWP, paso a paso
+
+Todo lo que el proceso hace distinto de lo que TWP definió, o que creemos que debería cambiar, por paso.
+Estado: **Hecho** (ya en el código o la configuración), **Propuesto** (nuestro, falta que TWP lo confirme),
+**Preguntado** (esperando respuesta de TWP o Fluidra). El detalle técnico está en las tablas de más abajo.
+
+### 1. Captación (Google Maps, Apify)
+
+| Cambio | Estado | Por qué |
+|---|---|---|
+| La zona se envía como contorno del mapa, no por nombre | Hecho | Por nombre, el actor devuelve 0 fichas |
+| Captación y enriquecimiento son dos ejecuciones separadas | Hecho | El modelo en lote puede tardar horas |
+| Coste alto o extracto de clientes antiguo: se aprueba al lanzar (`--approve-cost`, `--approve-stale-extract`), no queda esperando | Hecho | La ejecución nace al lanzarla |
+| Un mismo idioma del actor para todas las búsquedas (Suiza francesa e italiana) | Por comprobar | Las categorías de TWP solo están en alemán |
+
+### 2. Filtro de relevancia
+
+| Cambio | Estado | Por qué |
+|---|---|---|
+| `Generalunternehmer` pasa de CONDITIONAL a INCLUDE | Hecho (decisión de TWP, 25-11) | Se excluía a GAD Bau (Carintia) sin motivo |
+| Una exclusión por categoría CONDITIONAL sin palabra de piscina dice el motivo (`CATEGORY_CONDITIONAL_NO_POOL_SIGNAL`) | Hecho (25-11) | Antes salía `NO_RULE_FIRED`, sin motivo |
+| `badeteich` como palabra de piscina | Propuesto (25-11) | Se excluyó a un constructor de Badeteiche en Rosenheim |
+| Categorías sin clasificar (`Metallbauunternehmen`, `Hersteller`), fichas sin categoría, «Therme» como regla dura, tiendas de whirlpools | Preguntado (24-11) | Negocios de piscinas que el filtro aparta |
+
+### 3. Cruce con clientes de Fluidra
+
+| Cambio | Estado | Por qué |
+|---|---|---|
+| El motivo del cruce está en inglés | Hecho | La DataApp y Salesforce están en inglés |
+| Un país sin extracto de clientes sigue sin cruce, con aviso (la definición lo bloquea) | Hecho, por decidir | No ha hecho falta cambiarlo |
+| El recruce mensual lista los leads publicados que resultan ser clientes, no los descalifica | Hecho, por decidir | No ha hecho falta cambiarlo |
+| Identificadores de las sociedades de Fluidra; extractos de AT y CH más recientes | Preguntado (19-11) | Sin ellos, falta una señal y hay que aprobar extractos antiguos |
+
+### 4. Rastreo de la web
+
+Sin cambios sobre la definición.
+
+### 5. Modelo (validación, tipo, marcas, datos)
+
+| Cambio | Estado | Por qué |
+|---|---|---|
+| No es lead quien solo repara piscinas, equipos o robots (aunque venda recambios o unidades reacondicionadas, o publique consejos), ni quien solo hace cubiertas o cerramientos | Propuesto (25-11) | Salían como leads (taller de robots WARM 28,5; SIGMA, cubiertas) |
+| Consejos o guías publicados en la web no cuentan como servicio; limpiar robots es reparar robots | Propuesto (25-11) | El modelo los tomaba por limpieza de piscinas |
+| OpenAI `gpt-6.2-sol`, sin temperatura, esfuerzo `low` | Hecho (20-11) | La clave disponible es de OpenAI; los modelos actuales no aceptan temperatura 0 |
+| Caso conocido: el taller de robots de Klagenfurt sigue saliendo como lead (WARM 21) | Lo rechaza Sales Ops | Tres versiones del prompt no lo corrigen; seguir cambiándolo arriesga a otros leads |
+
+### 6. Puntuación
+
+| Cambio | Estado | Por qué |
+|---|---|---|
+| Un lead en revisión sin pasar por el modelo (sin web ni candidatos de cliente) también se puntúa | Hecho | Para que aparezca en la cola de validación |
+| Maytronics en el grupo 1 de marcas (7,5 puntos): bajarlo, o dar menos puntos de marca a las empresas de tipo débil | Por enviar a TWP (25-11) | Un taller que solo repara robots Maytronics suma lo mismo que una tienda profesional |
+
+### 7. Validación de Sales Ops
+
+| Cambio | Estado | Por qué |
+|---|---|---|
+| Sales Ops puede corregir una exclusión suya (la definición la hace permanente); las de Salesforce sí son permanentes | Hecho | Una corrección no se podía deshacer |
+| Un aprobado vuelve a revisión con `reopen` mientras no se exporta | Hecho | Revisión técnica |
+
+### 8. Exportación a Salesforce
+
+| Cambio | Estado | Por qué |
+|---|---|---|
+| Published al confirmar la carga (UPLOADED), no al exportar | Hecho, por decidir | Falta saber qué entiende TWP por Published |
+| Propietario por defecto por país mientras Fluidra no rellene la tabla de comerciales | Hecho | La pestaña está vacía en el Excel v4 |
+| Sin destino COCKPIT; el cockpit carga el fichero de Salesforce | Hecho | Definición v3.3 |
+
 ## Desviaciones de la definición
 
 | Tema | La definición dice | El código hace | Por qué |
@@ -23,6 +91,8 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 | Pantallas de Intelek (DF.13) | Lanzar, validar, exportar y cargar ficheros desde la DataApp | Vistas `lgn_v_*` listas; el lanzamiento y la carga de ficheros por línea de comandos | Revisión DT.9: spike con Intelek antes de comprometer pantallas |
 | Prefijos de fecha | Estilo A: pk_, des_, imp_, val_ | Las fechas de las vistas llevan `dt_` | Convención del repositorio de TWP (`dt_target_month`); [PENDIENTE] confirmarlo (DT.1.1.3) |
 | Motivo legible del cruce (DT.5.7) | Ejemplo en castellano | En inglés ("VAT matches customer 12345 (subsidiary AT), …") | La DataApp y Salesforce de Central Europe están en inglés |
+| Reparadores y cubiertas en el prompt (DT.10) | Es lead quien «mantiene, limpia o repara» piscinas; la reparación de robots y las cubiertas o cerramientos son WEAK_UNVERIFIED | No es lead (NOT_VALID) quien solo repara piscinas, equipos o robots, aunque venda recambios o unidades de lo que repara, ni quien solo vende, fabrica o instala cubiertas, cerramientos o techos de piscina. Cambia `prompt_version`, así que el modelo vuelve a analizar todas las empresas | No compran equipos de Fluidra para instalar: en Estiria y Carintia salían como leads (un taller de robots Maytronics, WARM 28,5). [PROPUESTA] decidido el 25-11-2026, pendiente de que TWP lo confirme |
+| Palabras de piscina del filtro | `pool`, `schwimmbad`, `schwimmbecken`, `schwimmteich`, `naturpool` | Se añade `badeteich` (sinónimo de Schwimmteich) | En Rosenheim (DE, 25-11-2026) se excluyó a un constructor de Badeteiche, que el prompt da por válido. [PROPUESTA] decidido el 25-11-2026 |
 
 ## Decisiones de la revisión técnica aplicadas
 
@@ -49,6 +119,11 @@ pendiente de TWP o Fluidra. Las marcas son las del Word: [PROPUESTA] valor nuest
 - Exportación con `export_id` y estado; Published solo tras UPLOADED.
 - El destino COCKPIT y `lgn_v_cockpit_feed` no se construyen; el cockpit carga el fichero de Salesforce.
 - `max_leads` obligatorio en cualquier perfil distinto de Pool specialist.
+- Filtro: una empresa con una categoría CONDITIONAL (p. ej. `Generalunternehmer`) sin palabra de piscina en el
+  nombre ni en la descripción sigue excluida, pero con la regla `CATEGORY_CONDITIONAL_NO_POOL_SIGNAL` y la
+  categoría como disparador, en vez de `NO_RULE_FIRED` sin motivo (25-11-2026, a raíz de la queja de TWP).
+- `Generalunternehmer` pasa de CONDITIONAL a INCLUDE (TWP, 25-11-2026): Google solo los devuelve en búsquedas de
+  piscinas, y el modelo descarta los que no hacen piscinas. Es una fila nueva de `biz_cfg_category_rule`, no del Excel v4.
 - Propietario por defecto por país (`subregion_code` nulo en `biz_cfg_sales_owner`); sin él, la
   exportación se bloquea con la lista de leads sin Owner.
 

@@ -46,7 +46,7 @@
   conserva aunque se reanude días después.
 - **No pagar dos veces**: el crudo de Apify y de las webs se guarda; cada petición al modelo se
   registra antes de enviarse; las respuestas se reutilizan si coinciden empresa, versión del prompt,
-  marcas, candidatos y contenido.
+  marcas, candidatos y contenido. Un lead ya enriquecido no vuelve al modelo salvo con `enrich --reread`.
 - **Bloqueo por áreas**: una captación solo se rechaza si comparte áreas (la misma, una que la contiene
   o una contenida) con otra en marcha.
 - **Trazabilidad**: cada dato de la web lleva la página de la que sale, comprobada sin modelo.

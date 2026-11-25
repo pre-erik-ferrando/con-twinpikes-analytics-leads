@@ -52,6 +52,10 @@ al modelo. Un cambio de puntos o de umbrales no necesita nada: la puntuación se
 Tras cambiar un modelo dbt (por ejemplo, la puntuación), `python leadgen.py dbt`: sin sus vistas,
 `precheck`, `enrich` y `export` se detienen y lo piden.
 
+Lo que `reprocess` deja dentro por primera vez (por ejemplo, tras pasar una categoría a INCLUDE) no tiene
+web ni modelo: `enrich --capture-batch cb_…` lo enriquece. Un lead ya enriquecido no vuelve al modelo: tras
+cambiar el prompt, `enrich --capture-batch cb_… --reread` (cuesta lo mismo que enriquecer la tanda otra vez).
+
 ## Seguimiento
 
 `status [RUN]` en la terminal, o `lgn_v_run_summary` (estado, mensaje, coste estimado y real).
