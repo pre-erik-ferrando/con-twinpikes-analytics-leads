@@ -112,7 +112,8 @@ def main() -> int:
     # the filter is computed in SQL with the current configuration (lgn_f_rule_evaluation)
     rules = list(st.filter_decisions(batch["country"], batch["profile"], bids).values())
     n["lgn_f_rule_evaluation"] = save(s1, "lgn_f_rule_evaluation", rules)
-    m1 = st.select("customer_match_out", {"run_id": cap})
+    # first pass: the latest one, whichever run wrote it (capture, or reprocess after a configuration change)
+    m1 = [r for r in st.select("customer_match_out", {"business_id": sorted(bids)}) if r["match_pass"] == "CAPTURE"]
     n["customer_match_out (capture)"] = save(s1, "customer_match_out", m1)
     n["capture_batch_lead"] = save(s1, "capture_batch_lead", st.select("capture_batch_lead", {"capture_batch_id": cb}))
 
