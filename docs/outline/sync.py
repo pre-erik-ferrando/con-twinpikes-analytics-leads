@@ -131,10 +131,12 @@ def render(page, cfg, page_urls):
 def dry_run(cfg, pages):
     PREVIEW.mkdir(exist_ok=True)
     urls = {p["file"]: f"{cfg['url']}/doc/<{Path(p['file']).stem}>" for p in pages}
+    ids = json.loads(IDS_FILE.read_text()) if IDS_FILE.exists() else {}
     for p in pages:
         title, text = render(p, cfg, urls)
         (PREVIEW / p["file"]).write_text(f"# {title}\n\n{text}", encoding="utf-8")
         where = ("takes over its page" if p.get("outline_id")
+                 else f"updates {ids[p['file']]}" if p["file"] in ids
                  else f"new, under {p.get('parent') or 'page ' + p['parent_id']}")
         print(f"  {p['file']:<26} → {title!r} ({where})")
     print(f"[outline] dry run: {len(pages)} pages rendered to {PREVIEW.relative_to(REPO)}/, nothing sent")
