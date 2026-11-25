@@ -96,7 +96,8 @@ def cmd(ns) -> int:
     c = ns.command
     if c == "dbt":
         env = {**os.environ, "DBT_CH_SCHEMA": os.environ.get("DBT_CH_SCHEMA", ddl.DB["landing"])}
-        args = ns.rest or ["build"]
+        args = ns.rest[1:] if ns.rest[:1] == ["--"] else ns.rest     # "dbt -- deps" and "dbt deps" alike
+        args = args or ["build"]
         return subprocess.call(["dbt", *args, "--profiles-dir", "."], cwd=DBT_DIR, env=env)
     if c == "geo-convert":                                      # files only, no database
         from leadgen import geo_convert
