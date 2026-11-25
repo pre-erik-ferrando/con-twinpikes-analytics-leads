@@ -123,6 +123,8 @@ def evaluate(inp: FilterInput, category_rules: dict[str, str], title_rules: list
     excluded = next((c for c in cats if category_rules.get(c) == "EXCLUDE"), None)
     if excluded:
         return out("EXCLUDE", "CATEGORY_RULE", "CATEGORY_EXCLUDE", excluded)
+    if conditional:
+        return out("EXCLUDE", "DEFAULT_EXCLUDE", "CATEGORY_CONDITIONAL_NO_POOL_SIGNAL", conditional)
     return out("EXCLUDE", "DEFAULT_EXCLUDE", "NO_RULE_FIRED", None)
 
 

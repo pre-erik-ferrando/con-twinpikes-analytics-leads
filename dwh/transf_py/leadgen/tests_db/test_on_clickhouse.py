@@ -380,3 +380,6 @@ def test_sql_filter_decides_as_the_reference(ch):
              for i in range(len(cases))}
     assert steps >= {"CLOSED", "SUPPRESSED", "PREVIOUSLY_EXCLUDED", "TITLE_RULE", "CATEGORY_INCLUDE",
                      "CATEGORY_CONDITIONAL_POOL_SIGNAL", "CATEGORY_RULE", "DEFAULT_EXCLUDE"}
+    maier = ref[(7_700_007, "POOL_SPECIALIST")]       # a CONDITIONAL category without its pool word says so
+    assert (maier["rule"], maier["trigger_value"]) == ("CATEGORY_CONDITIONAL_NO_POOL_SIGNAL", cat["CONDITIONAL"])
+    assert ref[(7_700_011, "POOL_SPECIALIST")]["rule"] == "NO_RULE_FIRED"

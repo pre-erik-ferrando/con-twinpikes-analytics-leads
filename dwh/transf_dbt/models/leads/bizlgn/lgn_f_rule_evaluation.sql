@@ -12,7 +12,9 @@
 --     description (HVAC needs no pool word)                  -> INCLUDE
 --  6. SOFT title rule                                        -> EXCLUDE TITLE_RULE
 --  7. any EXCLUDE category                                   -> EXCLUDE CATEGORY_RULE
---  8. nothing fired                                          -> EXCLUDE DEFAULT_EXCLUDE
+--  8. nothing fired                                          -> EXCLUDE DEFAULT_EXCLUDE: rule
+--     CATEGORY_CONDITIONAL_NO_POOL_SIGNAL (trigger: the category) if a CONDITIONAL category lacked
+--     its pool word, else NO_RULE_FIRED
 -- Texts arrive normalized from the engine (place_norm_out: name_norm, owner_description_norm,
 -- categories_norm) as the rules are stored. When several categories or rules fire, the first in
 -- alphabetical order is reported. Rules apply by country and profile (the most specific row of each key
@@ -167,10 +169,11 @@ SELECT
     CAST(multiIf(d.step = 1, 'CLOSED_PERMANENTLY', d.step = 2, 'SUPPRESSION_LIST', d.step = 3, d.previous,
                  d.step = 4, d.hard_reason, d.step = 5, 'CATEGORY_INCLUDE', d.step = 6, 'CATEGORY_CONDITIONAL',
                  d.step = 7, 'CATEGORY_CONDITIONAL_POOL_SIGNAL', d.step = 8, d.soft_reason,
-                 d.step = 9, 'CATEGORY_EXCLUDE', 'NO_RULE_FIRED') AS Nullable(String)) AS rule,
+                 d.step = 9, 'CATEGORY_EXCLUDE', notEmpty(ifNull(d.conditional, '')),
+                 'CATEGORY_CONDITIONAL_NO_POOL_SIGNAL', 'NO_RULE_FIRED') AS Nullable(String)) AS rule,
     CAST(multiIf(d.step = 4, d.hard_pattern, d.step = 5, d.included, d.step = 6, d.conditional,
                  d.step = 7, concat(d.conditional, ' + ', d.stem), d.step = 8, d.soft_pattern,
-                 d.step = 9, d.excluded, NULL) AS Nullable(String)) AS trigger_value,
+                 d.step = 9, d.excluded, d.step = 10, d.conditional, NULL) AS Nullable(String)) AS trigger_value,
     toUInt8(d.is_closed_temporarily) AS is_closed_temporarily
 FROM decided AS d
 SETTINGS join_use_nulls = 1, join_algorithm = 'hash'
