@@ -73,6 +73,7 @@ country,profile,language,list_name,value,kind,priority
 ,POOL_SPECIALIST,de,POOL_SIGNAL,schwimmbecken,,
 ,POOL_SPECIALIST,de,POOL_SIGNAL,schwimmteich,,
 ,POOL_SPECIALIST,de,POOL_SIGNAL,naturpool,,
+,POOL_SPECIALIST,de,POOL_SIGNAL,badeteich,,
 ,POOL_SPECIALIST,fr,POOL_SIGNAL,piscine,,
 ,POOL_SPECIALIST,it,POOL_SIGNAL,piscin,,
 ,POOL_SPECIALIST,en,POOL_SIGNAL,swimming,,
