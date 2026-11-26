@@ -154,7 +154,8 @@ Código: [steps/export.py](../dwh/transf_py/leadgen/steps/export.py) y
 **Qué leads salen.** Solo se exportan los Aprobados. Un lead se salta si:
 - ya se exportó antes;
 - se ha convertido en cliente desde entonces (el rematch mensual puede descalificarlo);
-- ha sido excluido.
+- ha sido excluido;
+- se ha pedido su supresión (`biz_suppression_request`), aunque fuera después de aprobarlo.
 
 **El fichero.** Es un `.xlsx` con las columnas de Salesforce de `biz_cfg_export_column` y el
 propietario según la subregión. Sin propietario, la exportación se bloquea.
@@ -280,12 +281,18 @@ ejemplo, bloquea un perfil cuyas reglas TWP aún no ha enviado.
 Cada ejecución escribe una fila en `ops.pipeline_run` cada vez que cambia de estado:
 
 ```
-REQUESTED → SNAPSHOT_FROZEN → [AWAITING_COST_APPROVAL] → RUNNING → [AWAITING_BATCHES → COLLECTING] → CLOSED
-                                                                                              ↘ FAILED
+REQUESTED → SNAPSHOT_FROZEN → [AWAITING_COST_APPROVAL] → RUNNING → [AWAITING_BATCHES ⇄ COLLECTING] → CLOSED
+                                                                                              ↘ FAILED | CANCELLED
 ```
 
 - **Reanudar.** `resume RUN_ID` retoma una ejecución donde se paró sin volver a pagar: las lecturas
-  de webs y las respuestas del modelo están guardadas.
+  de webs y las respuestas del modelo están guardadas. Cada lote se etiqueta con su id: si el envío se
+  corta, `resume` encuentra en el proveedor los lotes que llegaron y envía solo los que faltan; si se
+  corta la lectura, vuelve a `AWAITING_BATCHES` y `resume` la repite.
+- **Una a la vez.** No puede haber dos enriquecimientos sin terminar sobre la misma tanda.
+- **Fallos.** Un error o un Ctrl-C deja la ejecución en FAILED, nunca en RUNNING. Una captación fallida
+  se repite con `capture --retry RUN_ID`, que reutiliza las búsquedas ya pagadas. `cancel RUN_ID` cierra
+  una ejecución que se quedó a medias (CANCELLED).
 - **Sin solapes.** No pueden correr a la vez dos captaciones sobre áreas que se solapan: la misma
   área, una que contiene a la otra o una contenida en ella.
 

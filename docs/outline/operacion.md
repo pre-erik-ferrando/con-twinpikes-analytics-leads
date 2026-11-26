@@ -14,12 +14,21 @@ lista). Necesita la VPN y el `.env`.
    Antes de llamar a Apify se estima su coste (consultas × tope × precio por ficha). Si supera
    `cost_approval_threshold_usd`, la captación no empieza: hay que repetirla con `--approve-cost USD`
    (al menos la estimación) o con menos zonas, términos o `--max-places`. Las dos aprobaciones valen igual en `import-list`.
+   Si la captación falla a medias (Apify caído, Ctrl-C), `capture --retry RUN` la repite con la misma
+   petición y solo paga las búsquedas que no terminaron: las demás se leen de `gmaps_place`.
 2. **Categorías nuevas**: revisar `lgn_v_category_pending` y clasificarlas en `biz_cfg_category_rule`;
    cuentan desde la siguiente ejecución (o `reprocess`, gratis).
 3. **Enriquecimiento**: `enrich --capture-batch cb_… [--mode AUTO|BATCH|DIRECT] [--max-leads N]`.
    - Por encima de 10 USD queda en `AWAITING_COST_APPROVAL`: `approve-cost RUN --amount 25` y `resume RUN`.
+     El importe es obligatorio: es lo máximo que la ejecución puede gastar.
    - En modo BATCH queda en `AWAITING_BATCHES`: `resume RUN` hasta que el proveedor termine (minutos u
-     horas, hasta 24).
+     horas, hasta 24). Si el envío o la lectura de los lotes se corta, la ejecución sigue en
+     `AWAITING_BATCHES` y `resume RUN` lo termina: busca en el proveedor los lotes ya enviados (por su
+     etiqueta) y envía solo los que faltan.
+   - Mientras una ejecución de enriquecimiento de la tanda no termine, no se puede lanzar otra sobre la
+     misma tanda (pagaría dos veces los mismos leads): `resume` o `cancel`.
+   - Una ejecución que se quedó a medias y no se va a retomar: `cancel RUN` (libera sus zonas y su
+     tanda; avisa de los lotes que sigan en el proveedor, que se cancelan allí).
 4. **Validación** en Intelek (`lgn_v_validation_queue`) o por línea de comandos: `review`, `reject
    --business-id N --reason KA_CHAIN`, y `approve-rest --capture-batch cb_… --yes` para aprobar el resto.
 5. **Exportación**: `export --capture-batch cb_… --out exports/` genera
@@ -31,7 +40,9 @@ lista). Necesita la VPN y el `.env`.
 
 No se cargan resultados de llamada (definición v3.3, DF.10). Del lead solo vuelve su estado, en el
 fichero de estados mensual de Salesforce. Mientras el paso 0 no lea solo la carpeta compartida:
-`load-sf-status lgn_sf_status_AAAAMM.csv`. Los descartados quedan excluidos para siempre (con motivo «ya
+`load-sf-status lgn_sf_status_AAAAMM.csv`. El mes del estado se lee en cualquiera de los formatos
+habituales (`2026-11`, `11/2026`, `202611`, `01.11.2026`…) y se guarda como `AAAA-MM`; un fichero con un
+mes vacío o ilegible se rechaza entero. Los descartados quedan excluidos para siempre (con motivo «ya
 cliente», cuentan además como fallo del cruce); convertidos, en curso y en seguimiento siguen en
 Published. Avisa de los lead codes que la herramienta no exportó (no se cargan) y de las zonas que no
 coinciden con la del lead.

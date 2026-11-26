@@ -123,7 +123,7 @@ class HandProvider:
             raise PendingAnswers(missing)
         return out
 
-    def submit_batch(self, reqs, max_tokens):
+    def submit_batch(self, reqs, max_tokens, tag):
         raise RuntimeError("the demo runs DIRECT")
 
     def count_tokens(self, req):

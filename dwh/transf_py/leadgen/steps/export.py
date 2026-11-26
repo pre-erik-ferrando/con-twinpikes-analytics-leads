@@ -2,7 +2,7 @@
 
 Only Approved leads go: current decision ACCEPTED, not exported before (a FAILED export can be
 regenerated), still not a customer after the latest match (the monthly rematch disqualifies them), not
-excluded. The export is GENERATED; `confirm` marks it UPLOADED (the leads become Published) or FAILED.
+excluded, not suppressed (an erasure request after the approval still keeps it out). The export is GENERATED; `confirm` marks it UPLOADED (the leads become Published) or FAILED.
 While the Market Cockpit is in use, the same file is loaded there (v3.3 DT.8.5).
 """
 from __future__ import annotations
@@ -14,7 +14,8 @@ from pathlib import Path
 from .. import export as X
 from .. import runs
 from ..domain import CURRENCY
-from ..state import RunContext, business_views, current_validations, exported, latest, permanent_exclusions
+from ..state import (RunContext, business_views, current_validations, exported, is_suppressed, latest,
+                     permanent_exclusions, suppressed)
 from ..store import ENGINE_VIEWS
 from .common import capture_batch_leads, current_web, deciding_matches, is_customer
 
@@ -25,6 +26,8 @@ def approved_leads(store, country: str, profile: str, business_ids: set[int] | N
     excl = permanent_exclusions(store, country, profile)
     ids = [b for b, v in vals.items() if v["decision"] == "ACCEPTED" and (business_ids is None or b in business_ids)]
     matches = deciding_matches(store, country, set(ids))
+    sup = suppressed(store)
+    views = business_views(store, country, set(ids)) if any(sup.values()) else {}
     statuses: dict[int, set[str]] = {}
     for (bid, _export_id), r in exp.items():
         statuses.setdefault(bid, set()).add(r["status"])
@@ -33,6 +36,8 @@ def approved_leads(store, country: str, profile: str, business_ids: set[int] | N
         if statuses.get(b, set()) & {"GENERATED", "UPLOADED"}:      # a lead is exported once
             continue
         if is_customer(matches.get(b)) or b in excl:
+            continue
+        if b in sup["business_id"] or (b in views and is_suppressed(views[b], sup)):
             continue
         out.append(b)
     return sorted(out)
@@ -87,46 +92,54 @@ def run_export(store, capture_batch_id: str, requested_by: str, out_dir: Path) -
     ctx.set_state("SNAPSHOT_FROZEN")
     cfg = ctx.config()
     ctx.set_state("RUNNING")
-    missing = store.missing_views(ENGINE_VIEWS)
-    if missing:
-        msg = f"the engine's views {', '.join(missing)} are not in the database: run `python leadgen.py dbt`"
-        ctx.set_state("FAILED", msg)
-        return ctx, {"exported": 0, "error": msg}
-    ids = approved_leads(store, country, profile, capture_batch_leads(store, capture_batch_id))
-    if not ids:
-        ctx.set_state("CLOSED", "no approved leads to export")
-        return ctx, {"exported": 0}
-    leads = lead_fields(store, cfg, country, profile, ids)
-    no_owner = X.missing_owner(leads)
-    if no_owner:
-        msg = (f"{len(no_owner)} leads have no Owner (no salesperson for their subregion and no default owner "
-               f"in biz_cfg_sales_owner): export blocked")
-        ctx.set_state("FAILED", msg)
-        return ctx, {"exported": 0, "error": msg, "missing_owner": no_owner}
-    maps = {r["map_name"]: cfg.value_map(r["map_name"]) for r in cfg.rows("biz_cfg_value_map")}
+    export_id = None
     try:
-        header, rows = X.build_rows(leads, cfg.export_columns("SALESFORCE"), maps)
-    except X.ExportError as e:
-        ctx.set_state("FAILED", str(e))
-        return ctx, {"exported": 0, "error": str(e)}
-    path = X.write_xlsx(header, rows, out_dir, country)
-    export_id = runs.new_id("exp")
-    # the score as it was when exported: the live one follows the configuration, this one does not move
-    scores = store.lead_scores(country, profile, [l["business_id"] for l in leads])
+        missing = store.missing_views(ENGINE_VIEWS)
+        if missing:
+            msg = f"the engine's views {', '.join(missing)} are not in the database: run `python leadgen.py dbt`"
+            ctx.set_state("FAILED", msg)
+            return ctx, {"exported": 0, "error": msg}
+        ids = approved_leads(store, country, profile, capture_batch_leads(store, capture_batch_id))
+        if not ids:
+            ctx.set_state("CLOSED", "no approved leads to export")
+            return ctx, {"exported": 0}
+        leads = lead_fields(store, cfg, country, profile, ids)
+        no_owner = X.missing_owner(leads)
+        if no_owner:
+            msg = (f"{len(no_owner)} leads have no Owner (no salesperson for their subregion and no default owner "
+                   f"in biz_cfg_sales_owner): export blocked")
+            ctx.set_state("FAILED", msg)
+            return ctx, {"exported": 0, "error": msg, "missing_owner": no_owner}
+        maps = {r["map_name"]: cfg.value_map(r["map_name"]) for r in cfg.rows("biz_cfg_value_map")}
+        try:
+            header, rows = X.build_rows(leads, cfg.export_columns("SALESFORCE"), maps)
+        except X.ExportError as e:
+            ctx.set_state("FAILED", str(e))
+            return ctx, {"exported": 0, "error": str(e)}
+        export_id = runs.new_id("exp")
+        # the score as it was when exported: the live one follows the configuration, this one does not move
+        scores = store.lead_scores(country, profile, [l["business_id"] for l in leads])
 
-    def frozen(b: int) -> dict:
-        s = scores.get(b)
-        return {"total": s["total"], "rating": s["rating"], "breakdown": s["breakdown"],
-                "buckets_json": json.dumps(s["buckets"], sort_keys=True)} if s else {}
+        def frozen(b: int) -> dict:
+            s = scores.get(b)
+            return {"total": s["total"], "rating": s["rating"], "breakdown": s["breakdown"],
+                    "buckets_json": json.dumps(s["buckets"], sort_keys=True)} if s else {}
 
-    store.insert("export_lead_out", [{"export_id": export_id, "business_id": l["business_id"], "country": country,
-                                      "profile": profile, "capture_batch_id": capture_batch_id,
-                                      "lead_code": l["lead_code"], "status": "GENERATED", "generated_by": requested_by,
-                                      **frozen(l["business_id"])}
-                                     for l in leads])
-    store.insert("export_log", [{"export_id": export_id, "run_id": ctx.run_id, "country": country,
-                                 "target": "SALESFORCE", "file_name": path.name, "n_leads": len(leads),
-                                 "status": "GENERATED", "generated_by": requested_by}])
+        # the leads are recorded before the file is written: a file that exists is always on record
+        store.insert("export_lead_out", [{"export_id": export_id, "business_id": l["business_id"], "country": country,
+                                          "profile": profile, "capture_batch_id": capture_batch_id,
+                                          "lead_code": l["lead_code"], "status": "GENERATED",
+                                          "generated_by": requested_by, **frozen(l["business_id"])}
+                                         for l in leads])
+        path = X.write_xlsx(header, rows, out_dir, country)
+        store.insert("export_log", [{"export_id": export_id, "run_id": ctx.run_id, "country": country,
+                                     "target": "SALESFORCE", "file_name": path.name, "n_leads": len(leads),
+                                     "status": "GENERATED", "generated_by": requested_by}])
+    except BaseException as e:                # Ctrl-C too: the run must not stay RUNNING
+        hint = (f"; its leads are on record as export {export_id}: `confirm-export {export_id} --status FAILED` "
+                f"lets them be exported again") if export_id else ""
+        ctx.set_state("FAILED", f"{type(e).__name__}: {e}{hint}")
+        raise
     summary = {"export_id": export_id, "file": str(path), "exported": len(leads)}
     ctx.set_state("CLOSED", json.dumps(summary))
     return ctx, summary

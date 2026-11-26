@@ -39,6 +39,7 @@ class CaptureRequest:
     import_file_id: str | None = None
     approve_stale_extract: bool = False                        # audited override of the extract-age block
     approve_cost_usd: float | None = None                      # Apify estimate approved with the request
+    retry_of: str | None = None                                # a FAILED/CANCELLED capture: reuse its paid calls
 
 
 class RunFailed(Exception):
@@ -285,7 +286,26 @@ def check_capture_cost(ctx: RunContext, cfg, req: CaptureRequest, n_queries: int
     return est
 
 
+def reusable_calls(store, run_id: str | None) -> dict[tuple, apify.ActorRun]:
+    """The actor calls a FAILED or CANCELLED capture already paid for, by (term, area, language, pass), with
+    their items from gmaps_place: a retry reads them instead of calling Apify again."""
+    if not run_id:
+        return {}
+    cur = runs.current_states(store.select("pipeline_run", {"run_id": run_id})).get(run_id)
+    if cur is None or cur["run_type"] != "CAPTURE" or cur["state"] not in ("FAILED", "CANCELLED"):
+        raise ValueError(f"only a FAILED or CANCELLED capture can be retried; {run_id} is "
+                         f"{cur['run_type'] + ' ' + cur['state'] if cur else 'not found'}")
+    items: dict[str, list[dict]] = {}
+    for r in store.select("gmaps_place", {"run_id": run_id}):
+        items.setdefault(r["query_id"], []).append(json.loads(r["item_json"]))
+    return {(q["term"], q["area_id"], q["language"], int(q["pass_no"])):
+            apify.ActorRun(q["apify_run_id"], q["status"], items.get(q["query_id"], []), 0.0, q["started_at"],
+                           q["finished_at"])
+            for q in store.select("search_query_log", {"run_id": run_id})}
+
+
 def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[RunContext, dict]:
+    reuse = reusable_calls(store, req.retry_of)
     ctx, cfg = start(store, "CAPTURE", req)
     max_places = int(req.max_places_per_search or cfg.param("default_max_places_per_search", 50))
     queries = _queries(cfg, req)
@@ -294,7 +314,8 @@ def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[R
     if missing:      # by name alone Apify returns nothing: stop before spending
         _fail(ctx, f"no boundary for areas {', '.join(missing)}: load them with load-geo "
                    f"(the search is sent as the area's outline)")
-    check_capture_cost(ctx, cfg, req, len(queries), max_places)
+    new_calls = [q for q in queries if (q[0], q[1]["area_id"], q[2], 1) not in reuse]   # a retry pays the rest only
+    check_capture_cost(ctx, cfg, req, len(new_calls), max_places)
     ctx.set_state("RUNNING")
     try:
         cap_usd = float(cfg.param("apify_max_total_charge_usd", 25))
@@ -322,7 +343,9 @@ def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[R
                 continue
             actor_in = apify.actor_input(term, fields, lang, max_places)
             per_query_cap = max(0.5, (cap_usd - spent) / max(1, len(queue) + 1))
-            result = capturer.run(actor_in, per_query_cap)
+            result = reuse.pop((term, area["area_id"], lang, pass_no), None)     # paid by the failed run: cost 0
+            if result is None:
+                result = capturer.run(actor_in, per_query_cap)
             spent += result.cost_usd or 0.0
             store.insert("gmaps_place", [{"run_id": ctx.run_id, "apify_run_id": result.apify_run_id, "query_id": qid,
                                           "place_id": it.get("placeId"), "item_json": apify.dumps(it)}
@@ -355,8 +378,8 @@ def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[R
         summary = evaluate_capture(ctx, cfg, bids, "SEARCH", req.area_ids, req.terms)
     except RunFailed:
         raise
-    except Exception as e:                    # noqa: BLE001 - any error ends the run in FAILED with its reason
-        ctx.set_state("FAILED", f"{type(e).__name__}: {e}")
+    except BaseException as e:                # any error, Ctrl-C too, ends the run in FAILED with its reason
+        ctx.set_state("FAILED", f"{type(e).__name__}: {e}; `capture --retry {ctx.run_id}` reuses what was paid")
         raise
     ctx.set_state("CLOSED", json.dumps(summary))
     return ctx, summary
@@ -433,7 +456,7 @@ def run_import_list(store, capturer: apify.Capturer, req: CaptureRequest) -> tup
                         "import_ambiguous": outcomes["AMBIGUOUS"]})
     except RunFailed:
         raise
-    except Exception as e:                    # noqa: BLE001
+    except BaseException as e:                # Ctrl-C too: the run must not stay RUNNING
         ctx.set_state("FAILED", f"{type(e).__name__}: {e}")
         raise
     ctx.set_state("CLOSED", json.dumps(summary))

@@ -30,7 +30,7 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 
 | Type | Command | Writes |
 |---|---|---|
-| CAPTURE | `capture` | gmaps_place, search_query_log, place_norm_out (with the filter's normalized texts), business_link_out, capture_batch(_lead), then reads the filter (lgn_f_rule_evaluation), customer_match_out (CAPTURE) |
+| CAPTURE | `capture` (`--retry RUN` reuses a failed run's paid Apify calls) | gmaps_place, search_query_log, place_norm_out (with the filter's normalized texts), business_link_out, capture_batch(_lead), then reads the filter (lgn_f_rule_evaluation), customer_match_out (CAPTURE) |
 | IMPORT_LIST | `import-list` | as CAPTURE, source IMPORT |
 | ENRICH | `enrich`, `resume` | web_crawl/web_page, llm_request/response, llm_batch, web_validation_out, customer_match_out (ENRICH); the score is the dbt view lgn_f2_score |
 | EXPORT | `export`, `confirm-export` | export_lead_out (with the score frozen), export_log, the xlsx |
@@ -38,15 +38,20 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 | CUSTOMER_REMATCH | `rematch` | customer_match_out (REMATCH) |
 
 Every run writes one `ops.pipeline_run` row per state change: REQUESTED → SNAPSHOT_FROZEN →
-[AWAITING_COST_APPROVAL] → RUNNING → [AWAITING_BATCHES → COLLECTING] → CLOSED | FAILED.
+[AWAITING_COST_APPROVAL] → RUNNING → [AWAITING_BATCHES ⇄ COLLECTING] → CLOSED | FAILED | CANCELLED.
+An error or Ctrl-C ends a run FAILED, never RUNNING; `cancel RUN` ends one left unfinished.
 
 ## Invariants the tests hold
 
 - Insert-only; the current row is the latest by `(inserted_at, updated_by)`; a config row applies to its
   country/profile over the NULL row.
 - A configuration snapshot is frozen at the start of a run; a resumed run keeps it.
-- A model request is written (llm_request + llm_batch PREPARING) before it is sent; a cached answer
-  (same business, prompt_version, brand list, candidates and content) is never paid twice.
+- A model request is written (llm_request + llm_batch PREPARING) before it is sent, and the batch is
+  tagged with our batch id: after a crash, `resume` finds a sent batch by its tag and sends only what
+  never arrived. A cached answer (same business, prompt_version, brand list, candidates and content) is
+  never paid twice. Only one unfinished ENRICH run per capture batch.
+- A cost approval always has an amount.
+- An approved lead whose business, listing, phone or domain is later suppressed is not exported.
 - A failed, truncated or schema-invalid answer is retried once through the direct API, then the lead is
   REVIEW with reason TECHNICAL.
 - Every claim of the model is dropped unless it appears on the page it cites.

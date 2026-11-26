@@ -29,7 +29,7 @@ import re
 from dataclasses import dataclass
 
 from ..config import Config
-from ..normalize import normalize_category, normalize_text
+from ..normalize import normalize_category, normalize_month, normalize_text
 from ..store import FILTER_COLUMNS, MemoryStore
 
 PROFILES_WITHOUT_POOL_SIGNAL = ("HVAC",)
@@ -206,7 +206,7 @@ def ref_sf_status_rows(store) -> list[dict]:
                     "imported_at": files[row["file_id"]].get("loaded_at"), "lead_code": code, "business_id": bid,
                     "country": m.group(1) if m else None, "sf_lead_id": c.get("sf_lead_id"),
                     "company_name": c.get("company_name"), "status": c.get("status"),
-                    "status_month": c.get("status_month") or "", "subregion_code": c.get("subregion_code"),
+                    "status_month": normalize_month(c.get("status_month")) or "", "subregion_code": c.get("subregion_code"),
                     "discard_reason": c.get("discard_reason"), "issue": issue,
                     "zone_mismatch": int(issue is None and bool(c.get("subregion_code")) and bool(own)
                                          and c["subregion_code"] not in own)})

@@ -528,21 +528,23 @@ class _FakeOpenAI:
                             input_tokens=NS(count=lambda **p: NS(input_tokens=1234)))
         self.files = NS(create=self._upload, content=lambda fid: NS(text=self.files_store[fid]))
         self.batch = None
-        self.batches = NS(create=self._batch, retrieve=lambda bid: self.batch)
+        self.batches = NS(create=self._batch, retrieve=lambda bid: self.batch,
+                          list=lambda limit: [self.batch] if self.batch else [])
 
     def _upload(self, file, purpose):
         from types import SimpleNamespace as NS
         self.files_store["in"] = file[1].decode("utf-8")
         return NS(id="in")
 
-    def _batch(self, input_file_id, endpoint, completion_window):
+    def _batch(self, input_file_id, endpoint, completion_window, metadata):
         from types import SimpleNamespace as NS
         lines = [json.loads(x) for x in self.files_store[input_file_id].splitlines()]
         out = [{"custom_id": l["custom_id"], "response": {"status_code": 200, "body": _oa_response(json.dumps(answer()))},
                 "error": None} for l in lines[:-1]]
         err = [{"custom_id": lines[-1]["custom_id"], "response": None, "error": {"code": "batch_expired"}}]
         self.files_store.update(out="\n".join(json.dumps(x) for x in out), err="\n".join(json.dumps(x) for x in err))
-        self.batch = NS(id="batch_1", status="completed", output_file_id="out", error_file_id="err")
+        self.batch = NS(id="batch_1", status="completed", output_file_id="out", error_file_id="err",
+                        metadata=metadata, created_at=1_800_000_000)
         return self.batch
 
 
@@ -579,7 +581,9 @@ def test_openai_batch_round_trip():
     from leadgen.llm import LLMRequest, OpenAIProvider
     prov = OpenAIProvider("gpt-6.2-sol", client=_FakeOpenAI(lambda p: None))
     reqs = [LLMRequest(f"b{i}_v1", "SYS", f"lead {i}") for i in range(3)]
-    bid = prov.submit_batch(reqs, 2000)
+    bid = prov.submit_batch(reqs, 2000, "llmb_1")
+    assert prov.find_batch("llmb_1", 1_800_000_000) == bid             # found by its tag after a crash
+    assert prov.find_batch("llmb_2", 1_800_000_000) is None
     line = json.loads(prov.client.files_store["in"].splitlines()[0])
     assert line["method"] == "POST" and line["url"] == "/v1/responses" and line["body"]["model"] == "gpt-6.2-sol"
     assert prov.batch_ended(bid)
@@ -640,3 +644,46 @@ class TestVatCheck:
         assert c.check("CHE123456789") == "VALID"
         assert calls[0][0] == "POST" and "<vatNumber>CHE-123.456.789</vatNumber>" in calls[0][2]
         assert c.check("CHE111222333") == "NOT_FOUND" and c.check("CHE999888777") == "UNAVAILABLE"
+
+
+@pytest.mark.parametrize("raw,month", [
+    ("2026-11", "2026-11"), ("2026-1", "2026-01"), ("2026-11-01 00:00:00", "2026-11"), ("202611", "2026-11"),
+    ("11/2026", "2026-11"), (" 1.2027 ", "2027-01"), ("01.11.2026", "2026-11"),
+    ("13/2026", None), ("Nov 2026", None), ("2026", None), ("", None), (None, None)])
+def test_status_month_is_normalized_so_it_sorts(raw, month):
+    assert N.normalize_month(raw) == month
+
+
+class _ApifyHTTP:
+    """requests.Session stand-in: POST starts a run, GETs answer from a list."""
+    def __init__(self, gets):
+        self.gets, self.posts = list(gets), []
+
+    def _resp(self, status, body):
+        import requests
+        r = requests.Response()
+        r.status_code, r._content = status, json.dumps(body).encode()
+        return r
+
+    def post(self, url, params=None, json=None, timeout=None):
+        self.posts.append(url)
+        return self._resp(201, {"data": {"id": "r1", "status": "RUNNING"}})
+
+    def get(self, url, params=None, timeout=None):
+        return self._resp(*self.gets.pop(0))
+
+
+def test_apify_error_page_is_an_error_not_data():
+    import requests
+    from leadgen.apify import ApifyCapturer
+    http = _ApifyHTTP([(502, {"error": "bad gateway"})])
+    with pytest.raises(requests.HTTPError):
+        ApifyCapturer("tok", "", poll_s=0, session=http).run({}, 1.0)
+
+
+def test_apify_run_is_aborted_when_we_stop_waiting():
+    from leadgen.apify import ApifyCapturer
+    http = _ApifyHTTP([(200, {"data": {"id": "r1", "status": "RUNNING"}})] * 5)
+    with pytest.raises(TimeoutError, match="aborted"):
+        ApifyCapturer("tok", "", poll_s=0, timeout_s=0, session=http).run({}, 1.0)
+    assert http.posts[-1].endswith("/actor-runs/r1/abort")

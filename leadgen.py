@@ -11,15 +11,20 @@ upload files, everything is launched from here and the results are read in the l
     python leadgen.py load-customers FILE --country AT --source-system TWP_SHEET_AT --extract-date 2026-11-01
     python leadgen.py precheck --country AT --profile POOL_SPECIALIST --areas AT-501 --terms Poolbau
     python leadgen.py capture --country AT --profile POOL_SPECIALIST --areas AT-501,AT-502 --terms Poolbau,Poolshop
+    python leadgen.py capture --retry RUN_ID                    # a FAILED capture again, paying only what failed
+    python leadgen.py import-list FILE.csv --country AT         # an own list of businesses [PROPUESTA]
     python leadgen.py enrich --capture-batch cb_… [--mode AUTO|BATCH|DIRECT] [--max-leads N] [--reread]
     python leadgen.py approve-cost RUN_ID --amount 25          # then: python leadgen.py resume RUN_ID
     python leadgen.py resume RUN_ID                             # cost approved, or batches finished
+    python leadgen.py cancel RUN_ID                             # a run left unfinished: frees its areas / batch
     python leadgen.py review --capture-batch cb_…               # leads To review
     python leadgen.py reject --capture-batch cb_… --business-id N --reason KA_CHAIN
+    python leadgen.py reopen --capture-batch cb_… --business-id N    # back To review
     python leadgen.py approve-rest --capture-batch cb_… [--yes]
     python leadgen.py export --capture-batch cb_… --out exports/
     python leadgen.py confirm-export exp_… --status UPLOADED
     python leadgen.py load-sf-status lgn_sf_status_YYYYMM.csv  # Salesforce's monthly status file (DT.8.4)
+    python leadgen.py apply-sf-status --country AT              # its "already customer" rows as match corrections
     python leadgen.py rematch --country AT                      # after a new customer extract
     python leadgen.py reprocess --country AT --profile POOL_SPECIALIST [--capture-batch cb_…]
     python leadgen.py renormalize --country AT                  # the filter's texts again, after a change in normalize.py
@@ -155,12 +160,20 @@ def cmd(ns) -> int:
     if c in ("capture", "import-list"):
         from leadgen.apify import ApifyCapturer
         from leadgen.steps.capture import CaptureRequest, run_capture, run_import_list
-        cfg = _cfg(st, ns.country, ns.profile)
-        cap = ApifyCapturer(os.environ["APIFY_TOKEN"], cfg.param("apify_actor_build") or "")
-        if c == "capture":
+        if c == "capture" and ns.retry:          # the failed run's own request, its paid calls reused
+            first = min(st.select("pipeline_run", {"run_id": ns.retry}) or [{}], key=lambda r: r.get("inserted_at", 0))
+            if first.get("run_type") != "CAPTURE":
+                raise ValueError(f"{ns.retry} is not a capture run")
+            req = CaptureRequest(**{**json.loads(first["request_json"]), "requested_by": user(ns), "retry_of": ns.retry})
+        elif c == "capture":
+            if not (ns.country and ns.areas and ns.terms):
+                raise ValueError("capture needs --country, --areas and --terms (or --retry RUN_ID)")
             req = CaptureRequest(ns.country, ns.profile, ns.areas.split(","), ns.terms.split(","), user(ns),
                                  ns.max_places, ns.subdivide, approve_stale_extract=ns.approve_stale_extract,
                                  approve_cost_usd=ns.approve_cost)
+        cfg = _cfg(st, req.country if c == "capture" else ns.country, req.profile if c == "capture" else ns.profile)
+        cap = ApifyCapturer(os.environ["APIFY_TOKEN"], cfg.param("apify_actor_build") or "")
+        if c == "capture":
             ctx, summary = run_capture(st, cap, req)
         else:
             file_id, rows = loaders.load_import_list(st, Path(ns.file), ns.country, ns.profile, user(ns))
@@ -196,6 +209,14 @@ def cmd(ns) -> int:
                                         "approved_amount_usd": ns.amount, "comment": ns.comment,
                                         "approved_by": user(ns)}])
         print(f"{ns.type} approved for {ns.run_id}; resume it with: python leadgen.py resume {ns.run_id}")
+        return 0
+    if c == "cancel":
+        from leadgen.steps.maintenance import cancel_run
+        res = cancel_run(st, ns.run_id, user(ns))
+        print(f"{ns.run_id} CANCELLED (was {res['was']})")
+        if res["batches_left_at_provider"]:
+            print(f"warning: batches still at the model's provider, cancel them there if unwanted: "
+                  f"{', '.join(res['batches_left_at_provider'])}")
         return 0
     if c == "review":
         from leadgen.steps.maintenance import to_review
@@ -285,9 +306,11 @@ def parser() -> argparse.ArgumentParser:
     s = sub.add_parser("load-sf-status"); s.add_argument("file")
     s = sub.add_parser("precheck"); s.add_argument("--country", required=True)
     s.add_argument("--profile", default="POOL_SPECIALIST"); s.add_argument("--areas"); s.add_argument("--terms")
-    s = sub.add_parser("capture"); s.add_argument("--country", required=True)
-    s.add_argument("--profile", default="POOL_SPECIALIST"); s.add_argument("--areas", required=True)
-    s.add_argument("--terms", required=True); s.add_argument("--max-places", type=int)
+    s = sub.add_parser("capture"); s.add_argument("--country")
+    s.add_argument("--profile", default="POOL_SPECIALIST"); s.add_argument("--areas")
+    s.add_argument("--terms"); s.add_argument("--max-places", type=int)
+    s.add_argument("--retry", metavar="RUN_ID", help="a FAILED or CANCELLED capture again, with its request: the "
+                                                     "Apify calls it already paid for are reused")
     s.add_argument("--subdivide", action="store_true")
     s.add_argument("--approve-stale-extract", action="store_true",
                    help="run although the customer extract is older than customer_extract_max_age_days")
@@ -302,7 +325,9 @@ def parser() -> argparse.ArgumentParser:
     s.add_argument("--mode", default="AUTO", choices=["AUTO", "BATCH", "DIRECT"])
     s.add_argument("--max-leads", type=int); s.add_argument("--reread", action="store_true")
     s = sub.add_parser("resume"); s.add_argument("run_id")
-    s = sub.add_parser("approve-cost"); s.add_argument("run_id"); s.add_argument("--amount", type=float)
+    s = sub.add_parser("cancel"); s.add_argument("run_id")
+    s = sub.add_parser("approve-cost"); s.add_argument("run_id")
+    s.add_argument("--amount", type=float, required=True, metavar="USD", help="the most the run may spend")
     s.add_argument("--type", default="COST", choices=["COST"]); s.add_argument("--comment")
     s = sub.add_parser("review"); s.add_argument("--capture-batch", required=True)
     s = sub.add_parser("approve-rest"); s.add_argument("--capture-batch", required=True)

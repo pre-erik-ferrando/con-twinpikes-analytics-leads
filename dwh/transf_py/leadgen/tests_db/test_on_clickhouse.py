@@ -282,10 +282,11 @@ def test_sql_exclusions_sf_status_and_categories_equal_the_reference(ch, tmp_pat
     cfg = RunContext(ch, "t", "LOAD", "AT", "POOL_SPECIALIST", "t").config()
     head = "Lead code,Salesforce ID,Company,Status,Status month,Subregion code,Discard reason\n"
     nov, dec = tmp_path / "s_202611.csv", tmp_path / "s_202612.csv"
-    nov.write_text(head + f"{codes[0]},00Q1, Huber ,Discarded,2026-11,999,Already Fluidra client\n"
-                   f"{codes[1]},,X,Working,2026-11, - ,\nAT-NL-002,,Old,Working,2026-11,501,\n"
-                   f"{codes[1]},,X,Lost,2026-11,,\n", encoding="utf-8")
-    dec.write_text(head + f"{codes[0]},,X,Working,2026-12,,\n{codes[1]},,X,Discarded,2026-12,,\n", encoding="utf-8")
+    # the month in every format normalize_month reads: SQL must give the same YYYY-MM
+    nov.write_text(head + f"{codes[0]},00Q1, Huber ,Discarded,11/2026,999,Already Fluidra client\n"
+                   f"{codes[1]},,X,Working,202611, - ,\nAT-NL-002,,Old,Working,2026-11-01 00:00:00,501,\n"
+                   f"{codes[1]},,X,Lost,01.11.2026,,\n", encoding="utf-8")
+    dec.write_text(head + f"{codes[0]},,X,Working,2026-12,,\n{codes[1]},,X,Discarded,12.2026,,\n", encoding="utf-8")
     res = load_sf_status(ch, cfg, nov, "ops")
     assert res["unknown_lead_codes"] == ["AT-NL-002"] and res["unmapped_status"] == [codes[1]]
     assert res["zone_mismatch"] == [codes[0]] and res["loaded"] == 2 and res["countries"] == ["AT"]

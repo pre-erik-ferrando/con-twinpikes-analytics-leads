@@ -16,7 +16,7 @@ tal cual: extracto de clientes, fichero de estados de Salesforce o listado propi
 
 `pipeline_run` (una fila por cambio de estado), `config_snapshot`, `search_query_log` (cada llamada al actor: la consulta, la entrada completa enviada, su
 coste y lo que devolvió), `llm_batch`
-(PREPARING antes de llamar al proveedor), `cost_ledger` (estimado y real; el real suma solo las llamadas pagadas de la ejecución, reintentos
+(PREPARING antes de llamar al proveedor; el lote lleva este id como etiqueta, para encontrarlo si se pierde la respuesta del envío), `cost_ledger` (estimado y real; el real suma solo las llamadas pagadas de la ejecución, reintentos
 incluidos, con el descuento de lote y los precios de lectura y escritura de caché, y no cuenta las respuestas reutilizadas),
 `seed_load`, `export_log`, `capture_batch` y `capture_batch_lead` (una empresa puede estar en varias tandas).
 

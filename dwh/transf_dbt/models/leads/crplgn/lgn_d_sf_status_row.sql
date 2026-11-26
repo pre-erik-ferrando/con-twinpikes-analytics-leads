@@ -52,12 +52,26 @@ file_rows AS (
     FROM mapped AS m
     GROUP BY m.file_id, m.row_no
 ),
+months AS (
+    -- normalize.normalize_month: the status month as YYYY-MM, so months sort as text (change both)
+    SELECT fr.*, ifNull(fr.status_month, '') AS ms,
+           multiIf(match(ms, '^\\d{4}-\\d{1,2}(-\\d{1,2}.*)?$'),
+                       (extract(ms, '^(\\d{4})'), extract(ms, '^\\d{4}-(\\d{1,2})')),
+                   match(ms, '^\\d{6}$'), (substring(ms, 1, 4), substring(ms, 5, 2)),
+                   match(ms, '^\\d{1,2}[/.-]\\d{4}$'), (extract(ms, '(\\d{4})$'), extract(ms, '^(\\d{1,2})')),
+                   match(ms, '^\\d{1,2}\\.\\d{1,2}\\.\\d{4}$'),
+                       (extract(ms, '(\\d{4})$'), extract(ms, '^\\d{1,2}\\.(\\d{1,2})\\.')),
+                   ('', ''))                                                        AS ym,
+           if(toUInt8OrZero(ym.2) BETWEEN 1 AND 12,
+              concat(ym.1, '-', leftPad(toString(toUInt8OrZero(ym.2)), 2, '0')), NULL) AS month_norm
+    FROM file_rows AS fr
+),
 parsed AS (
     -- loaders.parse_lead_code: <country>-<business_id>
     SELECT fr.*, extract(ifNull(fr.lead_code, ''), '^([A-Z]{2})-\\d+$') AS code_country,
            toUInt64OrNull(extract(ifNull(fr.lead_code, ''), '^[A-Z]{2}-(\\d+)$')) AS code_business_id,
            ifNull(fr.lead_code, '') IN (SELECT e.lead_code FROM {{ source('engine', 'export_lead_out') }} AS e) AS exported
-    FROM file_rows AS fr
+    FROM months AS fr
 ),
 own_zones AS (
     SELECT bp.business_id AS business_id, groupUniqArray(p.subregion_code) AS zones
@@ -69,7 +83,7 @@ SELECT
     p.file_id AS status_file_id, p.row_no AS row_no, p.loaded_at AS imported_at, p.lead_code AS lead_code,
     if(p.exported AND isNotNull(p.code_business_id), coalesce(al.surviving_id, p.code_business_id), NULL) AS business_id,
     nullIf(p.code_country, '') AS country, p.sf_lead_id AS sf_lead_id, p.company_name AS company_name,
-    p.status AS status, ifNull(p.status_month, '') AS status_month, p.subregion_code AS subregion_code,
+    p.status AS status, ifNull(p.month_norm, '') AS status_month, p.subregion_code AS subregion_code,
     p.discard_reason AS discard_reason,
     CAST(multiIf(NOT p.exported OR isNull(p.code_business_id), 'UNKNOWN_LEAD_CODE',
                  isNull(p.status), 'UNMAPPED_STATUS', NULL) AS Nullable(String)) AS issue,

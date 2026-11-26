@@ -111,13 +111,20 @@ class ApifyCapturer:
         run_id, t0 = data["id"], time.monotonic()
         while data["status"] in ("READY", "RUNNING"):
             if time.monotonic() - t0 > self.timeout_s:
-                raise TimeoutError(f"Apify run {run_id} still {data['status']} after {self.timeout_s}s")
+                # stop it on Apify's side too, or it keeps running (and charging) after we give up
+                self.http.post(f"{API}/actor-runs/{run_id}/abort", params={"token": self.token}, timeout=60)
+                raise TimeoutError(f"Apify run {run_id} still {data['status']} after {self.timeout_s}s: aborted")
             time.sleep(self.poll_s)
-            data = self.http.get(f"{API}/actor-runs/{run_id}", params={"token": self.token}, timeout=60).json()["data"]
-        items = self.http.get(f"{API}/datasets/{data['defaultDatasetId']}/items",
-                              params={"token": self.token, "format": "json", "clean": "true"}, timeout=300).json()
+            data = self._get(f"{API}/actor-runs/{run_id}", {}, 60)["data"]
+        items = self._get(f"{API}/datasets/{data['defaultDatasetId']}/items", {"format": "json", "clean": "true"}, 300)
         return ActorRun(run_id, data["status"], items, data.get("usageTotalUsd"), data.get("startedAt"),
                         data.get("finishedAt"))
+
+    def _get(self, url: str, params: dict, timeout: int):
+        """GET that fails on an HTTP error (an error page is not data)."""
+        r = self.http.get(url, params={"token": self.token, **params}, timeout=timeout)
+        r.raise_for_status()
+        return r.json()
 
 
 # --------------------------------------------------------------------------- reading an item

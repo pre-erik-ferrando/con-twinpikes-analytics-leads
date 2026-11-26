@@ -13,7 +13,8 @@ from pathlib import Path
 from . import runs
 from .identity import resolve_alias
 from .normalize import (email_domain, name_keys, none_if_sentinel, normalize_email, normalize_phone,
-                        normalize_postal_code, normalize_register, normalize_vat, strip_diacritics)
+                        normalize_month, normalize_postal_code, normalize_register, normalize_vat,
+                        strip_diacritics)
 from .state import aliases
 
 COUNTRY_NAMES = {
@@ -171,7 +172,8 @@ def load_sf_status(store, cfg, path: Path, loaded_by: str) -> dict:
     """Salesforce's monthly status file (v3.3 DT.8.4): lands as received (upload_file, upload_row) and is
     read mapped through the dbt view lgn_d_sf_status_row (biz_cfg_source_column SF_STATUS), which gives the
     warnings: a lead code the tool never exported, a status that does not map (both left out), a subregion
-    that differs from the lead's (the lead keeps its own). A DISCARDED lead is excluded from then on
+    that differs from the lead's (the lead keeps its own). A file with a month that is empty or not a month
+    (normalize_month) is rejected before landing. A DISCARDED lead is excluded from then on
     (lgn_f_exclusion)."""
     mapping = cfg.source_columns("SF_STATUS")
     if not mapping:
@@ -185,8 +187,12 @@ def load_sf_status(store, cfg, path: Path, loaded_by: str) -> dict:
     if missing:
         raise ValueError(f"{path.name}: required columns missing: {', '.join(missing)}")
     maps = {r["map_name"]: cfg.value_map(r["map_name"]) for r in cfg.rows("biz_cfg_value_map")}
-    months = sorted({c.get("status_month") for c in (apply_mapping(r, mapping, "", maps) for r in rows)
-                     if c.get("status_month")})
+    raw_months = [apply_mapping(r, mapping, "", maps).get("status_month") for r in rows]
+    bad = sorted({str(m) for m in raw_months if normalize_month(m) is None}, key=str)
+    if bad:     # months compare as YYYY-MM text: one that cannot be read would make the wrong month current
+        raise ValueError(f"{path.name}: status month not readable (expected e.g. 2026-11, 11/2026, 202611): "
+                         f"{', '.join(bad[:5])}")
+    months = sorted({normalize_month(m) for m in raw_months})
     file_id = runs.new_id("sfs")
     store.insert("upload_file", [{"file_id": file_id, "kind": "SF_STATUS", "status_month": months[-1] if months else None,
                                   "file_name": path.name, "loaded_by": loaded_by}])

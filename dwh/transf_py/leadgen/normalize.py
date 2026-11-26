@@ -236,6 +236,26 @@ def normalize_vat(raw, country: str | None = None) -> str | None:
     return text
 
 
+# Salesforce's status month (DT.8.4), whatever the export gives -> YYYY-MM, so months sort as text.
+# Mirrored in lgn_d_sf_status_row.sql (status_month): change both.
+_MONTH_FORMATS = (
+    (re.compile(r"(\d{4})-(\d{1,2})(-\d{1,2}.*)?"), 1, 2),     # 2026-11, 2026-11-01, 2026-11-01 00:00:00
+    (re.compile(r"(\d{4})(\d{2})"), 1, 2),                     # 202611 (the file name's AAAAMM)
+    (re.compile(r"(\d{1,2})[/.-](\d{4})"), 2, 1),              # 11/2026, 11.2026, 11-2026
+    (re.compile(r"\d{1,2}\.(\d{1,2})\.(\d{4})"), 2, 1),         # 01.11.2026 (German date)
+)
+
+
+def normalize_month(raw) -> str | None:
+    """'11/2026', '202611', '2026-11-01'... -> '2026-11'; None if it is not a month."""
+    v = none_if_sentinel(None if raw is None else str(raw))
+    for rx, y, m in _MONTH_FORMATS:
+        hit = rx.fullmatch(v or "")
+        if hit and 1 <= int(hit.group(m)) <= 12:
+            return f"{hit.group(y)}-{int(hit.group(m)):02d}"
+    return None
+
+
 def vat_format_ok(vat: str | None) -> bool:
     return bool(vat) and bool(_VAT_FORMATS.get(vat[:2], re.compile("^$")).match(vat))
 

@@ -16,9 +16,10 @@ import json
 
 from .. import runs
 from ..config import precheck
+from ..domain import TERMINAL_RUN_STATES
 from ..matching import MatchConfig, apply_verdicts, match
 from ..state import (RunContext, business_views, current_validations, customer_index, latest, published_ids,
-                     sync_human_decisions)
+                     resume_context, sync_human_decisions)
 from ..store import ENGINE_VIEWS
 from .capture import RunFailed
 from .common import (current_web, deciding_matches, facts_from_google, facts_with_web, is_customer, match_row,
@@ -174,6 +175,21 @@ def reject(store, capture_batch_id: str, business_id: int, reason: str, by: str,
         "capture_batch_id": capture_batch_id, "decision": "EXCLUDED", "exclusion_reason": reason,
         "customer_code": customer_code, "subsidiary_code": subsidiary_code, "duplicate_of": duplicate_of,
         "comment": comment, "approval_scope": "LEAD", "reviewed_by": by}])
+
+
+def cancel_run(store, run_id: str, by: str) -> dict:
+    """A run left unfinished (killed, or waiting for something that will not come) ends CANCELLED: its areas
+    are free again and a new enrich can start on its batch. Batches already at the model's provider are not
+    stopped: they are listed so they can be cancelled there."""
+    ctx = resume_context(store, run_id)
+    if ctx.state in TERMINAL_RUN_STATES:
+        raise ValueError(f"run {run_id} is already {ctx.state}")
+    before = ctx.state
+    open_batches = [r["external_id"] or r["batch_id"]
+                    for r in latest(store.select("llm_batch", {"run_id": run_id}), ("batch_id",)).values()
+                    if r["status"] in ("PREPARING", "SUBMITTED")]
+    ctx.set_state("CANCELLED", f"cancelled by {by} (was {before})")
+    return {"run_id": run_id, "was": before, "batches_left_at_provider": open_batches}
 
 
 def reopen(store, capture_batch_id: str, business_id: int, by: str) -> None:

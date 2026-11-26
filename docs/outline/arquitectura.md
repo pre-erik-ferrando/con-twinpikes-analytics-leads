@@ -47,6 +47,11 @@
 - **No pagar dos veces**: el crudo de Apify y de las webs se guarda; cada petición al modelo se
   registra antes de enviarse; las respuestas se reutilizan si coinciden empresa, versión del prompt,
   marcas, candidatos y contenido. Un lead ya enriquecido no vuelve al modelo salvo con `enrich --reread`.
+  Cada lote lleva su id como etiqueta en el proveedor: si el envío se corta, `resume` encuentra los que
+  llegaron y envía solo los que faltan. No puede haber dos enriquecimientos sin terminar sobre la misma
+  tanda. Una captación fallida se repite con `capture --retry`, que reutiliza las búsquedas ya pagadas.
+- **Fallos**: un error o un Ctrl-C deja la ejecución en FAILED, nunca en RUNNING; `cancel` cierra una
+  que se quedó a medias.
 - **Bloqueo por áreas**: una captación solo se rechaza si comparte áreas (la misma, una que la contiene
   o una contenida) con otra en marcha.
 - **Trazabilidad**: cada dato de la web lleva la página de la que sale, comprobada sin modelo.

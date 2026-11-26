@@ -14,6 +14,7 @@ from dataclasses import dataclass
 
 from .. import cost, ddl, llm, prompt, runs
 from ..config import precheck
+from ..domain import TERMINAL_RUN_STATES
 from ..content import Page, prepare
 from ..crawl import Crawler, CrawlLimits, CrawlResult
 from ..matching import MatchConfig, apply_verdicts, match
@@ -87,10 +88,11 @@ def _usable(resp: dict | None) -> dict | None:
 
 
 def _approved_usd(store, run_id: str) -> float | None:
+    """The amount of the latest COST approval; an approval without an amount (or 0) approves nothing."""
     rows = store.select("biz_run_approval", {"run_id": run_id, "approval_type": "COST"})
     if not rows:
         return None
-    return float(max(rows, key=lambda r: r["inserted_at"]).get("approved_amount_usd") or 0) or float("inf")
+    return float(max(rows, key=lambda r: r["inserted_at"]).get("approved_amount_usd") or 0) or None
 
 
 # --------------------------------------------------------------------------- entry points
@@ -103,6 +105,11 @@ def run_enrich(store, provider: llm.Provider, crawler: Crawler | None, req: Enri
     ctx = RunContext(store, runs.new_id("run"), "ENRICH", b["country"], b["profile"], req.requested_by,
                      capture_batch_id=req.capture_batch_id, vat_checker=vat_checker)
     ctx.set_state("REQUESTED", request=req.__dict__)
+    other = [r for r in runs.in_progress(runs.current_states(store.select("pipeline_run", {"run_type": "ENRICH"})))
+             .values() if r["capture_batch_id"] == req.capture_batch_id and r["run_id"] != ctx.run_id]
+    if other:       # a second run would select the same leads and pay for them again
+        _fail(ctx, f"enrich run {other[0]['run_id']} on this capture batch is still {other[0]['state']}: "
+                   f"resume it (`resume`) or cancel it (`cancel`)")
     sync_human_decisions(ctx)
     ctx.freeze_snapshot()
     ctx.set_state("SNAPSHOT_FROZEN")
@@ -293,18 +300,36 @@ def _process(ctx, cfg, provider, crawler, req, to_process, reused, approved_usd)
             _batch_row(ctx, provider, batch_id, "DIRECT", "ENDED", None, reqs)
             ctx.set_state("COLLECTING")
             return _collect(ctx, cfg, provider, reused, direct)
-        for chunk in llm.split_batches(reqs, int(p("llm_batch_max_requests", 2000))):
-            batch_id = runs.new_id("llmb")
-            _batch_row(ctx, provider, batch_id, "BATCH", "PREPARING", None, chunk)
-            external = provider.submit_batch(chunk, max_out)
-            _batch_row(ctx, provider, batch_id, "BATCH", "SUBMITTED", external, chunk)
-        ctx.set_state("AWAITING_BATCHES", f"{LEADS_TAG}{json.dumps({'reused': reused, 'direct': direct})}")
+        leads_msg = f"{LEADS_TAG}{json.dumps({'reused': reused, 'direct': direct})}"
+        try:
+            _submit(ctx, provider, reqs, max_out, int(p("llm_batch_max_requests", 2000)))
+        except BaseException as e:
+            # Some batches may already be at the provider and the rest are in llm_request: `resume` finds
+            # the first by their tag and sends the rest, instead of a new enrich paying for all of them.
+            ctx.set_state("AWAITING_BATCHES", leads_msg)
+            ctx.log.append(f"warning: sending the batches stopped ({type(e).__name__}: {e}); "
+                           f"`resume {ctx.run_id}` finishes it")
+            if not isinstance(e, Exception):
+                raise
+            return ctx, {"run_id": ctx.run_id, "state": ctx.state, "requests": len(reqs),
+                         "error": f"{type(e).__name__}: {e}"}
+        ctx.set_state("AWAITING_BATCHES", leads_msg)
         return ctx, {"run_id": ctx.run_id, "state": ctx.state, "requests": len(reqs)}
     except RunFailed:
         raise
-    except Exception as e:                    # noqa: BLE001
-        ctx.set_state("FAILED", f"{type(e).__name__}: {e}")
+    except BaseException as e:                # Ctrl-C too: the run must not stay RUNNING
+        if ctx.state not in ("AWAITING_BATCHES", *TERMINAL_RUN_STATES):   # _collect may have closed it
+            ctx.set_state("FAILED", f"{type(e).__name__}: {e}")
         raise
+
+
+def _submit(ctx, provider, reqs: list[llm.LLMRequest], max_out: int, max_requests: int) -> None:
+    """PREPARING row, the call (tagged with our batch id), SUBMITTED row, per chunk."""
+    for chunk in llm.split_batches(reqs, max_requests):
+        batch_id = runs.new_id("llmb")
+        _batch_row(ctx, provider, batch_id, "BATCH", "PREPARING", None, chunk)
+        external = provider.submit_batch(chunk, max_out, batch_id)
+        _batch_row(ctx, provider, batch_id, "BATCH", "SUBMITTED", external, chunk)
 
 
 def prompt_tokens(system: str, user: str) -> int:
@@ -326,21 +351,61 @@ def _write_responses(ctx, batch_id, results: list[llm.LLMResult], attempt: int):
                                        "cache_write_tokens": r.cache_write_tokens, "error": r.error} for r in results])
 
 
+def _recover_submissions(ctx, cfg, provider) -> None:
+    """After a submission that stopped halfway: a PREPARING batch is looked up at the provider by its tag
+    (sent again only if it never arrived), and the run's requests in no batch are sent now."""
+    store, p = ctx.store, cfg.param
+    rows = [r for r in latest(store.select("llm_batch", {"run_id": ctx.run_id}), ("batch_id",)).values()
+            if r["mode"] == "BATCH"]
+    prepared = [r for r in rows if r["status"] == "PREPARING"]
+    covered = {c for r in rows for c in r["custom_ids"]}
+    requests = _latest_loaded(store.select("llm_request", {"run_id": ctx.run_id}), ("custom_id",))
+    unsent = [k[0] for k, r in requests.items() if r.get("batch_id") != "CACHE" and k[0] not in covered]
+    if not prepared and not unsent:
+        return
+    system = prompt.system_message(ctx.country, ctx.profile, cfg.brands("COMPETITOR"), cfg.brands("FLUIDRA"))
+    rebuild = lambda cids: [llm.LLMRequest(c, system, json.loads(requests[(c,)]["request_json"])["user"])  # noqa: E731
+                            for c in cids if (c,) in requests]
+    max_out = int(p("llm_max_tokens_out", 2000))
+    for r in prepared:
+        since = r["inserted_at"].timestamp() if hasattr(r["inserted_at"], "timestamp") else 0.0
+        external = provider.find_batch(r["batch_id"], since)
+        if external is None:                     # it never reached the provider: send it now, same tag
+            external = provider.submit_batch(rebuild(r["custom_ids"]), max_out, r["batch_id"])
+        store.insert("llm_batch", [{**{k: v for k, v in r.items() if k != "inserted_at"}, "status": "SUBMITTED",
+                                    "external_id": external}])
+    if unsent:
+        _submit(ctx, provider, rebuild(unsent), max_out, int(p("llm_batch_max_requests", 2000)))
+
+
+def _awaiting_message(store, run_id: str) -> str:
+    """The first AWAITING_BATCHES message: the leads reused and reviewed without the model."""
+    return next((r.get("message") for r in sorted(store.select("pipeline_run", {"run_id": run_id}),
+                                                  key=lambda r: r["inserted_at"])
+                 if r["state"] == "AWAITING_BATCHES"), "") or ""
+
+
 def _poll_batches(ctx, cfg, provider) -> tuple[RunContext, dict]:
     store = ctx.store
+    _recover_submissions(ctx, cfg, provider)
     rows = latest(store.select("llm_batch", {"run_id": ctx.run_id}), ("batch_id",))
     pending = [r for r in rows.values() if r["mode"] == "BATCH" and r["status"] == "SUBMITTED"]
     ended = [r for r in pending if provider.batch_ended(r["external_id"])]
     if len(ended) < len(pending):
         return ctx, {"run_id": ctx.run_id, "state": ctx.state, "batches_ended": len(ended),
                      "batches_pending": len(pending) - len(ended)}
+    msg = _awaiting_message(store, ctx.run_id)
     ctx.set_state("COLLECTING")
-    for r in pending:
-        _write_responses(ctx, r["batch_id"], provider.batch_results(r["external_id"]), attempt=1)
-        store.insert("llm_batch", [{**{k: v for k, v in r.items() if k != "inserted_at"}, "status": "ENDED"}])
-    msg = next((r.get("message") for r in sorted(store.select("pipeline_run", {"run_id": ctx.run_id}),
-                                                   key=lambda r: r["inserted_at"])
-                if r["state"] == "AWAITING_BATCHES"), "") or ""
+    try:
+        for r in pending:      # one batch at a time: a failure keeps what was already read (ENDED)
+            have = {x["custom_id"] for x in store.select("llm_response", {"batch_id": r["batch_id"]})}
+            _write_responses(ctx, r["batch_id"], [x for x in provider.batch_results(r["external_id"])
+                                                  if x.custom_id not in have], attempt=1)
+            store.insert("llm_batch", [{**{k: v for k, v in r.items() if k != "inserted_at"}, "status": "ENDED"}])
+    except BaseException as e:
+        ctx.set_state("AWAITING_BATCHES", msg)   # `resume` reads the batches not yet ENDED again
+        ctx.log.append(f"warning: reading the batches stopped ({type(e).__name__}: {e}); resume it again")
+        raise
     return _collect(ctx, cfg, provider, *_pending_leads(msg))
 
 
@@ -462,7 +527,7 @@ def _collect(ctx, cfg, provider, reused: list[int], direct: list[int] = ()) -> t
                    "review": sum(1 for b in processed if web.get(b, {}).get("validation") == "REVIEW"),
                    "not_valid": sum(1 for b in processed if web.get(b, {}).get("validation") == "NOT_VALID"),
                    "llm_cost_usd": actual}
-    except Exception as e:                    # noqa: BLE001
+    except BaseException as e:                # Ctrl-C too: the run must not stay COLLECTING
         ctx.set_state("FAILED", f"{type(e).__name__}: {e}")
         raise
     ctx.set_state("CLOSED", json.dumps(summary))

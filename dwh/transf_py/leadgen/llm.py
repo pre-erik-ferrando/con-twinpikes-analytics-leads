@@ -12,7 +12,9 @@ Deviations from DT.10.1 imposed by the current models, documented in docs/outlin
   (llm_effort) instead of "without reasoning", so max_tokens must leave room for it.
 
 Write-ahead (no double payment): the caller writes the ops.llm_batch PREPARING row with every custom_id
-BEFORE calling submit_batch/send_direct, and a second row with the external id afterwards.
+BEFORE calling submit_batch/send_direct, and a second row with the external id afterwards. A batch is
+tagged with our batch id, so a PREPARING row without its SUBMITTED row (a crash in between) is found at
+the provider (`find_batch`) instead of being sent again.
 """
 from __future__ import annotations
 
@@ -57,7 +59,8 @@ class Provider(Protocol):
     model: str
 
     def send_direct(self, reqs: list[LLMRequest], max_tokens: int, concurrency: int) -> list[LLMResult]: ...
-    def submit_batch(self, reqs: list[LLMRequest], max_tokens: int) -> str: ...
+    def submit_batch(self, reqs: list[LLMRequest], max_tokens: int, tag: str) -> str: ...
+    def find_batch(self, tag: str, since_epoch: float) -> str | None: ...
     def batch_ended(self, external_id: str) -> bool: ...
     def batch_results(self, external_id: str) -> list[LLMResult]: ...
     def count_tokens(self, req: LLMRequest) -> int: ...
@@ -123,7 +126,7 @@ class AnthropicProvider:
         with ThreadPoolExecutor(max_workers=max(1, concurrency)) as pool:
             return list(pool.map(lambda r: self._one(r, max_tokens), reqs))
 
-    def submit_batch(self, reqs: list[LLMRequest], max_tokens: int) -> str:
+    def submit_batch(self, reqs: list[LLMRequest], max_tokens: int, tag: str) -> str:
         from anthropic.types.message_create_params import MessageCreateParamsNonStreaming
         from anthropic.types.messages.batch_create_params import Request
 
@@ -148,12 +151,11 @@ class AnthropicProvider:
                 out.append(LLMResult(r.custom_id, kind.upper()))
         return out
 
-    def recent_batches(self, limit: int = 20) -> list[dict]:
-        """For recovery of a PREPARING row with no external id: recent batches with their size."""
-        return [{"id": b.id, "created_at": str(b.created_at), "status": b.processing_status,
-                 "total": sum(getattr(b.request_counts, k) for k in ("processing", "succeeded", "errored",
-                                                                       "canceled", "expired"))}
-                for b in self.client.messages.batches.list(limit=limit)]
+    def find_batch(self, tag: str, since_epoch: float) -> str | None:
+        # Message Batches carry no metadata: a batch sent without its SUBMITTED row cannot be told apart, and
+        # sending it again could pay twice. Stop and let a person look in the console.
+        raise RuntimeError(f"batch {tag} may have reached Anthropic without its id being recorded: check the "
+                           "console's Message Batches, then cancel this run")
 
     def count_tokens(self, req: LLMRequest) -> int:
         p = self._params(req, 1)
@@ -175,6 +177,7 @@ class OpenAIProvider:
     requests to the same cache."""
     name = "OPENAI"
     TERMINAL = ("completed", "failed", "expired", "cancelled")
+    TAG_KEY = "leadgen_batch_id"          # batch metadata: our llm_batch id
 
     def __init__(self, model: str, effort: str = "low", client=None):
         if client is None:
@@ -261,11 +264,21 @@ class OpenAIProvider:
                                    "body": self._params(r, max_tokens)}, ensure_ascii=False) + "\n"
                        for r in reqs).encode("utf-8")
 
-    def submit_batch(self, reqs: list[LLMRequest], max_tokens: int) -> str:
+    def submit_batch(self, reqs: list[LLMRequest], max_tokens: int, tag: str) -> str:
         f = self.client.files.create(file=("lead_requests.jsonl", self.batch_lines(reqs, max_tokens)),
                                      purpose="batch")
-        batch = self.client.batches.create(input_file_id=f.id, endpoint="/v1/responses", completion_window="24h")
+        batch = self.client.batches.create(input_file_id=f.id, endpoint="/v1/responses", completion_window="24h",
+                                           metadata={self.TAG_KEY: tag})
         return batch.id
+
+    def find_batch(self, tag: str, since_epoch: float) -> str | None:
+        """The batch sent with this tag, looking back to a day before since_epoch (newest first)."""
+        for b in self.client.batches.list(limit=100):        # the SDK pages through older ones
+            if (self._get(b, "metadata") or {}).get(self.TAG_KEY) == tag:
+                return self._get(b, "id")
+            if (self._get(b, "created_at") or 0) < since_epoch - 86400:
+                return None
+        return None
 
     def batch_ended(self, external_id: str) -> bool:
         return self.client.batches.retrieve(external_id).status in self.TERMINAL

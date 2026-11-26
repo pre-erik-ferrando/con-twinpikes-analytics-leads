@@ -125,6 +125,7 @@ class FakeProvider:
 
     def __init__(self, answers: dict | None = None, default=None):
         self.answers, self.default, self.sent, self.batches = answers or {}, default or answer(), [], {}
+        self.tags: dict[str, str] = {}
 
     def _res(self, r):
         self.sent.append(r)
@@ -135,10 +136,14 @@ class FakeProvider:
     def send_direct(self, reqs, max_tokens, concurrency):
         return [self._res(r) for r in reqs]
 
-    def submit_batch(self, reqs, max_tokens):
+    def submit_batch(self, reqs, max_tokens, tag):
         bid = f"msgbatch_{len(self.batches) + 1}"
         self.batches[bid] = reqs
+        self.tags[tag] = bid
         return bid
+
+    def find_batch(self, tag, since_epoch):
+        return self.tags.get(tag)
 
     def batch_ended(self, external_id):
         return True

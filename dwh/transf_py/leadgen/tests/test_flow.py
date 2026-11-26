@@ -260,6 +260,16 @@ def test_failed_export_lead_can_be_reopened(store, tmp_path):
     assert current_validations(store, "AT", "POOL_SPECIALIST")[bid]["decision"] == "PENDING"
 
 
+def test_suppressed_after_approval_is_not_exported(store, tmp_path):
+    ctx, _ = _capture(store, ITEMS[:1])
+    run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
+    approve_rest(store, ctx.capture_batch_id, "ops")
+    store.insert("biz_suppression_request", [{"domain": "poolbau-huber.at", "reason": "erasure",
+                                              "requested_by": "intelek"}])
+    _, xs = run_export(store, ctx.capture_batch_id, "ops", tmp_path)
+    assert xs["exported"] == 0
+
+
 @pytest.mark.parametrize("first,second", [("UPLOADED", "FAILED"), ("FAILED", "UPLOADED")])
 def test_export_is_confirmed_only_once(store, tmp_path, first, second):
     _, export_id, bid = _exported(store, tmp_path)
@@ -448,7 +458,7 @@ def test_salesforce_status_current_month_and_checks(store, tmp_path):
     assert res["loaded"] == len(codes) and res["zone_mismatch"] == codes          # 999 is not their zone
     assert apply_sf_status(store, "AT") == 0                                       # Working: nothing
     dec = tmp_path / "lgn_sf_status_202612.csv"
-    dec.write_text(head + f"{codes[0]},,X,Discarded,2026-12,,\n", encoding="utf-8")
+    dec.write_text(head + f"{codes[0]},,X,Discarded,12/2026,,\n", encoding="utf-8")     # any month format
     load_sf_status(store, cfg, dec, "ops")
     cur = current_sf_status(store, "AT")
     assert cur[codes[0]]["status"] == "DISCARDED" and cur[codes[0]]["status_month"] == "2026-12"
@@ -457,11 +467,22 @@ def test_salesforce_status_current_month_and_checks(store, tmp_path):
     assert [r["reason"] for r in exclusions if r["origin"] == "SALESFORCE"] == ["DISCARDED"]
     # for good (DT.8.4): a later month in Working does not bring it back
     jan = tmp_path / "lgn_sf_status_202701.csv"
-    jan.write_text(head + f"{codes[0]},,X,Working,2027-01,,\n", encoding="utf-8")
+    jan.write_text(head + f"{codes[0]},,X,Working,1/2027,,\n", encoding="utf-8")      # sorts after 12/2026
     load_sf_status(store, cfg, jan, "ops")
     assert [r["business_id"] for r in store.read_view("lgn_f_exclusion", {"country": "AT"})
             if r["origin"] == "SALESFORCE"] == [
         int(codes[0].split("-")[1])]
+
+
+def test_salesforce_status_month_must_be_readable(store, tmp_path):
+    from leadgen.loaders import load_sf_status
+    cfg = RunContext(store, "t", "LOAD", "AT", "POOL_SPECIALIST", "t").config()
+    f = tmp_path / "s.csv"
+    f.write_text("Lead code,Salesforce ID,Company,Status,Status month,Subregion code,Discard reason\n"
+                 "AT-1,,X,Working,Nov 2026,,\nAT-2,,X,Working,,,\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="status month not readable"):
+        load_sf_status(store, cfg, f, "ops")
+    assert not store.select("upload_file")                                         # nothing landed
 
 
 def test_salesforce_status_file_needs_its_columns(store, tmp_path):
@@ -515,3 +536,138 @@ def test_enrich_checks_the_vat_with_the_given_checker(store, tmp_path):
     run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"), checker)
     huber = next(r for r in store.select("web_validation_out") if r["domain"] == "poolbau-huber.at")
     assert huber["vat_check_status"] == "VALID" and "ATU12345678" in checker.asked
+
+
+# --------------------------------------------------------------------------- failures and recovery
+def _param(store, name, value, value_type="INT"):
+    from leadgen.seed_loader import load, typed_rows
+    load(store, {"biz_cfg_run_parameter": typed_rows("biz_cfg_run_parameter", [
+        {"parameter": name, "value": str(value), "value_type": value_type}])}, "t", "t", "t", overwrite=True)
+
+
+def _paid(prov) -> int:
+    """Requests that reached the provider in a batch."""
+    return sum(len(reqs) for reqs in prov.batches.values())
+
+
+def test_second_enrich_on_the_same_batch_waits_for_the_first(store):
+    ctx, _ = _capture(store, ITEMS[:1])
+    prov = FakeProvider()
+    first, _ = run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops", llm_mode="BATCH"))
+    with pytest.raises(RunFailed, match="still AWAITING_BATCHES"):
+        run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops", llm_mode="BATCH"))
+    assert _paid(prov) == 1
+    assert resume_enrich(store, prov, crawler(), first.run_id)[0].state == "CLOSED"
+    assert run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))[0].state == "CLOSED"
+    assert _paid(prov) == 1                                         # the third run reuses the answer
+
+
+class _FailingSubmit(FakeProvider):
+    """The first submit fails, before reaching the provider or after (its id never recorded)."""
+    def __init__(self, after: bool):
+        super().__init__()
+        self.after, self.failed = after, False
+
+    def submit_batch(self, reqs, max_tokens, tag):
+        if self.failed:
+            return super().submit_batch(reqs, max_tokens, tag)
+        self.failed = True
+        if self.after:
+            super().submit_batch(reqs, max_tokens, tag)
+        raise ConnectionError("network down")
+
+
+@pytest.mark.parametrize("after", [False, True])
+def test_interrupted_submission_is_finished_by_resume_without_paying_twice(store, after):
+    _param(store, "llm_batch_max_requests", 1)                      # one batch per lead
+    two = ITEMS[:1] + [item("p_two", "Schwimmbad Zwei", ["Schwimmbadbauer"], phone="+43662777777",
+                            website="https://poolbau-huber.at/impressum", lat=47.0, lng=15.4)]
+    ctx, _ = _capture(store, two)
+    prov = _FailingSubmit(after)
+    ectx, s = run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops", llm_mode="BATCH"))
+    assert ectx.state == "AWAITING_BATCHES" and "network down" in s["error"]
+    ectx2, s2 = resume_enrich(store, prov, crawler(), ectx.run_id)
+    sent = store.select("llm_request", {"run_id": ectx.run_id})
+    assert ectx2.state == "CLOSED" and len(sent) == 2                # two leads for the model, in two batches
+    assert _paid(prov) == 2                                          # each sent once
+    assert not [r for r in store.select("llm_batch", {"run_id": ectx.run_id}) if r["mode"] == "DIRECT"]
+
+
+def test_failure_reading_batches_is_retried_by_resume(store):
+    ctx, _ = _capture(store, ITEMS[:1])
+    prov = FakeProvider()
+    ectx, _ = run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops", llm_mode="BATCH"))
+    real, calls = prov.batch_results, []
+
+    def flaky(external_id):
+        calls.append(external_id)
+        if len(calls) == 1:
+            raise ConnectionError("timeout")
+        return real(external_id)
+    prov.batch_results = flaky
+    with pytest.raises(ConnectionError):
+        resume_enrich(store, prov, crawler(), ectx.run_id)
+    assert resume_context_state(store, ectx.run_id) == "AWAITING_BATCHES"
+    assert resume_enrich(store, prov, crawler(), ectx.run_id)[0].state == "CLOSED"
+    assert len(store.select("llm_response")) == 1
+
+
+def resume_context_state(store, run_id):
+    from leadgen.state import resume_context
+    return resume_context(store, run_id).state
+
+
+def test_cost_approval_without_amount_approves_nothing(store):
+    _param(store, "cost_approval_threshold_usd", "0.0001", "FLOAT")
+    ctx, _ = _capture(store, ITEMS[:1], approve_cost_usd=1)
+    prov = FakeProvider()
+    ectx, _ = run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
+    store.insert("biz_run_approval", [{"run_id": ectx.run_id, "approval_type": "COST", "approved_by": "boss"}])
+    assert resume_enrich(store, prov, crawler(), ectx.run_id)[1]["message"] == "no COST approval yet"
+    assert not prov.sent
+
+
+class _FailingCapturer(FakeCapturer):
+    def __init__(self, items, fail_on: int, error=ConnectionError):
+        super().__init__(items)
+        self.fail_on, self.error = fail_on, error
+
+    def run(self, actor_in, max_charge_usd):
+        if len(self.calls) + 1 == self.fail_on:
+            self.calls.append(actor_in)
+            raise self.error("Apify down")
+        return super().run(actor_in, max_charge_usd)
+
+
+def test_failed_capture_is_retried_paying_only_the_missing_calls(store):
+    req = CaptureRequest("AT", "POOL_SPECIALIST", ["AT-501"], ["Poolbau", "Poolshop"], "ops", 20)
+    with pytest.raises(ConnectionError):
+        run_capture(store, _FailingCapturer(ITEMS, fail_on=2), req)
+    failed = [r for r in store.select("pipeline_run") if r["state"] == "FAILED"][0]["run_id"]
+    again = FakeCapturer(ITEMS)
+    ctx, summary = run_capture(store, again, CaptureRequest(**{**req.__dict__, "retry_of": failed}))
+    assert ctx.state == "CLOSED" and summary["found"] == 6
+    assert [c["searchStringsArray"] for c in again.calls] == [["Poolshop"]]          # only the call that failed
+    log = store.select("search_query_log", {"run_id": ctx.run_id})
+    assert sorted(r["cost_usd"] for r in log) == [0.0, 0.25]
+    with pytest.raises(ValueError, match="only a FAILED or CANCELLED capture"):
+        run_capture(store, again, CaptureRequest(**{**req.__dict__, "retry_of": ctx.run_id}))
+
+
+def test_interrupted_capture_fails_and_frees_its_areas(store):
+    req = CaptureRequest("AT", "POOL_SPECIALIST", ["AT-501"], ["Poolbau"], "ops", 20)
+    with pytest.raises(KeyboardInterrupt):
+        run_capture(store, _FailingCapturer(ITEMS, fail_on=1, error=KeyboardInterrupt), req)
+    assert [r["state"] for r in store.select("pipeline_run")][-1] == "FAILED"
+    assert run_capture(store, FakeCapturer(ITEMS), req)[0].state == "CLOSED"      # area not locked
+
+
+def test_cancel_frees_a_stuck_enrich(store):
+    ctx, _ = _capture(store, ITEMS[:1])
+    prov = FakeProvider()
+    ectx, _ = run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops", llm_mode="BATCH"))
+    res = maintenance.cancel_run(store, ectx.run_id, "ops")
+    assert res["was"] == "AWAITING_BATCHES" and res["batches_left_at_provider"] == ["msgbatch_1"]
+    with pytest.raises(ValueError, match="already CANCELLED"):
+        maintenance.cancel_run(store, ectx.run_id, "ops")
+    assert run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))[0].state == "CLOSED"
