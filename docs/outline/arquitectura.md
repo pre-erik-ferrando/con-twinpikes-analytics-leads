@@ -46,7 +46,7 @@
   conserva aunque se reanude días después.
 - **No pagar dos veces**: el crudo de Apify y de las webs se guarda; cada petición al modelo se
   registra antes de enviarse; las respuestas se reutilizan si coinciden empresa, versión del prompt,
-  marcas, candidatos y contenido. Un lead ya enriquecido no vuelve al modelo salvo con `enrich --reread`.
+  marcas, candidatos, contenido, proveedor y modelo. Un lead ya enriquecido no vuelve al modelo salvo con `enrich --reread`.
   Cada lote lleva su id como etiqueta en el proveedor: si el envío se corta, `resume` encuentra los que
   llegaron y envía solo los que faltan. No puede haber dos enriquecimientos sin terminar sobre la misma
   tanda. Una captación fallida se repite con `capture --retry`, que reutiliza las búsquedas ya pagadas.

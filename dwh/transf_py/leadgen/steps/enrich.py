@@ -215,9 +215,13 @@ def _process(ctx, cfg, provider, crawler, req, to_process, reused, approved_usd)
         # Reuse is judged on what _collect will read: the latest request and the latest response per custom_id.
         prev_req = {k[0]: r for k, r in _latest_loaded(
             store.select("llm_request", {"prompt_version": version}), ("custom_id",)).items()}
-        prev_ok = {k[0] for k, r in _latest_loaded(
-            store.select("llm_response", {"custom_id": list(prev_req)}), ("custom_id",)).items()
-                   if _usable(r) is not None} if prev_req else set()
+        prev_resp = _latest_loaded(store.select("llm_response", {"custom_id": list(prev_req)}),
+                                   ("custom_id",)) if prev_req else {}
+        # an answer is reused only if this provider and model gave it: changing llm_model analyses again
+        made_by = {r["batch_id"]: (r["provider"], r["model"]) for r in store.select(
+            "llm_batch", {"batch_id": list({r["batch_id"] for r in prev_resp.values()})})} if prev_resp else {}
+        prev_ok = {k[0] for k, r in prev_resp.items()
+                   if _usable(r) is not None and made_by.get(r["batch_id"]) == (provider.name, provider.model)}
 
         new_reqs, reused_ids, direct_reviews = [], [], []
         for bid in to_process:
@@ -447,7 +451,12 @@ def _collect(ctx, cfg, provider, reused: list[int], direct: list[int] = ()) -> t
         version = prompt.prompt_version(ctx.country, ctx.profile)
         system = prompt.system_message(ctx.country, ctx.profile, cfg.brands("COMPETITOR"), cfg.brands("FLUIDRA"))
         reqs = _latest_loaded(store.select("llm_request", {"run_id": ctx.run_id}), ("custom_id",))
-        responses = _latest_loaded(store.select("llm_response", {"custom_id": [k[0] for k in reqs]}), ("custom_id",))
+        # a request sent by this run reads only this run's answers (an older one may be another model's or
+        # for other content); a cached one (CACHE) reads the answer it reuses
+        mine = {r["batch_id"] for r in store.select("llm_batch", {"run_id": ctx.run_id})}
+        cached = {k for k, r in reqs.items() if r.get("batch_id") == "CACHE"}
+        responses = _latest_loaded([r for r in store.select("llm_response", {"custom_id": [k[0] for k in reqs]})
+                                    if (r["custom_id"],) in cached or r["batch_id"] in mine], ("custom_id",))
         usable = _usable
 
         # One retry through the normal API for failed, expired, truncated or invalid answers (DT.6.4).

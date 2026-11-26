@@ -329,6 +329,27 @@ def test_failed_rerun_does_not_hide_a_valid_cached_answer(store, monkeypatch):
     assert len(prov.sent) == 1 and wv["validation"] == "VALID"
 
 
+def test_answers_of_another_model_are_not_reused(store):
+    ctx, _ = _capture(store, ITEMS[:1])
+    run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
+    other = FakeProvider()
+    other.model = "other-model"
+    run_enrich(store, other, crawler(), EnrichRequest(ctx.capture_batch_id, "ops", reread=True))
+    assert len(other.sent) == 1
+
+
+def test_a_request_without_answer_does_not_take_an_older_runs_answer(store):
+    ctx, _ = _capture(store, ITEMS[:1])
+    run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
+    other = FakeProvider()
+    other.model = "other-model"
+    other.batch_results = lambda ext: []                             # the batch came back without its line
+    ectx, _ = run_enrich(store, other, crawler(), EnrichRequest(ctx.capture_batch_id, "ops", llm_mode="BATCH",
+                                                                reread=True))
+    resume_enrich(store, other, crawler(), ectx.run_id)
+    assert len(other.sent) == 1                                      # retried directly, not the old answer
+
+
 def test_capture_and_enrich_estimate_the_same(store):
     ctx, s = _capture(store)
     e, _ = run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
@@ -671,3 +692,22 @@ def test_cancel_frees_a_stuck_enrich(store):
     with pytest.raises(ValueError, match="already CANCELLED"):
         maintenance.cancel_run(store, ectx.run_id, "ops")
     assert run_enrich(store, prov, crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))[0].state == "CLOSED"
+
+
+def test_reopening_an_already_customer_rejection_undoes_the_correction(store):
+    ctx, _ = _capture(store, ITEMS[:1])
+    run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
+    bid = to_review(store, ctx.capture_batch_id)[0]
+    store.advance(seconds=1)
+    reject(store, ctx.capture_batch_id, bid, "ALREADY_CUSTOMER", "ops", customer_code="C100")
+    _capture(store, ITEMS[:1])                                       # the next run stores the correction
+    assert bid not in to_review(store, ctx.capture_batch_id)
+    store.advance(seconds=1)
+    maintenance.reopen(store, ctx.capture_batch_id, bid, "ops")      # a mistake: back To review
+    assert bid in to_review(store, ctx.capture_batch_id)
+    store.advance(seconds=1)
+    reject(store, ctx.capture_batch_id, bid, "ALREADY_CUSTOMER", "ops", customer_code="C100")
+    store.advance(seconds=1)
+    _capture(store, ITEMS[:1])                                       # rejected again: customer again
+    from leadgen.steps.common import deciding_matches
+    assert deciding_matches(store, "AT", {bid})[bid]["outcome"] == "CUSTOMER"

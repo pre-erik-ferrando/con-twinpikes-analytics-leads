@@ -117,7 +117,8 @@ def run_match(ctx: RunContext, cfg: Config, facts: list[LeadFacts], match_pass: 
 
 def deciding_matches(store, country: str, business_ids: set[int] | None = None) -> dict[int, dict]:
     """business_id -> the match row that decides (human/Salesforce > hard > model > soft), taken among the
-    LATEST automatic pass and every manual correction."""
+    LATEST automatic pass, the LATEST Sales Ops correction (none if it is RETRACTED: Sales Ops reopened the
+    lead) and every Salesforce correction."""
     rows = [r for r in store.select("customer_match_out", {"country": country})
             if business_ids is None or r["business_id"] in business_ids]
     by: dict[int, list[dict]] = {}
@@ -125,7 +126,11 @@ def deciding_matches(store, country: str, business_ids: set[int] | None = None) 
         by.setdefault(r["business_id"], []).append(r)
     out = {}
     for bid, rs in by.items():
-        manual = [r for r in rs if r["origin"] in ("HUMAN", "SALESFORCE")]
+        manual = [r for r in rs if r["origin"] == "SALESFORCE"]
+        human = [r for r in rs if r["origin"] == "HUMAN"]
+        last_human = max(human, key=lambda r: r["inserted_at"]) if human else None
+        if last_human and last_human["outcome"] != "RETRACTED":
+            manual.append(last_human)
         auto = [r for r in rs if r["origin"] == "AUTO"]
         last_auto = [max(auto, key=lambda r: r["inserted_at"])] if auto else []
         out[bid] = resolve_priority(manual + last_auto)

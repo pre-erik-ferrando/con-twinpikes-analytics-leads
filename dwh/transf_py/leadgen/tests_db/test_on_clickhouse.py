@@ -384,3 +384,41 @@ def test_sql_filter_decides_as_the_reference(ch):
     maier = ref[(7_700_007, "POOL_SPECIALIST")]       # a CONDITIONAL category without its pool word says so
     assert (maier["rule"], maier["trigger_value"]) == ("CATEGORY_CONDITIONAL_NO_POOL_SIGNAL", cat["CONDITIONAL"])
     assert ref[(7_700_011, "POOL_SPECIALIST")]["rule"] == "NO_RULE_FIRED"
+
+
+def test_a_failed_export_does_not_freeze_the_score(ch):
+    """An export confirmed FAILED leaves the lead exportable again: lgn_f_score shows its live score."""
+    import time
+    exported = {b for (b,) in ch.client.query("SELECT business_id FROM fld_bizlgn.export_lead_out").result_rows}
+    bid, country, live = next((int(b), c, round(float(t), 2)) for b, c, t in ch.client.query(
+        "SELECT business_id, country, total FROM fld_bizlgn.lgn_f2_score WHERE profile = 'POOL_SPECIALIST'"
+        " ORDER BY business_id").result_rows if int(b) not in exported)
+    row = {"export_id": "exp_failed", "business_id": bid, "country": country, "profile": "POOL_SPECIALIST",
+           "capture_batch_id": "cb_t", "lead_code": f"{country}-{bid}", "generated_by": "t", "total": 99.0,
+           "rating": "HOT", "breakdown": [99.0]}
+    ch.insert("export_lead_out", [{**row, "status": "GENERATED"}])
+    time.sleep(0.05)
+    ch.insert("export_lead_out", [{**row, "status": "FAILED"}])
+    shown = {int(b): (round(float(t), 2), src) for b, t, src in ch.client.query(
+        "SELECT business_id, total, score_source FROM fld_bizlgn.lgn_f_score").result_rows}
+    assert shown[bid] == (live, "LIVE")
+
+
+
+def test_sql_customer_match_decides_as_the_engine_after_a_retraction(ch):
+    """A Sales Ops customer correction, then its retraction (the lead reopened): lgn_f_customer_match and
+    steps.common.deciding_matches pick the same row for every business."""
+    import time
+    from leadgen.steps.common import deciding_matches
+    ids = [int(b) for (b,) in ch.client.query(
+        "SELECT business_id FROM fld_bizlgn.lgn_f2_score WHERE country = 'AT' ORDER BY business_id LIMIT 2").result_rows]
+    row = {"run_id": "t", "country": "AT", "profile": "POOL_SPECIALIST", "match_pass": "MANUAL", "origin": "HUMAN",
+           "signal": "HUMAN", "customer_code": "C1"}
+    ch.insert("customer_match_out", [{**row, "business_id": b, "outcome": "CUSTOMER"} for b in ids])
+    time.sleep(0.05)
+    ch.insert("customer_match_out", [{**row, "business_id": ids[0], "outcome": "RETRACTED"}])
+    sql = {int(b): o for b, o in ch.client.query(
+        "SELECT business_id, outcome FROM fld_bizlgn.lgn_f_customer_match WHERE country = 'AT'").result_rows}
+    py = {b: r["outcome"] for b, r in deciding_matches(ch, "AT").items() if r}
+    assert sql[ids[1]] == "CUSTOMER" and sql.get(ids[0]) != "CUSTOMER"
+    assert sql == py

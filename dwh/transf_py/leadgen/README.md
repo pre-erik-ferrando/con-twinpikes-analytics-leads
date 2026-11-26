@@ -50,9 +50,11 @@ An error or Ctrl-C ends a run FAILED, never RUNNING; `cancel RUN` ends one left 
 - A configuration snapshot is frozen at the start of a run; a resumed run keeps it.
 - A model request is written (llm_request + llm_batch PREPARING) before it is sent, and the batch is
   tagged with our batch id: after a crash, `resume` finds a sent batch by its tag and sends only what
-  never arrived. A cached answer (same business, prompt_version, brand list, candidates and content) is
-  never paid twice. Only one unfinished ENRICH run per capture batch.
+  never arrived. A cached answer (same business, prompt_version, brand list, candidates, content,
+  provider and model) is never paid twice; a request sent by a run reads only that run's answers. Only one unfinished ENRICH run per capture batch.
 - A cost approval always has an amount.
+- Sales Ops' customer correction counts while it is the latest (reopen RETRACTS it); a FAILED export
+  does not freeze the score.
 - An approved lead whose business, listing, phone or domain is later suppressed is not exported.
 - A failed, truncated or schema-invalid answer is retried once through the direct API, then the lead is
   REVIEW with reason TECHNICAL.

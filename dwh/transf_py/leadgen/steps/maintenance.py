@@ -193,7 +193,9 @@ def cancel_run(store, run_id: str, by: str) -> dict:
 
 
 def reopen(store, capture_batch_id: str, business_id: int, by: str) -> None:
-    """Approved -> To review, only before export (review DT.8). Reopening is inserting a PENDING row."""
+    """Approved or Rejected -> To review, only before export (review DT.8). Reopening is inserting a PENDING
+    row; reopening an ALREADY_CUSTOMER rejection also retracts the customer correction it created, so the
+    automatic match decides again."""
     batch = store.select("capture_batch", {"capture_batch_id": capture_batch_id})[0]
     if business_id in published_ids(store, batch["country"]):
         raise ValueError("a Published lead cannot go back to To review")
@@ -201,6 +203,12 @@ def reopen(store, capture_batch_id: str, business_id: int, by: str) -> None:
     current = latest(store.select("export_lead_out", {"business_id": business_id}), ("export_id",))
     if any(r["status"] == "GENERATED" for r in current.values()):
         raise ValueError("the lead is in a generated export: confirm it FAILED first")
+    cur = current_validations(store, batch["country"], batch["profile"]).get(business_id) or {}
+    if cur.get("decision") == "EXCLUDED" and cur.get("exclusion_reason") == "ALREADY_CUSTOMER":
+        store.insert("customer_match_out", [{
+            "run_id": batch["run_id"], "business_id": business_id, "country": batch["country"],
+            "profile": batch["profile"], "match_pass": "MANUAL", "origin": "HUMAN", "outcome": "RETRACTED",
+            "signal": "HUMAN", "reason_text": f"Sales Ops reopened the lead ({by}): not a customer correction any more"}])
     store.insert("biz_lead_validation", [{
         "business_id": business_id, "profile": batch["profile"], "country": batch["country"], "run_id": batch["run_id"],
         "capture_batch_id": capture_batch_id, "decision": "PENDING", "approval_scope": "LEAD", "reviewed_by": by}])

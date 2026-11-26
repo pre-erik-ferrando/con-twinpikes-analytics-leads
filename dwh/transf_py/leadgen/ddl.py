@@ -326,7 +326,7 @@ OUT_TABLES: dict[str, Table] = {t.name: t for t in [
          ("country", "customer_code"), "Customer extract rows mapped and normalized (same functions as leads)"),
     _out("customer_match_out", [C("run_id", "String"), C("business_id", "UInt64"), C("country", LC), PROFILE,
                                 C("match_pass", LC, D.MATCH_PASSES), C("origin", LC, D.MATCH_ORIGINS),
-                                C("outcome", LC, ("CUSTOMER", "CANDIDATES", "NO_MATCH", "NO_EXTRACT")),
+                                C("outcome", LC, ("CUSTOMER", "CANDIDATES", "NO_MATCH", "NO_EXTRACT", "RETRACTED")),
                                 C("signal", NLC), C("subsidiary_code"), C("customer_code"), C("customer_name"),
                                 C("similarity", "Nullable(Float32)"), C("verdict", NLC),
                                 C("candidates_json", "String", default="'[]'"),

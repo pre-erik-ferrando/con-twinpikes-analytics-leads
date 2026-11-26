@@ -121,7 +121,8 @@ Código: [steps/enrich.py](../dwh/transf_py/leadgen/steps/enrich.py). Es el paso
    - **Registro y reutilización.** Cada petición se guarda en la base de datos *antes* de enviarse. Si
      no cambian la empresa, la versión del prompt, la lista de marcas, los candidatos ni el contenido,
      se reutiliza la respuesta guardada y no se paga dos veces. Solo se reutiliza si la última respuesta
-     guardada para ese lead es válida; si falló, se vuelve a preguntar.
+     guardada para ese lead es válida y la dio el mismo proveedor y modelo; si falló, o se cambió
+     `llm_model`, se vuelve a preguntar. Una petición nueva solo lee las respuestas de su ejecución.
    - **Coste real.** Al terminar, `cost_ledger` guarda lo que costaron las llamadas pagadas de la
      ejecución (reintentos incluidos, con el descuento de lote). Las respuestas reutilizadas no cuentan.
 5. **Comprobación de la respuesta sin el modelo**
@@ -143,9 +144,11 @@ Código: [steps/enrich.py](../dwh/transf_py/leadgen/steps/enrich.py). Es el paso
 La validación funciona **por rechazo**. Sales Ops ve la cola en Intelek (`lgn_v_validation_queue`) o
 con `leadgen.py review` y rechaza un lead con un motivo: `ALREADY_CUSTOMER`, `KA_CHAIN`, `DUPLICATE`,
 `HOT_TUB_SAUNA_ONLY`, `NOT_VALID` o `BUSINESS_CLOSED`. Después, **approve-rest** acepta de forma
-explícita todo lo que queda pendiente. Un rechazo por ser cliente o cadena se convierte además en una
-corrección que respetan las ejecuciones posteriores. Un lead aprobado puede volver a revisión con
-`reopen` mientras no se haya exportado, o si su exportación se confirmó como FAILED.
+explícita todo lo que queda pendiente. Un rechazo por ser ya cliente (`ALREADY_CUSTOMER`) se convierte
+además en una corrección del cruce, y uno por duplicado (`DUPLICATE`) en una fusión con la empresa que
+queda; las ejecuciones posteriores las respetan. Un lead aprobado o rechazado puede volver a revisión con
+`reopen` mientras no se haya exportado, o si su exportación se confirmó como FAILED; si era un
+`ALREADY_CUSTOMER`, `reopen` retira también la corrección del cruce y vuelve a decidir el cruce automático.
 
 ### Paso 4: Exportación (`leadgen.py export` y después `confirm-export`)
 
@@ -215,7 +218,7 @@ Se calcula en SQL, en las vistas dbt `lgn_f2_score_component` (un tramo por fact
 (total, rating y desglose), con la configuración **vigente**: un cambio de puntos o de umbrales se ve al
 momento, sin reprocesar. Al exportar un lead, su puntuación se **congela** en `export_lead_out`; a
 partir de ahí, `lgn_f_score` (lo que leen `lgn_v_lead` y las demás vistas) muestra la congelada, y la
-viva solo para los que no se han exportado. Sin las vistas en la base de datos, `precheck`,
+viva para los que no se han exportado o cuya exportación se confirmó FAILED (se pueden volver a exportar). Sin las vistas en la base de datos, `precheck`,
 `enrich` y `export` se detienen con «ejecuta `python leadgen.py dbt`».
 
 | Factor | Mejor tramo | Puntos |

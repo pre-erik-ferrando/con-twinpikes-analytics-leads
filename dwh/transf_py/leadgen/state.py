@@ -218,8 +218,13 @@ def sync_human_decisions(ctx: RunContext) -> int:
     - ALREADY_CUSTOMER -> customer_match_out (HUMAN);
       DUPLICATE -> an ALIAS in business_identity_out towards the surviving business (DT.8.1)."""
     store = ctx.store
-    have = {(r["business_id"], r.get("customer_code")) for r in store.select("customer_match_out", {"country": ctx.country})
-            if r.get("origin") == "HUMAN"}
+    human: dict[int, dict] = {}
+    for r in store.select("customer_match_out", {"country": ctx.country}):
+        if r.get("origin") == "HUMAN" and (r["business_id"] not in human
+                                           or r["inserted_at"] >= human[r["business_id"]]["inserted_at"]):
+            human[r["business_id"]] = r
+    # a correction already stored and still current (a reopened lead RETRACTED it: excluding it again re-adds it)
+    have = {(b, r.get("customer_code")) for b, r in human.items() if r["outcome"] == "CUSTOMER"}
     al_done = set(aliases(store))
     matches, alias_rows = [], []
     for bid, v in current_validations(store, ctx.country).items():
