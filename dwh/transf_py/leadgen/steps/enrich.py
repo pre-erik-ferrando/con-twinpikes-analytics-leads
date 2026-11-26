@@ -133,7 +133,7 @@ def run_enrich(store, provider: llm.Provider, crawler: Crawler | None, req: Enri
     est = estimate(cfg, len(to_process), mode)
     store.insert("cost_ledger", [{"run_id": ctx.run_id, "provider": "LLM", "kind": "ESTIMATED", "amount_usd": est,
                                   "detail": f"{len(to_process)} requests, mode {mode}"}])
-    if cost.needs_approval(est, float(cfg.param("cost_approval_threshold_usd", 10)), None):
+    if cost.needs_approval(est, float(cfg.param("cost_approval_threshold_usd")), None):
         ctx.set_state("AWAITING_COST_APPROVAL", f"estimated {est:.2f} USD for {len(to_process)} leads; "
                                                 f"approve COST for run {ctx.run_id} and resume it")
         return ctx, {"run_id": ctx.run_id, "state": ctx.state, "estimate_usd": est, "to_process": len(to_process)}
@@ -272,9 +272,9 @@ def _process(ctx, cfg, provider, crawler, req, to_process, reused, approved_usd)
         tokens = [prompt_tokens(r.system, r.user) for r, *_ in new_reqs]
         actual = cost.llm_cost(len(tokens), (sum(tokens) // max(1, len(tokens))) if tokens else 0,
                                cost.EST_OUTPUT_TOKENS, mode, cost.Prices.from_config(cfg), cost.EST_SYSTEM_TOKENS)
-        threshold = float(p("cost_approval_threshold_usd", 10))
+        threshold = float(p("cost_approval_threshold_usd"))
         approved = _approved_usd(store, ctx.run_id)
-        if actual > threshold and cost.overrun(actual, approved, threshold, float(p("cost_overrun_ratio", 0.2))):
+        if actual > threshold and cost.overrun(actual, approved, threshold, float(p("cost_overrun_ratio"))):
             ctx.set_state("AWAITING_COST_APPROVAL", f"counted {actual:.2f} USD, above what was approved")
             return ctx, {"run_id": ctx.run_id, "state": ctx.state, "estimate_usd": actual}
 

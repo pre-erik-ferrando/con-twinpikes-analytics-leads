@@ -48,6 +48,8 @@ country,parameter,value,value_type,unit,notes
 ,llm_price_out_per_mtok,10.0,FLOAT,USD,gpt-6.2-sol list price
 ,llm_price_cache_read_per_mtok,0.10,FLOAT,USD,gpt-6.2-sol cached input
 ,llm_price_cache_write_per_mtok,2.5,FLOAT,USD,"cache write = 1.25 x input (OpenAI 30 minutes, Anthropic 5 minutes)"
+,llm_batch_discount,0.5,FLOAT,,"price factor of the batch mode: OpenAI and Anthropic batches are half price"
+,render_price_per_page_usd,0,FLOAT,USD,"browser rendering runs on our machine (Playwright): free; a price only if a paid browser API is used"
 ,batch_poll_interval_min,15,INT,min,
 ,cost_approval_threshold_usd,10,FLOAT,USD,
 ,cost_overrun_ratio,0.20,FLOAT,,

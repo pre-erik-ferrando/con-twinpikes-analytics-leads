@@ -316,12 +316,15 @@ class OpenAIProvider:
 
 
 def make_provider(cfg) -> Provider:
-    provider = (cfg.param("llm_provider") or "ANTHROPIC").upper()
+    provider, model = cfg.param("llm_provider"), cfg.param("llm_model")
+    if not provider or not model:              # required by the precheck: never a model chosen by the code
+        raise ValueError("run parameters llm_provider and llm_model are required in biz_cfg_run_parameter")
+    provider = provider.upper()
     if provider == "OPENAI":
-        return OpenAIProvider(model=cfg.param("llm_model") or "gpt-6.2-sol", effort=cfg.param("llm_effort") or "low")
+        return OpenAIProvider(model=model, effort=cfg.param("llm_effort") or "low")
     if provider != "ANTHROPIC":
         raise NotImplementedError(f"llm_provider={provider}: ANTHROPIC or OPENAI")
-    return AnthropicProvider(model=cfg.param("llm_model") or "claude-opus-5-5",
+    return AnthropicProvider(model=model,
                              effort=cfg.param("llm_effort") or "low",
                              use_fallbacks=bool(cfg.param("llm_fallbacks", True)))
 

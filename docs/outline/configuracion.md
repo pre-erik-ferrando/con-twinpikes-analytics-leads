@@ -27,7 +27,10 @@ existen: nunca pisa lo que se ha cambiado en Intelek salvo con `--overwrite`.
 `leadgen.py precheck` (y cada ejecución al arrancar) bloquea si: el perfil no está activo o no tiene
 términos, categorías ni reglas de título; no hay área o término; un área no existe o una subregión no
 tiene idioma; un factor de puntuación no tiene todos sus tramos; los umbrales del Rating no crecen; un
-valor está fuera de su dominio; una regla SUBSTRING tiene menos de seis letras. Avisa sin bloquear de
+valor está fuera de su dominio; una regla SUBSTRING tiene menos de seis letras; falta uno de los
+parámetros que gastan o protegen dinero (umbral y margen de aprobación, tope de Apify, precios, proveedor
+y modelo, antigüedad del extracto: `REQUIRED_PARAMETERS` en `config.py`), que el código no suple con un
+valor propio. Avisa sin bloquear de
 subregiones sin cuadrante, marcas sin grupo y países sin lista de marcas propia.
 
 ## Parámetros técnicos

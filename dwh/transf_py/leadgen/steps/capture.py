@@ -90,7 +90,7 @@ def start(store, run_type: str, req: CaptureRequest) -> tuple[RunContext, object
     # Customer extract age (definition v3.3 DT.5): block above customer_extract_max_age_days unless approved.
     _, extracts = customer_index(store, req.country)
     age = extract_age_days(extracts, req.country, store.now())
-    max_age = cfg.param("customer_extract_max_age_days", 7)
+    max_age = cfg.param("customer_extract_max_age_days")
     warn_age = cfg.param("customer_extract_warn_age_days")       # optional; not in the definition
     if age is None:
         ctx.log.append(f"warning: no customer extract for {req.country}: customer match skipped")
@@ -276,7 +276,7 @@ def check_capture_cost(ctx: RunContext, cfg, req: CaptureRequest, n_queries: int
     est = cost.capture_cost(n_queries, max_places, cost.Prices.from_config(cfg))
     ctx.store.insert("cost_ledger", [{"run_id": ctx.run_id, "provider": "APIFY", "kind": "ESTIMATED", "amount_usd": est,
                                       "detail": f"{n_queries} queries x {max_places} places"}])
-    if cost.needs_approval(est, float(cfg.param("cost_approval_threshold_usd", 10)), req.approve_cost_usd):
+    if cost.needs_approval(est, float(cfg.param("cost_approval_threshold_usd")), req.approve_cost_usd):
         _fail(ctx, f"Apify estimate {est:.2f} USD for {n_queries} queries is above the approval threshold; "
                    f"run again with --approve-cost {est:.2f} (or fewer areas, terms or --max-places)")
     if req.approve_cost_usd is not None:
@@ -318,7 +318,7 @@ def run_capture(store, capturer: apify.Capturer, req: CaptureRequest) -> tuple[R
     check_capture_cost(ctx, cfg, req, len(new_calls), max_places)
     ctx.set_state("RUNNING")
     try:
-        cap_usd = float(cfg.param("apify_max_total_charge_usd", 25))
+        cap_usd = float(cfg.param("apify_max_total_charge_usd"))
         sweep_passes = int(cfg.param("sweep_max_passes", 3))
         sweep_min_new = float(cfg.param("sweep_min_new_ratio", 0.05))
         children: dict[str, list[dict]] = {}
@@ -434,7 +434,7 @@ def run_import_list(store, capturer: apify.Capturer, req: CaptureRequest) -> tup
         for row in req.import_rows:
             actor_in = apify.actor_input(row["name"], {}, cfg.param("apify_language", "de") or "de", 3,
                                          location_query=apify.import_location(row.get("city"), req.country))
-            res = capturer.run(actor_in, float(cfg.param("apify_max_total_charge_usd", 25)) / max(1, len(req.import_rows)))
+            res = capturer.run(actor_in, float(cfg.param("apify_max_total_charge_usd")) / max(1, len(req.import_rows)))
             qid = runs.new_id("q")
             store.insert("search_query_log", [{
                 "run_id": ctx.run_id, "query_id": qid, "capture_batch_id": ctx.capture_batch_id, "country": ctx.country,

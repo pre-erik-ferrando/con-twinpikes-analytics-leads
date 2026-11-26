@@ -13,24 +13,25 @@ from dataclasses import dataclass
 
 @dataclass
 class Prices:
-    apify_per_place_usd: float = 0.007          # pay-per-event incl. detail page; ~2 USD per 58 searches
-    llm_in_per_mtok: float = 4.0                # code fallback only: the prices are run parameters (llm_price_*)
-    llm_out_per_mtok: float = 20.0
-    llm_cache_read_per_mtok: float = 0.20
-    llm_cache_write_per_mtok: float = 5.0       # 5-minute cache write: 1.25 x input
-    batch_discount: float = 0.5
-    render_per_page_usd: float = 0.0            # own infrastructure; a placeholder for a paid browser API
+    """The prices are run parameters (biz_cfg_run_parameter), required by the precheck: no fallback here."""
+    apify_per_place_usd: float
+    llm_in_per_mtok: float
+    llm_out_per_mtok: float
+    llm_cache_read_per_mtok: float
+    llm_cache_write_per_mtok: float
+    batch_discount: float
+    render_per_page_usd: float
 
     @classmethod
     def from_config(cls, cfg) -> "Prices":
-        d = cls()
-        return cls(apify_per_place_usd=cfg.param("apify_price_per_place_usd", d.apify_per_place_usd),
-                   llm_in_per_mtok=cfg.param("llm_price_in_per_mtok", d.llm_in_per_mtok),
-                   llm_out_per_mtok=cfg.param("llm_price_out_per_mtok", d.llm_out_per_mtok),
-                   llm_cache_read_per_mtok=cfg.param("llm_price_cache_read_per_mtok", d.llm_cache_read_per_mtok),
-                   llm_cache_write_per_mtok=cfg.param("llm_price_cache_write_per_mtok", d.llm_cache_write_per_mtok),
-                   batch_discount=cfg.param("llm_batch_discount", d.batch_discount),
-                   render_per_page_usd=cfg.param("render_price_per_page_usd", d.render_per_page_usd))
+        def need(name: str) -> float:
+            v = cfg.param(name)
+            if v is None:
+                raise ValueError(f"run parameter {name} is missing in biz_cfg_run_parameter")
+            return float(v)
+        return cls(need("apify_price_per_place_usd"), need("llm_price_in_per_mtok"), need("llm_price_out_per_mtok"),
+                   need("llm_price_cache_read_per_mtok"), need("llm_price_cache_write_per_mtok"),
+                   need("llm_batch_discount"), need("render_price_per_page_usd"))
 
 
 def capture_cost(n_queries: int, max_places: int, prices: Prices) -> float:

@@ -148,6 +148,18 @@ class TestConfig:
         assert any("not active" in b for b in precheck(cfg_hvac, ["AT-501"], ["x"]).blocking)
         assert any("not active in biz_cfg_search_area" in b for b in precheck(cfg, ["AT-999"], ["x"]).blocking)
 
+    def test_precheck_blocks_without_the_money_parameters(self, store):
+        """No fallback in the code: a missing price, cap or model stops the run before it spends."""
+        from leadgen.llm import make_provider
+        from leadgen.state import RunContext
+        cfg = RunContext(store, "t", "CAPTURE", "AT", "POOL_SPECIALIST", "t").config()
+        cfg.tables["biz_cfg_run_parameter"] = [r for r in cfg.tables["biz_cfg_run_parameter"]
+                                               if r["parameter"] not in ("llm_model", "apify_max_total_charge_usd")]
+        blocking = precheck(cfg, ["AT-501"], ["Poolbau"]).blocking
+        assert any("llm_model" in b and "apify_max_total_charge_usd" in b for b in blocking)
+        with pytest.raises(ValueError, match="llm_model"):
+            make_provider(cfg)
+
 
 # --------------------------------------------------------------------------- filter (DT.4.4)
 RULES = {"schwimmbadbauer": "INCLUDE", "bauunternehmen": "CONDITIONAL", "hotel": "EXCLUDE", "baumarkt": "EXCLUDE",
@@ -320,7 +332,7 @@ def test_transitions():
 
 
 def test_cost_approval():
-    p = cost.Prices()
+    p = cost.Prices(0.007, 2.0, 10.0, 0.10, 2.5, 0.5, 0.0)
     assert cost.llm_cost(100, 30000, 1200, "BATCH", p) == pytest.approx(cost.llm_cost(100, 30000, 1200, "DIRECT", p) / 2,
                                                                          abs=0.01)
     assert not cost.needs_approval(5, 10, None) and cost.needs_approval(15, 10, None)
@@ -329,7 +341,7 @@ def test_cost_approval():
 
 
 def test_actual_cost_counts_cache_writes():
-    p = cost.Prices()
+    p = cost.Prices(0.007, 2.0, 10.0, 0.10, 2.5, 0.5, 0.0)
     base = {"input_tokens": 1000, "cache_read_tokens": 3500, "output_tokens": 1200, "mode": "DIRECT"}
     first = {**base, "cache_read_tokens": 0, "cache_write_tokens": 3500}
     assert cost.llm_actual_cost([first], p) - cost.llm_actual_cost([{**first, "cache_write_tokens": 0}], p) \

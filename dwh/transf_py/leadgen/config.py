@@ -196,9 +196,21 @@ class PrecheckResult:
     warnings: list[str] = field(default_factory=list)
 
 
+# Parameters that spend money or guard it: without them no run starts (no fallback value in the code).
+REQUIRED_PARAMETERS = (
+    "cost_approval_threshold_usd", "cost_overrun_ratio", "apify_max_total_charge_usd", "apify_price_per_place_usd",
+    "customer_extract_max_age_days", "llm_provider", "llm_model", "llm_price_in_per_mtok", "llm_price_out_per_mtok",
+    "llm_price_cache_read_per_mtok", "llm_price_cache_write_per_mtok", "llm_batch_discount",
+    "render_price_per_page_usd")
+
+
 def precheck(cfg: Config, area_ids: list[str] | None = None, terms: list[str] | None = None,
              needs_scoring: bool = True) -> PrecheckResult:
     res = PrecheckResult()
+    missing = [p for p in REQUIRED_PARAMETERS if cfg.param(p) is None]
+    if missing:
+        res.blocking.append(f"run parameters missing in biz_cfg_run_parameter: {', '.join(missing)} "
+                            f"(`python leadgen.py seed` adds the ones not yet there)")
     areas = cfg.search_areas()
     profiles = {r["profile_code"]: r for r in cfg.rows("biz_cfg_profile")}
 

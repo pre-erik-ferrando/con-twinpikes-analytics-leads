@@ -52,7 +52,8 @@ An error or Ctrl-C ends a run FAILED, never RUNNING; `cancel RUN` ends one left 
   tagged with our batch id: after a crash, `resume` finds a sent batch by its tag and sends only what
   never arrived. A cached answer (same business, prompt_version, brand list, candidates, content,
   provider and model) is never paid twice; a request sent by a run reads only that run's answers. Only one unfinished ENRICH run per capture batch.
-- A cost approval always has an amount.
+- A cost approval always has an amount. The parameters that spend or guard money (config.REQUIRED_PARAMETERS)
+  have no fallback in the code: the precheck blocks the run without them.
 - Sales Ops' customer correction counts while it is the latest (reopen RETRACTS it); a FAILED export
   does not freeze the score.
 - A DUPLICATE rejection merges (ALIAS) without excluding the surviving business; reopen undoes the merge
