@@ -45,7 +45,7 @@ Sin cambios sobre la definición.
 
 | Cambio | Estado | Por qué |
 |---|---|---|
-| No es lead quien solo repara piscinas, equipos o robots (aunque venda recambios o unidades reacondicionadas, o publique consejos), ni quien solo hace cubiertas o cerramientos | Propuesto (25-11) | Salían como leads (taller de robots WARM 28,5; SIGMA, cubiertas) |
+| No es lead quien solo repara piscinas, equipos o robots (aunque venda recambios o unidades reacondicionadas, o publique consejos), ni quien solo hace cubiertas o cerramientos | Hecho, a petición de TWP (25-11) | Salían como leads (taller de robots WARM 28,5; SIGMA, cubiertas) |
 | Consejos o guías publicados en la web no cuentan como servicio; limpiar robots es reparar robots | Propuesto (25-11) | El modelo los tomaba por limpieza de piscinas |
 | OpenAI `gpt-6.2-sol`, sin temperatura, esfuerzo `low` | Hecho (20-11) | La clave disponible es de OpenAI; los modelos actuales no aceptan temperatura 0 |
 | Caso conocido: el taller de robots de Klagenfurt sigue saliendo como lead (WARM 21) | Lo rechaza Sales Ops | Tres versiones del prompt no lo corrigen; seguir cambiándolo arriesga a otros leads |
@@ -55,7 +55,6 @@ Sin cambios sobre la definición.
 | Cambio | Estado | Por qué |
 |---|---|---|
 | Un lead en revisión sin pasar por el modelo (sin web ni candidatos de cliente) también se puntúa | Hecho | Para que aparezca en la cola de validación |
-| Maytronics en el grupo 1 de marcas (7,5 puntos): bajarlo, o dar menos puntos de marca a las empresas de tipo débil | Por enviar a TWP (25-11) | Un taller que solo repara robots Maytronics suma lo mismo que una tienda profesional |
 
 ### 7. Validación de Sales Ops
 
@@ -91,7 +90,7 @@ Sin cambios sobre la definición.
 | Pantallas de Intelek (DF.13) | Lanzar, validar, exportar y cargar ficheros desde la DataApp | Vistas `lgn_v_*` listas; el lanzamiento y la carga de ficheros por línea de comandos | Revisión DT.9: spike con Intelek antes de comprometer pantallas |
 | Prefijos de fecha | Estilo A: pk_, des_, imp_, val_ | Las fechas de las vistas llevan `dt_` | Convención del repositorio de TWP (`dt_target_month`); [PENDIENTE] confirmarlo (DT.1.1.3) |
 | Motivo legible del cruce (DT.5.7) | Ejemplo en castellano | En inglés ("VAT matches customer 12345 (subsidiary AT), …") | La DataApp y Salesforce de Central Europe están en inglés |
-| Reparadores y cubiertas en el prompt (DT.10) | Es lead quien «mantiene, limpia o repara» piscinas; la reparación de robots y las cubiertas o cerramientos son WEAK_UNVERIFIED | No es lead (NOT_VALID) quien solo repara piscinas, equipos o robots, aunque venda recambios o unidades de lo que repara, ni quien solo vende, fabrica o instala cubiertas, cerramientos o techos de piscina. Cambia `prompt_version`, así que el modelo vuelve a analizar todas las empresas | No compran equipos de Fluidra para instalar: en Estiria y Carintia salían como leads (un taller de robots Maytronics, WARM 28,5). [PROPUESTA] decidido el 25-11-2026, pendiente de que TWP lo confirme |
+| Reparadores y cubiertas en el prompt (DT.10) | Es lead quien «mantiene, limpia o repara» piscinas; la reparación de robots y las cubiertas o cerramientos son WEAK_UNVERIFIED | No es lead (NOT_VALID) quien solo repara piscinas, equipos o robots, aunque venda recambios o unidades de lo que repara, ni quien solo vende, fabrica o instala cubiertas, cerramientos o techos de piscina. Cambia `prompt_version`, así que el modelo vuelve a analizar todas las empresas | No compran equipos de Fluidra para instalar: en Estiria y Carintia salían como leads (un taller de robots Maytronics, WARM 28,5). Pedido por TWP, aplicado el 25-11-2026 |
 | Palabras de piscina del filtro | `pool`, `schwimmbad`, `schwimmbecken`, `schwimmteich`, `naturpool` | Se añade `badeteich` (sinónimo de Schwimmteich) | En Rosenheim (DE, 25-11-2026) se excluyó a un constructor de Badeteiche, que el prompt da por válido. [PROPUESTA] decidido el 25-11-2026 |
 
 ## Decisiones de la revisión técnica aplicadas

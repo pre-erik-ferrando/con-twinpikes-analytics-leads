@@ -32,7 +32,8 @@ company is a competitor's branch. In `seeds/biz_cfg_control_set.csv`; `python le
 - **Switzerland, source DESJOYAUX (7):** the exclusive dealers on desjoyaux.ch (Händlersuche) and their
   sites, all `MUST_EXCLUDE COMPETITOR` (Desjoyaux is a HARD competitor rule in v4). Their company names
   don't say Desjoyaux; their Google names may, and coverage will show it. desjoyauxfribourg.ch did not resolve.
-- The coverage figure needs a capture in DE or CH: no run there yet.
+- The coverage figure needs a capture in DE or CH. First DE capture: Rosenheim (25 Nov, 7 leads); its
+  coverage figure is not recorded here yet.
 
 ## 2026-11-18 · Apify: give the search area as a map outline, not by name
 

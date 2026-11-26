@@ -3,22 +3,15 @@
 Registro de todo lo que les preguntamos, enviado o por enviar, con su estado. Para la primera entrega:
 Pool specialist en Alemania, Austria y Suiza.
 
-## Por enviar
-
-1. **Reparadores y cubiertas fuera.** Hemos cambiado el prompt de la definición: quien solo repara piscinas,
-   equipos o robots (aunque venda recambios de lo que repara) y quien solo vende o instala cubiertas,
-   cerramientos o techos de piscina ya no es lead. Antes, un taller de robots Maytronics de Klagenfurt salía
-   WARM. ¿Estáis de acuerdo? Estado: por enviar (25-11-2026).
-
-2. **Maytronics en el grupo 1 de marcas.** Un taller que repara robots Maytronics (Klagenfurt) suma 7,5
-   puntos de marca, los mismos que una tienda de equipos profesionales, y sale WARM (21). ¿Bajamos
-   Maytronics al grupo 2 o 3, o dais menos puntos de marca a las empresas de tipo débil? Estado: por enviar (25-11-2026).
-
 ## Decididas por TWP sin preguntarlo
 
 - **Constructoras generales.** Se quejaron de que se excluía alguna `Generalunternehmer` sin motivo
   (GAD Bau, Carintia). Respondida (25-11-2026): `Generalunternehmer` pasa a INCLUDE, sin pedir palabra de
   piscina. Cargada en `biz_cfg_category_rule` el 25-11-2026 (`updated_by` = `twp:2026-11-25`).
+
+- **Reparadores y cubiertas fuera.** Idea de TWP: quien solo repara piscinas, equipos o robots (aunque venda
+  recambios de lo que repara) y quien solo vende o instala cubiertas, cerramientos o techos de piscina no es
+  lead. Aplicada en el prompt el 25-11-2026.
 
 ## Enviadas el 24-11-2026 (pendientes de respuesta)
 

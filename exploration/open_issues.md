@@ -8,7 +8,8 @@ v4 is v3 with one sentence changed (the export tab now cites the Spain upload fo
 
 ## After the first demo (Pool specialist DE/AT/CH)
 
-The demo was sent to TwinPikes; waiting for their feedback.
+The demo was sent to TwinPikes. Their feedback (25 Nov) is applied: `Generalunternehmer` to INCLUDE,
+repair-only and cover-only businesses NOT_VALID in the prompt ([decisiones.md](../docs/outline/decisiones.md)).
 
 ### TWP / Fluidra
 
