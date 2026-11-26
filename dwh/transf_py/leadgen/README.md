@@ -37,6 +37,8 @@ and its technical review in [`docs/spec/`](../../../docs/spec).
 | REPROCESS_RULES | `reprocess` | customer_match_out of what the filter includes now (no Apify, crawl or model; the filter and the scores are live in SQL) |
 | CUSTOMER_REMATCH | `rematch` | customer_match_out (REMATCH) |
 
+Not runs (no pipeline_run row): `apply-sf-status` (customer_match_out SALESFORCE from the status file), `renormalize` (place_norm_out with the filter's texts again), `cancel` (a CANCELLED row for a run left unfinished).
+
 Every run writes one `ops.pipeline_run` row per state change: REQUESTED → SNAPSHOT_FROZEN →
 [AWAITING_COST_APPROVAL] → RUNNING → [AWAITING_BATCHES ⇄ COLLECTING] → CLOSED | FAILED | CANCELLED.
 An error or Ctrl-C ends a run FAILED, never RUNNING; `cancel RUN` ends one left unfinished.

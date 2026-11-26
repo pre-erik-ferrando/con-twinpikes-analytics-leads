@@ -25,7 +25,7 @@ Estado: **Hecho** (ya en el código o la configuración), **Propuesto** (nuestro
 |---|---|---|
 | `Generalunternehmer` pasa de CONDITIONAL a INCLUDE | Hecho (decisión de TWP, 25-11) | Se excluía a GAD Bau (Carintia) sin motivo |
 | Una exclusión por categoría CONDITIONAL sin palabra de piscina dice el motivo (`CATEGORY_CONDITIONAL_NO_POOL_SIGNAL`) | Hecho (25-11) | Antes salía `NO_RULE_FIRED`, sin motivo |
-| `badeteich` como palabra de piscina | Propuesto (25-11) | Se excluyó a un constructor de Badeteiche en Rosenheim |
+| `badeteich` como palabra de piscina | Hecho, propuesto (25-11): falta que TWP lo confirme | Se excluyó a un constructor de Badeteiche en Rosenheim |
 | Categorías sin clasificar (`Metallbauunternehmen`, `Hersteller`), fichas sin categoría, «Therme» como regla dura, tiendas de whirlpools | Preguntado (24-11) | Negocios de piscinas que el filtro aparta |
 
 ### 3. Cruce con clientes de Fluidra
@@ -46,7 +46,7 @@ Sin cambios sobre la definición.
 | Cambio | Estado | Por qué |
 |---|---|---|
 | No es lead quien solo repara piscinas, equipos o robots (aunque venda recambios o unidades reacondicionadas, o publique consejos), ni quien solo hace cubiertas o cerramientos | Hecho, a petición de TWP (25-11) | Salían como leads (taller de robots WARM 28,5; SIGMA, cubiertas) |
-| Consejos o guías publicados en la web no cuentan como servicio; limpiar robots es reparar robots | Propuesto (25-11) | El modelo los tomaba por limpieza de piscinas |
+| Consejos o guías publicados en la web no cuentan como servicio; limpiar robots es reparar robots | Hecho, propuesto (25-11): falta que TWP lo confirme | El modelo los tomaba por limpieza de piscinas |
 | OpenAI `gpt-6.2-sol`, sin temperatura, esfuerzo `low` | Hecho (20-11) | La clave disponible es de OpenAI; los modelos actuales no aceptan temperatura 0 |
 | Caso conocido: el taller de robots de Klagenfurt sigue saliendo como lead (WARM 21) | Lo rechaza Sales Ops | Tres versiones del prompt no lo corrigen; seguir cambiándolo arriesga a otros leads |
 
@@ -68,7 +68,7 @@ Sin cambios sobre la definición.
 | Cambio | Estado | Por qué |
 |---|---|---|
 | Published al confirmar la carga (UPLOADED), no al exportar | Hecho, por decidir | Falta saber qué entiende TWP por Published |
-| Propietario por defecto por país mientras Fluidra no rellene la tabla de comerciales | Hecho | La pestaña está vacía en el Excel v4 |
+| Propietario por defecto por país mientras Fluidra no rellene la tabla de comerciales | Preparado: falta el nombre | La pestaña está vacía en el Excel v4. El código lo admite (fila sin subregión en `biz_cfg_sales_owner`), pero nadie ha dado ese propietario: hasta entonces la exportación se bloquea |
 | Sin destino COCKPIT; el cockpit carga el fichero de Salesforce | Hecho | Definición v3.3 |
 
 ## Desviaciones de la definición
@@ -83,7 +83,7 @@ Sin cambios sobre la definición.
 | Captación y enriquecimiento (DT.9) | La parte II describe una sola ejecución con fases A y B | Dos ejecuciones separadas (CAPTURE y ENRICH), como las pantallas de la parte I | El enriquecimiento va al modelo en modo BATCH, más barato, y puede tardar horas; la captación no tiene que esperarlo |
 | Cruce espacial (DT.1.2) | Diccionario polygon de ClickHouse | Punto en polígono en Python (`geo.py`) contra los GeoJSON oficiales de `reference_geo` | Mismo resultado sin depender de un diccionario que hay que pedir al administrador; probado sin base de datos |
 | Tablas creadas en un hook de dbt (DT.2.1) | `CREATE TABLE IF NOT EXISTS` en el arranque de dbt | `leadgen.py init` (desde `ddl.py`), y dbt las declara como fuentes | El motor escribe en landing y ops antes de que dbt corra; un único contrato de tablas genera DDL, vistas `_current` y fuentes de dbt |
-| Instantánea de configuración en stg (DT.2.6) | stg resuelve la configuración con `snapshot_id` | El motor resuelve la configuración en Python a la fecha de la instantánea; las vistas `lgn_a_*` dan la configuración vigente para las vistas de consumo | La decisión la toma el motor; stg queda para leer |
+| Instantánea de configuración en stg (DT.2.6) | stg resuelve la configuración con `snapshot_id` | El motor resuelve en Python, a la fecha de la instantánea, la configuración que usa él (cruce, rastreo, prompt, costes). El filtro y la puntuación son vistas de dbt y usan la configuración vigente al leerlas, también dentro de una ejecución | La configuración cambia pocas veces y no a mitad de una ejecución; filtrar cada vista por instantánea complicaría todas las vistas de configuración |
 | Tipo nullable de baja cardinalidad (anexo A) | `Nullable(LowCardinality(String))` | `LowCardinality(Nullable(String))` | ClickHouse solo admite ese anidamiento |
 | Temperatura 0 y sin razonamiento extendido (DT.10.1) | Temperatura 0; sin razonamiento | Sin temperatura; `effort = low` | Los modelos actuales rechazan los parámetros de muestreo y no permiten desactivar el razonamiento; `llm_max_tokens_out` (2.000) tiene que dejarle sitio: vigilar las respuestas cortadas en el piloto |
 | Modelo (DT.10.1, [PENDIENTE]) | Configurable, Anthropic u OpenAI | Los dos implementados (`llm_provider`). Elegido OpenAI, `gpt-6.2-sol` (gama media: 2 USD / 10 USD por millón de tokens de entrada / salida, la mitad en lote), con esfuerzo `low` y salida JSON estricta; las respuestas no se guardan en OpenAI (`store: false`) | Decisión del 20-11-2026 [PROPUESTA]: la clave disponible es de OpenAI. Cambiar de proveedor o de modelo es configuración (`llm_provider`, `llm_model`, `llm_price_*`) |
@@ -92,6 +92,11 @@ Sin cambios sobre la definición.
 | Motivo legible del cruce (DT.5.7) | Ejemplo en castellano | En inglés ("VAT matches customer 12345 (subsidiary AT), …") | La DataApp y Salesforce de Central Europe están en inglés |
 | Reparadores y cubiertas en el prompt (DT.10) | Es lead quien «mantiene, limpia o repara» piscinas; la reparación de robots y las cubiertas o cerramientos son WEAK_UNVERIFIED | No es lead (NOT_VALID) quien solo repara piscinas, equipos o robots, aunque venda recambios o unidades de lo que repara, ni quien solo vende, fabrica o instala cubiertas, cerramientos o techos de piscina. Cambia `prompt_version`, así que el modelo vuelve a analizar todas las empresas | No compran equipos de Fluidra para instalar: en Estiria y Carintia salían como leads (un taller de robots Maytronics, WARM 28,5). Pedido por TWP, aplicado el 25-11-2026 |
 | Palabras de piscina del filtro | `pool`, `schwimmbad`, `schwimmbecken`, `schwimmteich`, `naturpool` | Se añade `badeteich` (sinónimo de Schwimmteich) | En Rosenheim (DE, 25-11-2026) se excluyó a un constructor de Badeteiche, que el prompt da por válido. [PROPUESTA] decidido el 25-11-2026 |
+| Estados de una ejecución (DT.9.2) | `NEEDS_APPROVAL`, `PHASE_A_RUNNING`, `PHASE_B_RUNNING` | Captación y enriquecimiento son ejecuciones separadas: `AWAITING_COST_APPROVAL`, `RUNNING`, `AWAITING_BATCHES`, `COLLECTING`; más `CANCELLED` (`cancel`) | Revisión técnica: las dos fases son dos ejecuciones. Los nombres dicen en qué espera cada una |
+| Recogida de los lotes del modelo (DT.6, DT.9.4) | Webhook del proveedor o consulta cada `batch_poll_interval_min` (15 min) | A mano: `resume RUN` hasta que el lote termina. `batch_poll_interval_min` no se lee | Sin planificador hasta que Intelek pueda lanzar procesos |
+| Peticiones de ejecución desde Intelek (DT.9.1) | El motor consulta `biz_run_request` cada `run_request_poll_interval_s` | Tabla y parámetro creados; el motor no los lee: todo se lanza por línea de comandos | Pendiente de lo que Intelek pueda hacer (preguntas de `open_issues.md`) |
+| Retención (DT.9.8) | Borrar el HTML y las respuestas del modelo según `html_retention_days` y `llm_response_retention_days` (365) | No implementada: los parámetros existen, nada los lee | Nada que borrar antes de un año (primera captación: 23-11-2026). Además, borrar choca con la regla de solo insertar: hará falta una tarea de mantenimiento pedida al administrador |
+| Tope de gasto del modelo (DT.10.1) | `llm_max_charge_usd` [PENDIENTE] | No se lee: el gasto lo limita la aprobación de coste (`cost_approval_threshold_usd`, `approve-cost --amount`, margen `cost_overrun_ratio`) | El valor sigue [PENDIENTE] |
 
 ## Decisiones de la revisión técnica aplicadas
 

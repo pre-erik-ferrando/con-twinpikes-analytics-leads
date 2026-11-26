@@ -21,7 +21,7 @@ models/leads/
 | Capture: map 1 | `lgn_v_map_zones` |
 | Enrichment: leads and exclusions | `lgn_v_lead`, `lgn_v_lead_discarded`, `lgn_v_category_pending` |
 | Validation: indicators, map 2, table | `lgn_v_kpi_validation`, `lgn_v_map_leads`, `lgn_v_validation_queue` |
-| Export: table, map 3 | `lgn_v_salesforce_export`, `lgn_v_lead`, `lgn_v_map_zones` |
+| Export: table, map 3 | `lgn_v_salesforce_export`, `lgn_v_lead`, `lgn_v_map_zones`, `lgn_v_map_zones_month` (map 3 by Salesforce status month) |
 | Operation | `lgn_v_run_summary`, `lgn_v_published_customer_conflict`, `lgn_v_coverage` |
 
 ## Commands

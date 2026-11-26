@@ -107,8 +107,9 @@ Código: [steps/enrich.py](../dwh/transf_py/leadgen/steps/enrich.py). Es el paso
    de caracteres y reserva sitio para los fragmentos que mencionan marcas.
 4. **Consulta al modelo** ([prompt.py](../dwh/transf_py/leadgen/prompt.py),
    [llm.py](../dwh/transf_py/leadgen/llm.py)):
-   - **El prompt.** El prompt de sistema es el texto de la definición (igual en la v3.2 y la v3.3) del especialista de piscinas DACH, sin
-     cambios. El modelo debe responder con un esquema JSON estricto que incluye:
+   - **El prompt.** El prompt de sistema es el texto de la definición (igual en la v3.2 y la v3.3) del especialista de piscinas DACH,
+     salvo un cambio pedido por TWP: quien solo repara piscinas, equipos o robots, o solo hace cubiertas o
+     cerramientos, no es lead ([decisiones.md](outline/decisiones.md)). El modelo debe responder con un esquema JSON estricto que incluye:
      - validación: VALID / NOT_VALID / REVIEW;
      - tipo de empresa;
      - enriquecimiento: contacto, email, IVA…;
@@ -300,7 +301,7 @@ REQUESTED → SNAPSHOT_FROZEN → [AWAITING_COST_APPROVAL] → RUNNING → [AWAI
 
 ## 8. Cómo se prueba
 
-`./run_tests.sh` ejecuta unos 200 tests sin base de datos, sin red y sin credenciales.
+`./run_tests.sh` ejecuta unos 340 tests sin base de datos, sin red y sin credenciales.
 
 - **Ejecuciones de principio a fin.** Usan un almacén en memoria (`MemoryStore`), resultados de Apify
   falsos, webs falsas y un modelo falso, y recorren todos los tipos de ejecución: captación,
@@ -333,7 +334,7 @@ dwh/transf_py/leadgen/
 ├── matching                    cruce con clientes (el filtro es SQL: lgn_f_rule_evaluation)
 ├── crawl, content              leer y preparar las webs
 ├── prompt, llm, response       consultar al modelo; comprobar su respuesta con las páginas
-├── scoring, cost, export       puntos y rating; estimación de coste; filas de Salesforce
+├── cost, export               estimación de coste; filas de Salesforce (la puntuación es SQL: lgn_f2_score)
 ├── config, state, runs         configuración vigente e instantánea; estado actual; estados y bloqueos
 ├── store                       ClickHouse ↔ memoria; nombres lógicos ↔ físicos
 ├── ddl                         el contrato de todas las tablas
