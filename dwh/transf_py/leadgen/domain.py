@@ -100,8 +100,9 @@ APPROVAL_TYPES = ("COST", "STALE_CUSTOMER_EXTRACT")
 CAPTURE_SOURCES = ("SEARCH", "IMPORT")
 # What a file loaded into landing.upload_file is (one table for every uploaded file).
 UPLOAD_KINDS = ("CUSTOMER_EXTRACT", "SF_STATUS", "IMPORT_LIST")
-# An identity event (business_identity_out): a business absorbed by another, or two to be checked.
-IDENTITY_KINDS = ("ALIAS", "MERGE_SUSPECT")
+# An identity event (business_identity_out): a business absorbed by another (ALIAS), that merge undone
+# by Sales Ops reopening a DUPLICATE rejection (UNALIAS: the latest of the two counts), or two to be checked.
+IDENTITY_KINDS = ("ALIAS", "UNALIAS", "MERGE_SUSPECT")
 # One permission per action; country access is a separate dimension (review, DT.9 "Roles").
 PERMISSIONS = ("launch_capture", "launch_enrich", "approve_cost", "validate", "export", "upload_customers",
                "upload_call_results")

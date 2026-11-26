@@ -711,3 +711,28 @@ def test_reopening_an_already_customer_rejection_undoes_the_correction(store):
     _capture(store, ITEMS[:1])                                       # rejected again: customer again
     from leadgen.steps.common import deciding_matches
     assert deciding_matches(store, "AT", {bid})[bid]["outcome"] == "CUSTOMER"
+
+
+def test_duplicate_rejection_merges_without_excluding_the_survivor_and_reopen_undoes_it(store):
+    from leadgen.state import aliases
+    two = ITEMS[:1] + [item("p_two", "Schwimmbad Zwei", ["Schwimmbadbauer"], phone="+43662777777",
+                            website="https://poolbau-huber.at/impressum", lat=47.0, lng=15.4)]
+    ctx, _ = _capture(store, two)
+    run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
+    a, b = to_review(store, ctx.capture_batch_id)
+    store.advance(seconds=1)
+    reject(store, ctx.capture_batch_id, a, "DUPLICATE", "ops", duplicate_of=b)
+    store.advance(seconds=1)
+    _capture(store, ITEMS[:1])                                       # the next run merges a into b
+    assert aliases(store) == {a: b}
+    assert "decision" not in current_validations(store, "AT", "POOL_SPECIALIST").get(b, {})   # b untouched
+    assert to_review(store, ctx.capture_batch_id) == [b]             # a is gone, b still to review
+    store.advance(seconds=1)
+    maintenance.reopen(store, ctx.capture_batch_id, a, "ops")        # a mistake: split them again
+    assert aliases(store) == {}
+    assert to_review(store, ctx.capture_batch_id) == sorted([a, b])
+    store.advance(seconds=1)
+    reject(store, ctx.capture_batch_id, a, "DUPLICATE", "ops", duplicate_of=b)
+    store.advance(seconds=1)
+    _capture(store, ITEMS[:1])                                       # rejected again: merged again
+    assert aliases(store) == {a: b}

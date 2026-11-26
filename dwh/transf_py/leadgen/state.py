@@ -91,8 +91,13 @@ def resume_context(store, run_id: str) -> RunContext:
 
 # --------------------------------------------------------------------------- businesses
 def aliases(store) -> dict[int, int]:
-    """Absorbed business -> the surviving one (one level; resolve_alias follows chains)."""
-    return {r["business_id"]: r["other_business_id"] for r in store.select("business_identity_out", {"kind": "ALIAS"})}
+    """Absorbed business -> the surviving one (one level; resolve_alias follows chains). Per business the
+    latest ALIAS or UNALIAS counts: an UNALIAS (a DUPLICATE rejection reopened) undoes the merge."""
+    last: dict[int, dict] = {}
+    for r in store.select("business_identity_out", {"kind": ["ALIAS", "UNALIAS"]}):
+        if r["business_id"] not in last or r["inserted_at"] >= last[r["business_id"]]["inserted_at"]:
+            last[r["business_id"]] = r
+    return {b: r["other_business_id"] for b, r in last.items() if r["kind"] == "ALIAS"}
 
 
 def links(store, country: str | None = None) -> dict[str, int]:
@@ -160,7 +165,8 @@ def business_views(store, country: str, business_ids: set[int] | None = None) ->
 
 # --------------------------------------------------------------------------- decisions
 def current_validations(store, country: str, profile: str | None = None) -> dict[int, dict]:
-    """The current decision per business (and profile), following aliases."""
+    """The current decision per business (and profile), following aliases. A DUPLICATE rejection of an
+    absorbed business does not follow it: it is the merge itself, not a decision on the surviving one."""
     al = aliases(store)
     where = {"country": country}
     if profile:
@@ -168,6 +174,8 @@ def current_validations(store, country: str, profile: str | None = None) -> dict
     out: dict[int, dict] = {}
     for r in store.select("biz_lead_validation", where):
         bid = resolve_alias(r["business_id"], al)
+        if bid != r["business_id"] and r["decision"] == "EXCLUDED" and r.get("exclusion_reason") == "DUPLICATE":
+            continue
         cur = out.get(bid)
         if cur is None or (r["inserted_at"], r["reviewed_by"]) >= (cur["inserted_at"], cur["reviewed_by"]):
             out[bid] = r

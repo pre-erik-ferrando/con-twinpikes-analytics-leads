@@ -18,7 +18,7 @@ from .. import runs
 from ..config import precheck
 from ..domain import TERMINAL_RUN_STATES
 from ..matching import MatchConfig, apply_verdicts, match
-from ..state import (RunContext, business_views, current_validations, customer_index, latest, published_ids,
+from ..state import (RunContext, aliases, business_views, current_validations, customer_index, latest, published_ids,
                      resume_context, sync_human_decisions)
 from ..store import ENGINE_VIEWS
 from .capture import RunFailed
@@ -133,7 +133,9 @@ def to_review(store, capture_batch_id: str) -> list[int]:
         raise ValueError(f"capture batch {capture_batch_id} not found")
     batch = batches[0]
     country, profile = batch["country"], batch["profile"]
-    ids = {r["business_id"] for r in store.select("capture_batch_lead", {"capture_batch_id": capture_batch_id})}
+    al = aliases(store)       # an absorbed business is reviewed as the one that absorbed it, in its own batch
+    ids = {r["business_id"] for r in store.select("capture_batch_lead", {"capture_batch_id": capture_batch_id})
+           if r["business_id"] not in al}
     web = current_web(store, country, profile, ids)
     scored = {b for b in ids if web.get(b, {}).get("validation") in ("VALID", "REVIEW")}   # what lgn_f2_score scores
     vals = current_validations(store, country, profile)
@@ -195,7 +197,7 @@ def cancel_run(store, run_id: str, by: str) -> dict:
 def reopen(store, capture_batch_id: str, business_id: int, by: str) -> None:
     """Approved or Rejected -> To review, only before export (review DT.8). Reopening is inserting a PENDING
     row; reopening an ALREADY_CUSTOMER rejection also retracts the customer correction it created, so the
-    automatic match decides again."""
+    automatic match decides again, and reopening a DUPLICATE one undoes the merge (UNALIAS)."""
     batch = store.select("capture_batch", {"capture_batch_id": capture_batch_id})[0]
     if business_id in published_ids(store, batch["country"]):
         raise ValueError("a Published lead cannot go back to To review")
@@ -203,6 +205,13 @@ def reopen(store, capture_batch_id: str, business_id: int, by: str) -> None:
     current = latest(store.select("export_lead_out", {"business_id": business_id}), ("export_id",))
     if any(r["status"] == "GENERATED" for r in current.values()):
         raise ValueError("the lead is in a generated export: confirm it FAILED first")
+    own = [r for r in store.select("biz_lead_validation", {"business_id": business_id, "profile": batch["profile"]})]
+    own_last = max(own, key=lambda r: (r["inserted_at"], r["reviewed_by"])) if own else {}
+    if (own_last.get("decision") == "EXCLUDED" and own_last.get("exclusion_reason") == "DUPLICATE"
+            and business_id in aliases(store)):
+        store.insert("business_identity_out", [{"kind": "UNALIAS", "business_id": business_id,
+                                                "other_business_id": None, "reason": "HUMAN_REOPEN",
+                                                "run_id": batch["run_id"]}])
     cur = current_validations(store, batch["country"], batch["profile"]).get(business_id) or {}
     if cur.get("decision") == "EXCLUDED" and cur.get("exclusion_reason") == "ALREADY_CUSTOMER":
         store.insert("customer_match_out", [{

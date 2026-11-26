@@ -148,7 +148,9 @@ explícita todo lo que queda pendiente. Un rechazo por ser ya cliente (`ALREADY_
 además en una corrección del cruce, y uno por duplicado (`DUPLICATE`) en una fusión con la empresa que
 queda; las ejecuciones posteriores las respetan. Un lead aprobado o rechazado puede volver a revisión con
 `reopen` mientras no se haya exportado, o si su exportación se confirmó como FAILED; si era un
-`ALREADY_CUSTOMER`, `reopen` retira también la corrección del cruce y vuelve a decidir el cruce automático.
+`ALREADY_CUSTOMER`, `reopen` retira también la corrección del cruce y vuelve a decidir el cruce automático;
+si era un `DUPLICATE`, deshace la fusión. El rechazo por duplicado no pasa a la empresa que queda: solo la
+fusiona, y la absorbida desaparece de la cola.
 
 ### Paso 4: Exportación (`leadgen.py export` y después `confirm-export`)
 

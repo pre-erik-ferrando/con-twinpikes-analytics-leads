@@ -422,3 +422,29 @@ def test_sql_customer_match_decides_as_the_engine_after_a_retraction(ch):
     py = {b: r["outcome"] for b, r in deciding_matches(ch, "AT").items() if r}
     assert sql[ids[1]] == "CUSTOMER" and sql.get(ids[0]) != "CUSTOMER"
     assert sql == py
+
+
+def test_sql_validation_and_alias_decide_as_the_engine_after_a_duplicate(ch):
+    """A DUPLICATE rejection merged (ALIAS), and a second one merged then reopened (UNALIAS):
+    lgn_d_business_alias and lgn_f_validation answer as state.aliases and state.current_validations."""
+    import time
+    from leadgen.state import aliases, current_validations
+    a, b, c, d = [int(x) for (x,) in ch.client.query(
+        "SELECT business_id FROM fld_bizlgn.lgn_f2_score WHERE country = 'DE' ORDER BY business_id LIMIT 4").result_rows]
+    val = {"profile": "POOL_SPECIALIST", "country": "DE", "run_id": "t", "capture_batch_id": "cb_t",
+           "decision": "EXCLUDED", "exclusion_reason": "DUPLICATE", "approval_scope": "LEAD", "reviewed_by": "ops"}
+    ch.insert("biz_lead_validation", [{**val, "business_id": a, "duplicate_of": b},
+                                      {**val, "business_id": c, "duplicate_of": d}])
+    ch.insert("business_identity_out", [{"kind": "ALIAS", "business_id": x, "other_business_id": y,
+                                         "reason": "HUMAN_DUPLICATE", "run_id": "t"} for x, y in ((a, b), (c, d))])
+    time.sleep(0.05)
+    ch.insert("business_identity_out", [{"kind": "UNALIAS", "business_id": c, "reason": "HUMAN_REOPEN",
+                                         "run_id": "t"}])
+    sql_al = {int(o): int(s) for o, s in ch.client.query(
+        "SELECT old_id, surviving_id FROM fld_crplgn.lgn_d_business_alias").result_rows}
+    assert sql_al[a] == b and c not in sql_al and sql_al == aliases(ch)
+    sql_val = {int(x): (dec, r) for x, dec, r in ch.client.query(
+        "SELECT business_id, decision, exclusion_reason FROM fld_bizlgn.lgn_f_validation WHERE country = 'DE'"
+        ).result_rows}
+    py_val = {x: (v["decision"], v.get("exclusion_reason")) for x, v in current_validations(ch, "DE").items()}
+    assert b not in sql_val and sql_val[c] == ("EXCLUDED", "DUPLICATE") and sql_val == py_val

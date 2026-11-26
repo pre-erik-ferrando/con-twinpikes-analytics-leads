@@ -1,7 +1,9 @@
 {{ config(materialized='view') }}
 -- The current Sales Ops decision per business and profile (biz_lead_validation, written by Intelek):
 -- last row by (inserted_at, reviewed_by). The alias is resolved BEFORE taking the last row, so a merged
--- business keeps one decision (the latest of its own and its absorbed businesses'), never two rows.
+-- business keeps one decision (the latest of its own and its absorbed businesses'), never two rows. A
+-- DUPLICATE rejection of an absorbed business does not follow it: it is the merge itself, not a decision
+-- on the surviving business (state.current_validations).
 SELECT
     v.business_id                                                 AS business_id,
     v.profile                                                     AS profile,
@@ -31,6 +33,8 @@ FROM (
         src.inserted_at                                           AS inserted_at
     FROM {{ source('writeback', 'biz_lead_validation') }} AS src
     LEFT JOIN {{ ref('lgn_d_business_alias') }} AS al ON al.old_id = src.pk_business_id
+    WHERE NOT (isNotNull(al.surviving_id) AND src.des_decision = 'EXCLUDED'
+               AND ifNull(src.des_exclusion_reason, '') = 'DUPLICATE')
 ) AS v
 GROUP BY v.business_id, v.profile
 SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

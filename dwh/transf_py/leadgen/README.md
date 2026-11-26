@@ -55,6 +55,8 @@ An error or Ctrl-C ends a run FAILED, never RUNNING; `cancel RUN` ends one left 
 - A cost approval always has an amount.
 - Sales Ops' customer correction counts while it is the latest (reopen RETRACTS it); a FAILED export
   does not freeze the score.
+- A DUPLICATE rejection merges (ALIAS) without excluding the surviving business; reopen undoes the merge
+  (UNALIAS). An absorbed business leaves the review queue.
 - An approved lead whose business, listing, phone or domain is later suppressed is not exported.
 - A failed, truncated or schema-invalid answer is retried once through the direct API, then the lead is
   REVIEW with reason TECHNICAL.

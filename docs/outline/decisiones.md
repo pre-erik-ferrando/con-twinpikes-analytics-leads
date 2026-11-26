@@ -63,6 +63,7 @@ Sin cambios sobre la definición.
 | Sales Ops puede corregir una exclusión suya (la definición la hace permanente); las de Salesforce sí son permanentes | Hecho | Una corrección no se podía deshacer |
 | Un aprobado vuelve a revisión con `reopen` mientras no se exporta | Hecho | Revisión técnica |
 | `reopen` de un rechazo `ALREADY_CUSTOMER` retira también la corrección del cruce que creó | Hecho (26-11) | Si no, el lead quedaba como cliente para siempre y no volvía a la cola |
+| Un rechazo `DUPLICATE` fusiona la empresa con la que queda sin excluir a esta; `reopen` deshace la fusión | Hecho (26-11) | Antes, la exclusión pasaba a la empresa que queda y la absorbida volvía a la cola |
 
 ### 8. Exportación a Salesforce
 
