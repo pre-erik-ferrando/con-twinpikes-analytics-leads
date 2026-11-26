@@ -214,19 +214,23 @@ def ref_sf_status_rows(store) -> list[dict]:
 
 
 def ref_sf_status(store) -> list[dict]:
-    """lgn_d_sf_status: per lead and month, the latest import's row without issue; is_current = latest month."""
+    """lgn_d_sf_status: per lead and month, the latest import's row without issue; is_current: one per
+    business, the latest month, then the latest import, then the lowest lead code."""
     best: dict[tuple, dict] = {}
     for r in ref_sf_status_rows(store):
         if r["issue"] is None:
             k = (r["lead_code"], r["status_month"])
             if k not in best or (str(r["imported_at"]), r["row_no"]) > (str(best[k]["imported_at"]), best[k]["row_no"]):
                 best[k] = r
-    last = {}
-    for (code, month) in best:
-        last[code] = max(last.get(code, ""), month)
+    current: dict[int, tuple] = {}
+    for k, r in best.items():
+        when, code = (r["status_month"], str(r["imported_at"])), r["lead_code"]
+        cur = current.get(r["business_id"])
+        if cur is None or when > cur[0] or (when == cur[0] and code < cur[1]):
+            current[r["business_id"]] = (when, code, k)
     keep = ("lead_code", "business_id", "country", "status_month", "status", "discard_reason", "subregion_code",
             "sf_lead_id", "company_name", "status_file_id", "imported_at")
-    return [{**{c: r[c] for c in keep}, "is_current": int(k[1] == last[k[0]])} for k, r in best.items()]
+    return [{**{c: r[c] for c in keep}, "is_current": int(current[r["business_id"]][2] == k)} for k, r in best.items()]
 
 
 # --------------------------------------------------------------------------- permanent exclusions (DT.8.1)

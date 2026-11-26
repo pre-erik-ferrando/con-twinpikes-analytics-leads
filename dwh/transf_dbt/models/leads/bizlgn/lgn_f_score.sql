@@ -7,13 +7,14 @@
 WITH exports AS (
     -- each export of the lead with its current status (confirm adds a row: the GENERATED one stays)
     SELECT
-        f.business_id AS business_id, f.profile AS profile, f.export_id AS export_id,
+        coalesce(al.surviving_id, f.business_id) AS business_id, f.profile AS profile, f.export_id AS export_id,
         argMax(f.status, f.inserted_at) AS status, argMax(f.country, f.inserted_at) AS country,
         argMax(f.total, f.inserted_at) AS total, argMax(f.rating, f.inserted_at) AS rating,
         argMax(f.breakdown, f.inserted_at) AS breakdown, min(f.inserted_at) AS frozen_at
     FROM {{ source('engine', 'export_lead_out') }} AS f
+    LEFT JOIN {{ ref('lgn_d_business_alias') }} AS al ON al.old_id = f.business_id
     WHERE isNotNull(f.total)
-    GROUP BY f.business_id, f.profile, f.export_id
+    GROUP BY coalesce(al.surviving_id, f.business_id), f.profile, f.export_id
 ),
 frozen AS (
     SELECT
@@ -36,3 +37,4 @@ SELECT
     fr.business_id, fr.country, fr.profile, fr.total, fr.rating, fr.breakdown,
     'EXPORT', CAST(fr.export_id AS Nullable(String))
 FROM frozen AS fr
+SETTINGS join_use_nulls = 1, join_algorithm = 'hash'

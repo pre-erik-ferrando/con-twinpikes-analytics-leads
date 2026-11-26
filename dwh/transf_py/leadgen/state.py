@@ -195,13 +195,16 @@ def permanent_exclusions(store, country: str, profile: str | None) -> dict[int, 
 
 
 def exported(store, country: str) -> dict[tuple, dict]:
-    """(business_id, export_id) -> the latest row of that lead in that export (any status)."""
-    return latest(store.select("export_lead_out", {"country": country}), ("business_id", "export_id"))
+    """(business_id, export_id) -> the latest row of that lead in that export (any status), under the
+    surviving business: a lead exported before a merge stays exported (lgn_f_export_lead)."""
+    al = aliases(store)
+    rows = [{**r, "business_id": resolve_alias(r["business_id"], al)}
+            for r in store.select("export_lead_out", {"country": country})]
+    return latest(rows, ("business_id", "export_id"))
 
 
 def published_ids(store, country: str) -> set[int]:
-    rows = latest(store.select("export_lead_out", {"country": country}), ("business_id", "export_id"))
-    return {k[0] for k, v in rows.items() if v["status"] == "UPLOADED"}
+    return {k[0] for k, v in exported(store, country).items() if v["status"] == "UPLOADED"}
 
 
 def suppressed(store) -> dict[str, set]:

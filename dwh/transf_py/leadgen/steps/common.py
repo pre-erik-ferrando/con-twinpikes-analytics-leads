@@ -9,7 +9,8 @@ from ..config import Config
 from ..geo import AdminArea, AreaIndex, polygons_from_geojson
 from ..matching import CustomerIndex, LeadFacts, MatchConfig, MatchResult, match, resolve_priority
 from ..normalize import email_domain, name_keys, normalize_postal_code, normalize_text
-from ..state import BusinessView, RunContext, customer_index, latest
+from ..identity import resolve_alias
+from ..state import BusinessView, RunContext, aliases, customer_index, latest
 
 
 # --------------------------------------------------------------------------- geography
@@ -119,21 +120,24 @@ def deciding_matches(store, country: str, business_ids: set[int] | None = None) 
     """business_id -> the match row that decides (human/Salesforce > hard > model > soft), taken among the
     LATEST automatic pass, the LATEST Sales Ops correction (none if it is RETRACTED: Sales Ops reopened the
     lead) and every Salesforce correction."""
-    rows = [r for r in store.select("customer_match_out", {"country": country})
-            if business_ids is None or r["business_id"] in business_ids]
-    by: dict[int, list[dict]] = {}
-    for r in rows:
-        by.setdefault(r["business_id"], []).append(r)
+    al = aliases(store)
+    by: dict[int, dict[int, list[dict]]] = {}           # surviving business -> its own id or absorbed -> rows
+    for r in store.select("customer_match_out", {"country": country}):
+        bid = resolve_alias(r["business_id"], al)
+        if business_ids is None or bid in business_ids:
+            by.setdefault(bid, {}).setdefault(r["business_id"], []).append({**r, "business_id": bid})
     out = {}
-    for bid, rs in by.items():
-        manual = [r for r in rs if r["origin"] == "SALESFORCE"]
-        human = [r for r in rs if r["origin"] == "HUMAN"]
-        last_human = max(human, key=lambda r: r["inserted_at"]) if human else None
-        if last_human and last_human["outcome"] != "RETRACTED":
-            manual.append(last_human)
-        auto = [r for r in rs if r["origin"] == "AUTO"]
-        last_auto = [max(auto, key=lambda r: r["inserted_at"])] if auto else []
-        out[bid] = resolve_priority(manual + last_auto)
+    for bid, per_id in by.items():
+        pool = []
+        for rs in per_id.values():                       # the latest pass and correction of each id
+            pool += [r for r in rs if r["origin"] == "SALESFORCE"]
+            human = [r for r in rs if r["origin"] == "HUMAN"]
+            last_human = max(human, key=lambda r: r["inserted_at"]) if human else None
+            if last_human and last_human["outcome"] != "RETRACTED":
+                pool.append(last_human)
+            auto = [r for r in rs if r["origin"] == "AUTO"]
+            pool += [max(auto, key=lambda r: r["inserted_at"])] if auto else []
+        out[bid] = resolve_priority(pool)
     return out
 
 
@@ -142,8 +146,11 @@ def is_customer(row: dict | None) -> bool:
 
 
 def current_web(store, country: str, profile: str | None, business_ids: set[int] | None = None) -> dict[int, dict]:
-    rows = [r for r in store.select("web_validation_out", {"country": country})
-            if r.get("profile") == profile and (business_ids is None or r["business_id"] in business_ids)]
+    """business_id -> its latest website analysis, under the surviving business (lgn_d_enrichment)."""
+    al = aliases(store)
+    rows = [{**r, "business_id": resolve_alias(r["business_id"], al)}
+            for r in store.select("web_validation_out", {"country": country}) if r.get("profile") == profile]
+    rows = [r for r in rows if business_ids is None or r["business_id"] in business_ids]
     return {k[0]: v for k, v in latest(rows, ("business_id",)).items()}
 
 

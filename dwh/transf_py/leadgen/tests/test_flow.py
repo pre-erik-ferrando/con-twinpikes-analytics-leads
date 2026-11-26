@@ -736,3 +736,21 @@ def test_duplicate_rejection_merges_without_excluding_the_survivor_and_reopen_un
     store.advance(seconds=1)
     _capture(store, ITEMS[:1])                                       # rejected again: merged again
     assert aliases(store) == {a: b}
+
+
+def test_a_lead_exported_before_a_merge_is_not_exported_again(store, tmp_path):
+    from leadgen.state import published_ids
+    two = ITEMS[:1] + [item("p_two", "Schwimmbad Zwei", ["Schwimmbadbauer"], phone="+43662777777",
+                            website="https://poolbau-huber.at/impressum", lat=47.0, lng=15.4)]
+    ctx, _ = _capture(store, two)
+    run_enrich(store, FakeProvider(), crawler(), EnrichRequest(ctx.capture_batch_id, "ops"))
+    a, b = to_review(store, ctx.capture_batch_id)
+    approve_rest(store, ctx.capture_batch_id, "ops", visible=[a])
+    _, xs = run_export(store, ctx.capture_batch_id, "ops", tmp_path)
+    assert xs["exported"] == 1
+    confirm(store, xs["export_id"], "UPLOADED", "ops")
+    store.advance(seconds=1)
+    store.insert("business_identity_out", [{"kind": "ALIAS", "business_id": a, "other_business_id": b,
+                                            "reason": "SAME_PHONE", "run_id": "t"}])   # a later capture merges them
+    assert b in published_ids(store, "AT")
+    assert run_export(store, ctx.capture_batch_id, "ops", tmp_path)[1]["exported"] == 0

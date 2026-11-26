@@ -60,7 +60,8 @@ Código: [steps/capture.py](../dwh/transf_py/leadgen/steps/capture.py).
    comparadas con los límites oficiales, nunca del código postal.
 4. **Identidad** ([identity.py](../dwh/transf_py/leadgen/identity.py)): cada ficha se convierte en un
    `business_id` estable. La misma empresa encontrada dos veces, por ejemplo con el mismo teléfono, se
-   une en una sola con alias. Por eso un lead puede volver a aparecer el mes siguiente sin duplicarse.
+   une en una sola con alias. Por eso un lead puede volver a aparecer el mes siguiente sin duplicarse. Lo
+   que tenía la absorbida (validación, exportación, web, cruce, estado en Salesforce) pasa a la que queda.
 5. **Filtro** (en SQL: [lgn_f_rule_evaluation.sql](../dwh/transf_dbt/models/leads/bizlgn/lgn_f_rule_evaluation.sql)):
    reglas deterministas sobre lo que dice Google, en un orden fijo, con la configuración vigente. El motor
    normaliza los textos (título, descripción, categorías) y lee la decisión de la vista. Decide la primera

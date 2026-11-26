@@ -58,6 +58,8 @@ An error or Ctrl-C ends a run FAILED, never RUNNING; `cancel RUN` ends one left 
   does not freeze the score.
 - A DUPLICATE rejection merges (ALIAS) without excluding the surviving business; reopen undoes the merge
   (UNALIAS). An absorbed business leaves the review queue.
+- Everything of an absorbed business (validations, exports, website analyses, customer matches, Salesforce
+  status, frozen score) counts for the surviving one, along chains (four links in SQL, lgn_d_business_alias).
 - An approved lead whose business, listing, phone or domain is later suppressed is not exported.
 - A failed, truncated or schema-invalid answer is retried once through the direct API, then the lead is
   REVIEW with reason TECHNICAL.

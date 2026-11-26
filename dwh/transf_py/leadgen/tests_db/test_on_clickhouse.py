@@ -448,3 +448,37 @@ def test_sql_validation_and_alias_decide_as_the_engine_after_a_duplicate(ch):
         ).result_rows}
     py_val = {x: (v["decision"], v.get("exclusion_reason")) for x, v in current_validations(ch, "DE").items()}
     assert b not in sql_val and sql_val[c] == ("EXCLUDED", "DUPLICATE") and sql_val == py_val
+
+
+def test_sql_follows_merges_as_the_engine(ch):
+    """Chains and a cycle resolve as identity.resolve_alias; after merging the two exported Austrian leads
+    (both with Salesforce statuses), exports, matches and analyses follow the surviving business, and
+    lgn_v_lead keeps one row per lead."""
+    from leadgen.identity import resolve_alias
+    from leadgen.state import aliases, exported
+    from leadgen.steps.common import current_web, deciding_matches
+    chain = [(91, 92), (92, 93), (93, 94), (81, 82), (82, 81)]          # 91 -> 94 in three links; 81 <-> 82
+    ch.insert("business_identity_out", [{"kind": "ALIAS", "business_id": a, "other_business_id": b,
+                                         "reason": "TEST", "run_id": "t"} for a, b in chain])
+    al = aliases(ch)
+    sql_al = {int(o): int(s) for o, s in ch.client.query(
+        "SELECT old_id, surviving_id FROM fld_crplgn.lgn_d_business_alias").result_rows}
+    assert sql_al == {o: resolve_alias(o, al) for o in al} and sql_al[91] == 94
+    a, b = sorted({int(b) for (b,) in ch.client.query(
+        "SELECT business_id FROM fld_bizlgn.export_lead_out WHERE country = 'AT' AND export_id != 'exp_failed'"
+        ).result_rows})[:2]
+    ch.insert("business_identity_out", [{"kind": "ALIAS", "business_id": a, "other_business_id": b,
+                                         "reason": "TEST", "run_id": "t"}])
+    q = ch.client.query
+    assert q("SELECT count() FROM fld_bizlgn.lgn_v_lead GROUP BY pk_business_id, pk_profile "
+             "HAVING count() > 1").result_rows == []
+    assert q(f"SELECT count() FROM fld_bizlgn.lgn_v_lead WHERE pk_business_id = {a}").result_rows == [(0,)]
+    sql_exp = {(int(x), e) for x, e in q("SELECT business_id, export_id FROM fld_bizlgn.lgn_f_export_lead "
+                                         "WHERE country = 'AT'").result_rows}
+    assert sql_exp == set(exported(ch, "AT"))
+    sql_m = {int(x): o for x, o in q("SELECT business_id, outcome FROM fld_bizlgn.lgn_f_customer_match "
+                                     "WHERE country = 'AT'").result_rows}
+    assert sql_m == {x: r["outcome"] for x, r in deciding_matches(ch, "AT").items() if r}
+    sql_w = {int(x): v for x, v in q("SELECT business_id, validation FROM fld_crplgn.lgn_d_enrichment "
+                                     "WHERE country = 'AT' AND profile = 'POOL_SPECIALIST'").result_rows}
+    assert sql_w == {x: r["validation"] for x, r in current_web(ch, "AT", "POOL_SPECIALIST").items()}

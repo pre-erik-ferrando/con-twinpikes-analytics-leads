@@ -1,11 +1,13 @@
 {{ config(materialized='view') }}
 -- A lead's state in Salesforce per month (DT.8.4), key (lead_code, status_month): the rows of the status
 -- files without issue (lgn_d_sf_status_row), the latest import of each month wins. The current state is
--- the one of the latest month (is_current = 1).
+-- the one of the latest month (is_current = 1), one per business: two lead codes of businesses merged
+-- later give one current state (the latest month, the latest import, then the lowest lead code).
 SELECT
     q.lead_code, q.business_id, q.country, q.status_month, q.status, q.discard_reason, q.subregion_code,
     q.sf_lead_id, q.company_name, q.status_file_id, q.imported_at,
-    toUInt8(q.status_month = max(q.status_month) OVER (PARTITION BY q.lead_code)) AS is_current
+    toUInt8(row_number() OVER (PARTITION BY q.business_id
+                               ORDER BY q.status_month DESC, q.imported_at DESC, q.lead_code ASC) = 1) AS is_current
 FROM (
     SELECT
         assumeNotNull(r.lead_code) AS lead_code, assumeNotNull(r.business_id) AS business_id,

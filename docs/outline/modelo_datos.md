@@ -37,6 +37,9 @@ incluidos, con el descuento de lote y los precios de lectura y escritura de cach
 - `business_id`: una empresa, `cityHash64(place_id)` de su primera ficha, fijo para siempre. Una ficha
   nueva con un teléfono ya registrado hereda la empresa si el nombre se parece (≥ 30) o está a 500 m o
   menos; si no, quedan separadas y marcadas `is_merge_suspect`. Si una ficha une dos empresas, sobrevive
-  la más antigua y la otra queda como alias.
+  la más antigua y la otra queda como alias. Todo lo de la absorbida (validaciones, exportaciones, análisis
+  de la web, cruce con clientes, estados de Salesforce, puntuación congelada) pasa a la que sobrevive, también
+  en cadena (A → B → C, hasta cuatro saltos en SQL): un lead exportado antes de la fusión no se exporta otra
+  vez, y aparece una sola vez en `lgn_v_lead`.
 - `lead_code`: `<país>-<business_id>`, el que viaja a Salesforce y vuelve en el fichero de estados de Salesforce.
 - Grano de un lead: empresa × perfil (la misma empresa con dos perfiles se analiza y puntúa dos veces).
